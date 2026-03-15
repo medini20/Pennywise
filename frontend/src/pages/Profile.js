@@ -1,112 +1,230 @@
-import React, { useState } from "react";
-import "../App.css";
+import React, { useState, useRef } from "react";
+import "./Profile.css";
+import Webcam from "react-webcam";
 
 function Profile() {
 
-  const [profile, setProfile] = useState({
-    name: "alex_user_92",
-    email: "alex.user92@gmail.com"
-  });
+  const [username, setUsername] = useState("alex_usakshithaakshitha");
+  const [email, setEmail] = useState("alex.user92@gmail.com");
+const webcamRef = useRef(null);
+  const [editUser, setEditUser] = useState(false);
+  const [editEmail, setEditEmail] = useState(false);
+const [showCamera, setShowCamera] = useState(false);
+  const [tempUser, setTempUser] = useState(username);
+  const [tempEmail, setTempEmail] = useState(email);
+const [showOptions, setShowOptions] = useState(false);
+  const [profileImage, setProfileImage] = useState(
+    "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
+  );
 
-  const [editField, setEditField] = useState(null);
-  const [tempValue, setTempValue] = useState("");
+  /* CHANGE PROFILE IMAGE */
 
-  const startEdit = (field) => {
-    setEditField(field);
-    setTempValue(profile[field]);
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const imageURL = URL.createObjectURL(file);
+      setProfileImage(imageURL);
+    }
   };
 
-  const saveEdit = () => {
-    setProfile({
-      ...profile,
-      [editField]: tempValue
-    });
 
-    setEditField(null);
+  /* USERNAME EDIT */
+
+  const handleEditUser = () => {
+    setTempUser(username);
+    setEditUser(true);
   };
+
+  const saveUser = () => {
+    setUsername(tempUser);
+    setEditUser(false);
+  };
+
+
+  /* EMAIL EDIT */
+
+  const handleEditEmail = () => {
+    setTempEmail(email);
+    setEditEmail(true);
+  };
+
+  const saveEmail = () => {
+    setEmail(tempEmail);
+    setEditEmail(false);
+  };
+
 
   return (
     <div className="profile-wrapper">
 
-      <div className="profile-container">
+      {/* PROFILE IMAGE */}
 
-        <img
-          src="https://cdn-icons-png.flaticon.com/512/149/149071.png"
-          className="profile-avatar"
-          alt="avatar"
-        />
+      <img
+        src={profileImage}
+        alt="profile"
+        className="profile-avatar"
+      />
 
-        <button className="change-profile-btn">
-          Change Profile
-        </button>
+      <button
+className="change-btn"
+onClick={() => setShowOptions(true)}
+>
+Change Profile
+</button>
+{showOptions && (
+
+<div className="profile-popup">
+
+<div className="popup-box">
+
+<button onClick={()=>{
+setShowOptions(false);
+setShowCamera(true);
+}}>
+📷 Camera
+</button>
+
+<button
+onClick={()=>{
+document.getElementById("galleryUpload").click();
+setShowOptions(false);
+}}
+>
+🖼 Gallery
+</button>
+
+<button
+onClick={()=>{
+setProfileImage("https://cdn-icons-png.flaticon.com/512/3135/3135715.png");
+setShowOptions(false);
+}}
+>
+❌ Remove Photo
+</button>
+
+<button
+onClick={()=>setShowOptions(false)}
+>
+Cancel
+</button>
+
+</div>
+
+</div>
+
+)}
+<input
+id="cameraUpload"
+type="file"
+accept="image/*"
+capture="environment"
+style={{display:"none"}}
+onChange={handleImageChange}
+/>
+
+<input
+id="galleryUpload"
+type="file"
+accept="image/*"
+style={{display:"none"}}
+onChange={handleImageChange}
+/>
+{showCamera && (
+<div className="camera-modal">
+
+<Webcam
+screenshotFormat="image/jpeg"
+width={350}
+height={300}
+ref={webcamRef}
+/>
+
+<button
+onClick={()=>{
+const imageSrc = webcamRef.current.getScreenshot();
+setProfileImage(imageSrc);
+setShowCamera(false);
+}}
+>
+Capture
+</button>
+
+<button onClick={()=>setShowCamera(false)}>
+Cancel
+</button>
+
+</div>
+)}
+    
 
 
-        {/* USERNAME CARD */}
+      {/* USERNAME */}
 
-        <div className="profile-card">
+      <div className="profile-card">
 
-          <div>
-            <p className="profile-label">Username</p>
+        <div>
+          <div className="label">Username</div>
 
-            {editField === "name" ? (
-              <input
-                value={tempValue}
-                onChange={(e) => setTempValue(e.target.value)}
-              />
-            ) : (
-              <p className="profile-value">{profile.name}</p>
-            )}
-
-          </div>
-
-          {editField === "name" ? (
-            <button className="edit-btn" onClick={saveEdit}>
-              Save
-            </button>
+          {editUser ? (
+            <input
+              className="input-box"
+              value={tempUser}
+              onChange={(e) => setTempUser(e.target.value)}
+            />
           ) : (
-            <button className="edit-btn" onClick={() => startEdit("name")}>
-              Edit
-            </button>
+            <div className="value">{username}</div>
           )}
 
         </div>
 
-
-        {/* EMAIL CARD */}
-
-        <div className="profile-card">
-
-          <div>
-            <p className="profile-label">Email</p>
-
-            {editField === "email" ? (
-              <input
-                value={tempValue}
-                onChange={(e) => setTempValue(e.target.value)}
-              />
-            ) : (
-              <p className="profile-value">{profile.email}</p>
-            )}
-
-          </div>
-
-          {editField === "email" ? (
-            <button className="edit-btn" onClick={saveEdit}>
-              Save
-            </button>
-          ) : (
-            <button className="edit-btn" onClick={() => startEdit("email")}>
-              Edit
-            </button>
-          )}
-
-        </div>
-
-        <button className="logout-btn">
-          Log Out
-        </button>
+        {editUser ? (
+          <button className="edit-btn" onClick={saveUser}>
+            Save
+          </button>
+        ) : (
+          <button className="edit-btn" onClick={handleEditUser}>
+            Edit
+          </button>
+        )}
 
       </div>
+
+
+      {/* EMAIL */}
+
+      <div className="profile-card">
+
+        <div>
+          <div className="label">Email</div>
+
+          {editEmail ? (
+            <input
+              className="input-box"
+              value={tempEmail}
+              onChange={(e) => setTempEmail(e.target.value)}
+            />
+          ) : (
+            <div className="value">{email}</div>
+          )}
+
+        </div>
+
+        {editEmail ? (
+          <button className="edit-btn" onClick={saveEmail}>
+            Save
+          </button>
+        ) : (
+          <button className="edit-btn" onClick={handleEditEmail}>
+            Edit
+          </button>
+        )}
+
+      </div>
+
+
+      <button className="logout-btn">
+        Log Out
+      </button>
 
     </div>
   );

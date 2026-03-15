@@ -1,20 +1,44 @@
-import React from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
+import "../App.css";
 
-function Sidebar() {
-  return (
-    <div>
-      <h2>PENNYWISE</h2>
+function Sidebar(){
 
-      <nav>
-        <Link to="/records">Records</Link><br/>
-        <Link to="/charts">Charts</Link><br/>
-        <Link to="/budget">Budget</Link><br/>
-        <Link to="/alerts">Alerts</Link><br/>
-        <Link to="/profile">Profile</Link>
-      </nav>
-    </div>
-  );
+const location = useLocation();
+
+return(
+
+<div className="sidebar">
+
+<div className="logo">
+<span className="logo-icon">📊</span>
+<span>PENNYWISE</span>
+</div>
+
+
+<Link className={location.pathname === "/" ? "active" : ""} to="/">
+Records
+</Link>
+
+<Link className={location.pathname === "/analytics" ? "active" : ""} to="/analytics">
+Charts
+</Link>
+
+<Link className={location.pathname === "/budget" ? "active" : ""} to="/budget">
+Budget
+</Link>
+
+<Link className={location.pathname === "/alerts" ? "active" : ""} to="/alerts">
+Alerts
+</Link>
+
+<Link className={location.pathname === "/profile" ? "active" : ""} to="/profile">
+Profile
+</Link>
+
+</div>
+
+);
+
 }
 
 export default Sidebar;
