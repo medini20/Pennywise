@@ -1,30 +1,43 @@
 import { Link, useLocation } from "react-router-dom";
 import "../App.css";
 
-function Sidebar() {
+function Sidebar(){
 
-  const location = useLocation();
+const location = useLocation();
 
-  return (
+return(
 
-    <div className="sidebar">
+<div className="sidebar">
 
-      <div className="logo">
+<div className="logo">
+<span className="logo-icon">📊</span>
+<span>PENNYWISE</span>
+</div>
 
-        <span className="logo-icon">📊</span>
-        <span>PENNYWISE</span>
 
-      </div>
+<Link className={location.pathname === "/" ? "active" : ""} to="/">
+Records
+</Link>
 
-      <Link className={location.pathname === "/" ? "active" : ""} to="/">Records</Link>
-      <Link className={location.pathname === "/analytics" ? "active" : ""} to="/analytics">Charts</Link>
-      <Link className={location.pathname === "/budget" ? "active" : ""} to="/budget">Budget</Link>
-      <Link className={location.pathname === "/alerts" ? "active" : ""} to="/alerts">Alerts</Link>
-      <Link className={location.pathname === "/profile" ? "active" : ""} to="/profile">Profile</Link>
+<Link className={location.pathname === "/analytics" ? "active" : ""} to="/analytics">
+Charts
+</Link>
 
-    </div>
+<Link className={location.pathname === "/budget" ? "active" : ""} to="/budget">
+Budget
+</Link>
 
-  );
+<Link className={location.pathname === "/alerts" ? "active" : ""} to="/alerts">
+Alerts
+</Link>
+
+<Link className={location.pathname === "/profile" ? "active" : ""} to="/profile">
+Profile
+</Link>
+
+</div>
+
+);
 
 }
 
