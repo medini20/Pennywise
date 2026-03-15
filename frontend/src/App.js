@@ -1,5 +1,7 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
+import Sidebar from "./components/Sidebar";
+
 import Dashboard from "./pages/Dashboard";
 import Transactions from "./pages/Transactions";
 import Category from "./pages/Category";
@@ -7,31 +9,36 @@ import Budget from "./pages/Budget";
 import Analytics from "./pages/Analytics";
 import Profile from "./pages/Profile";
 
-function App(){
+function App() {
 
-return(
+  return (
 
-<BrowserRouter>
+    <BrowserRouter>
 
-<Routes>
+      <div style={{display:"flex"}}>
 
-<Route path="/" element={<Dashboard />} />
+        <Sidebar />
 
-<Route path="/transactions" element={<Transactions />} />
+        <div className="page-content">
 
-<Route path="/category" element={<Category />} />
+          <Routes>
 
-<Route path="/budget" element={<Budget />} />
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/transactions" element={<Transactions />} />
+            <Route path="/category" element={<Category />} />
+            <Route path="/budget" element={<Budget />} />
+            <Route path="/analytics" element={<Analytics />} />
+            <Route path="/profile" element={<Profile />} />
 
-<Route path="/analytics" element={<Analytics />} />
+          </Routes>
 
-<Route path="/profile" element={<Profile />} />
+        </div>
 
-</Routes>
+      </div>
 
-</BrowserRouter>
+    </BrowserRouter>
 
-)
+  );
 
 }
 

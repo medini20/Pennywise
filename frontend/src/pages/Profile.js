@@ -1,76 +1,114 @@
-import React from "react";
+import React, { useState } from "react";
+import "../App.css";
 
 function Profile() {
+
+  const [profile, setProfile] = useState({
+    name: "alex_user_92",
+    email: "alex.user92@gmail.com"
+  });
+
+  const [editField, setEditField] = useState(null);
+  const [tempValue, setTempValue] = useState("");
+
+  const startEdit = (field) => {
+    setEditField(field);
+    setTempValue(profile[field]);
+  };
+
+  const saveEdit = () => {
+    setProfile({
+      ...profile,
+      [editField]: tempValue
+    });
+
+    setEditField(null);
+  };
+
   return (
+    <div className="profile-wrapper">
 
-    <div className="flex bg-[#0b1230] min-h-screen text-white">
+      <div className="profile-container">
 
-      {/* Sidebar */}
-      <div className="w-60 bg-[#0f1a3a] p-6">
+        <img
+          src="https://cdn-icons-png.flaticon.com/512/149/149071.png"
+          className="profile-avatar"
+          alt="avatar"
+        />
 
-        <h2 className="text-xl font-bold mb-10">PENNYWISE</h2>
-
-        <ul className="space-y-4">
-
-          <li>Records</li>
-          <li>Charts</li>
-          <li>Budget</li>
-          <li>Alerts</li>
-
-          <li className="bg-blue-600 p-2 rounded">
-            Profile
-          </li>
-
-        </ul>
-
-      </div>
-
-      {/* Main profile section */}
-      <div className="flex-1 flex flex-col items-center pt-20">
-
-        {/* Avatar */}
-        <div className="w-40 h-40 bg-gray-400 rounded-full mb-6"></div>
-
-        <button className="border border-blue-500 px-4 py-2 rounded mb-10">
+        <button className="change-profile-btn">
           Change Profile
         </button>
 
-        {/* Username */}
-        <div className="bg-[#111c44] w-96 p-6 rounded-lg flex justify-between items-center mb-6">
+
+        {/* USERNAME CARD */}
+
+        <div className="profile-card">
 
           <div>
-            <p className="text-gray-400">Username</p>
-            <p className="text-lg">alex_user_92</p>
+            <p className="profile-label">Username</p>
+
+            {editField === "name" ? (
+              <input
+                value={tempValue}
+                onChange={(e) => setTempValue(e.target.value)}
+              />
+            ) : (
+              <p className="profile-value">{profile.name}</p>
+            )}
+
           </div>
 
-          <button className="bg-blue-500 px-4 py-2 rounded">
-            Edit
-          </button>
+          {editField === "name" ? (
+            <button className="edit-btn" onClick={saveEdit}>
+              Save
+            </button>
+          ) : (
+            <button className="edit-btn" onClick={() => startEdit("name")}>
+              Edit
+            </button>
+          )}
 
         </div>
 
-        {/* Email */}
-        <div className="bg-[#111c44] w-96 p-6 rounded-lg flex justify-between items-center mb-10">
+
+        {/* EMAIL CARD */}
+
+        <div className="profile-card">
 
           <div>
-            <p className="text-gray-400">Email</p>
-            <p className="text-lg">alex.user92@gmail.com</p>
+            <p className="profile-label">Email</p>
+
+            {editField === "email" ? (
+              <input
+                value={tempValue}
+                onChange={(e) => setTempValue(e.target.value)}
+              />
+            ) : (
+              <p className="profile-value">{profile.email}</p>
+            )}
+
           </div>
 
-          <button className="bg-blue-500 px-4 py-2 rounded">
-            Edit
-          </button>
+          {editField === "email" ? (
+            <button className="edit-btn" onClick={saveEdit}>
+              Save
+            </button>
+          ) : (
+            <button className="edit-btn" onClick={() => startEdit("email")}>
+              Edit
+            </button>
+          )}
 
         </div>
 
-        <button className="border border-red-500 px-6 py-2 rounded text-red-500">
+        <button className="logout-btn">
           Log Out
         </button>
 
       </div>
 
     </div>
-
   );
 }
 
