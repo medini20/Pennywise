@@ -1,214 +1,190 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 
-function Budget(){
+function Budget() {
 
-const [category,setCategory]=useState("");
-const [budgetAmount,setBudgetAmount]=useState("");
+  const [budgets, setBudgets] = useState([]);
 
-const [budgets,setBudgets]=useState([
-{category:"Food & Dining",budget:5000,spent:1200},
-{category:"Transportation",budget:3000,spent:900}
-]);
+  // GET budgets from backend
+  useEffect(() => {
 
-function addBudget(){
+    fetch("http://localhost:5000/budget/list")
+      .then(res => res.json())
+      .then(data => {
+        setBudgets(data);
+      });
 
-if(category==="" || budgetAmount===""){
-alert("Enter category and budget");
-return;
-}
+  }, []);
 
-const newBudget={
-category,
-budget:parseInt(budgetAmount),
-spent:0
-};
 
-setBudgets([...budgets,newBudget]);
+  // DELETE budget
+  const deleteBudget = (id) => {
 
-setCategory("");
-setBudgetAmount("");
+    fetch(`http://localhost:5000/budget/${id}`, {
+      method: "DELETE"
+    })
+      .then(res => res.json())
+      .then(() => {
 
-}
+        // update UI
+        setBudgets(budgets.filter(b => b.budget_id !== id));
 
-function deleteBudget(index){
+      });
 
-const updatedBudgets=budgets.filter((_,i)=>i!==index);
-setBudgets(updatedBudgets);
+  };
 
-}
 
-function editBudget(index){
+  // EDIT budget
+  const editBudget = (id) => {
 
-const item=budgets[index];
+    const newAmount = prompt("Enter new budget amount");
 
-setCategory(item.category);
-setBudgetAmount(item.budget);
+    if (!newAmount) return;
 
-deleteBudget(index);
+    fetch("http://localhost:5000/budget/edit", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        budget_id: id,
+        amount: newAmount
+      })
+    })
+      .then(res => res.json())
+      .then(() => {
 
-}
+        // refresh budgets
+        window.location.reload();
 
-return(
+      });
 
-<div style={{
-background:"#0b1220",
-minHeight:"100vh",
-padding:"40px",
-color:"white",
-fontFamily:"Arial"
-}}>
+  };
 
-<h1 style={{marginBottom:"25px"}}>
-Budget Categories
-</h1>
 
-{/* Add Budget */}
+  return (
 
-<div style={{
-background:"#111827",
-padding:"20px",
-borderRadius:"10px",
-marginBottom:"30px"
-}}>
+    <div style={{
+      padding: "40px",
+      background: "#0b1530",
+      minHeight: "100vh",
+      color: "white"
+    }}>
 
-<input
-type="text"
-placeholder="Category"
-value={category}
-onChange={(e)=>setCategory(e.target.value)}
-style={{
-padding:"8px",
-marginRight:"10px",
-background:"white",
-color:"black",
-borderRadius:"5px",
-border:"none"
-}}
-/>
+      <h1 style={{ marginBottom: "30px" }}>
+        Budget Categories
+      </h1>
 
-<input
-type="number"
-placeholder="Budget Amount"
-value={budgetAmount}
-onChange={(e)=>setBudgetAmount(e.target.value)}
-style={{
-padding:"8px",
-marginRight:"10px",
-background:"white",
-color:"black",
-borderRadius:"5px",
-border:"none"
-}}
-/>
 
-<button
-onClick={addBudget}
-style={{
-background:"#3b82f6",
-border:"none",
-padding:"8px 15px",
-color:"white",
-borderRadius:"5px",
-cursor:"pointer"
-}}
->
-Add Budget
-</button>
+      {budgets.map((item) => {
 
-</div>
+        const spent = 200; // temporary value
+        const budget = parseFloat(item.amount);
+        const remaining = budget - spent;
+        const percent = (spent / budget) * 100;
 
-{/* Budget Cards */}
+        return (
 
-{budgets.map((item,index)=>{
+          <div
+            key={item.budget_id}
+            style={{
+              background: "#111c44",
+              padding: "20px",
+              marginBottom: "20px",
+              borderRadius: "12px"
+            }}
+          >
 
-const percent=(item.spent/item.budget)*100;
-const remaining=item.budget-item.spent;
+            <h3>
+              Category ID: {item.category_id}
+            </h3>
 
-return(
 
-<div key={index}
-style={{
-background:"#111827",
-padding:"20px",
-borderRadius:"10px",
-marginBottom:"20px"
-}}>
+            {/* Progress Bar */}
 
-<div style={{
-display:"flex",
-justifyContent:"space-between",
-marginBottom:"10px"
-}}>
+            <div style={{
+              width: "100%",
+              height: "10px",
+              background: "#2a356b",
+              borderRadius: "6px",
+              marginTop: "10px"
+            }}>
 
-<strong>{item.category}</strong>
+              <div style={{
+                width: percent + "%",
+                height: "10px",
+                background: "#facc15",
+                borderRadius: "6px"
+              }} />
 
-<div>
+            </div>
 
-<button
-onClick={()=>editBudget(index)}
-style={{
-marginRight:"10px",
-background:"#facc15",
-border:"none",
-padding:"5px 10px",
-cursor:"pointer"
-}}
->
-Edit
-</button>
 
-<button
-onClick={()=>deleteBudget(index)}
-style={{
-background:"red",
-border:"none",
-padding:"5px 10px",
-color:"white",
-cursor:"pointer"
-}}
->
-Delete
-</button>
+            <p style={{ marginTop: "10px" }}>
+              Spent: ₹{spent}
 
-</div>
+              <span style={{ marginLeft: "20px" }}>
+                Budget: ₹{budget}
+              </span>
 
-</div>
+              <span style={{
+                marginLeft: "20px",
+                color: "#22c55e"
+              }}>
+                Remaining: ₹{remaining}
+              </span>
+            </p>
 
-<div style={{marginBottom:"8px"}}>
 
-Budget ₹{item.budget} &nbsp;&nbsp;
-Spent ₹{item.spent} &nbsp;&nbsp;
-Remaining ₹{remaining}
+            {/* Buttons */}
 
-</div>
+            <div style={{ marginTop: "10px" }}>
 
-{/* Progress Bar */}
+              <button
+                style={{
+                  marginRight: "10px",
+                  padding: "6px 12px"
+                }}
+                onClick={() => editBudget(item.budget_id)}
+              >
+                Edit
+              </button>
 
-<div style={{
-width:"100%",
-background:"#1f2937",
-height:"10px",
-borderRadius:"5px"
-}}>
+              <button
+                style={{
+                  padding: "6px 12px",
+                  background: "red",
+                  color: "white"
+                }}
+                onClick={() => deleteBudget(item.budget_id)}
+              >
+                Delete
+              </button>
 
-<div style={{
-width:percent+"%",
-height:"10px",
-background:"#facc15",
-borderRadius:"5px"
-}}></div>
+            </div>
 
-</div>
+          </div>
 
-</div>
+        );
 
-)
+      })}
 
-})}
 
-</div>
+      {/* Add Category */}
 
-)
+      <div style={{
+        border: "2px dashed gray",
+        padding: "30px",
+        textAlign: "center",
+        borderRadius: "10px",
+        marginTop: "30px",
+        cursor: "pointer"
+      }}>
+        + Add New Category
+      </div>
+
+    </div>
+
+  );
 
 }
 
