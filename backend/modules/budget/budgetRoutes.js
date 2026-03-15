@@ -1,9 +1,20 @@
 const express = require("express");
-const router = express.Router();
-const budgetController = require("./budgetController");
 
-router.post("/set", budgetController.setBudget);
-router.get("/list", budgetController.getBudgets);
-router.put("/edit/:id", budgetController.editBudget);
+const router = express.Router();
+
+const {
+  getBudgets,
+  addBudget,
+  editBudget,
+  deleteBudget
+} = require("./budgetController");
+
+router.get("/list", getBudgets);
+
+router.post("/add", addBudget);
+
+router.put("/edit", editBudget);
+
+router.delete("/:id", deleteBudget);
 
 module.exports = router;
