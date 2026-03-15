@@ -1,19 +1,26 @@
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import "../App.css";
 
 function Sidebar() {
+
+  const location = useLocation();
 
   return (
 
     <div className="sidebar">
 
-      <h2 className="logo">PENNYWISE</h2>
+      <div className="logo">
 
-      <Link to="/">Records</Link>
-      <Link to="/analytics">Charts</Link>
-      <Link to="/budget">Budget</Link>
-      <Link to="/alerts">Alerts</Link>
-      <Link to="/profile">Profile</Link>
+        <span className="logo-icon">📊</span>
+        <span>PENNYWISE</span>
+
+      </div>
+
+      <Link className={location.pathname === "/" ? "active" : ""} to="/">Records</Link>
+      <Link className={location.pathname === "/analytics" ? "active" : ""} to="/analytics">Charts</Link>
+      <Link className={location.pathname === "/budget" ? "active" : ""} to="/budget">Budget</Link>
+      <Link className={location.pathname === "/alerts" ? "active" : ""} to="/alerts">Alerts</Link>
+      <Link className={location.pathname === "/profile" ? "active" : ""} to="/profile">Profile</Link>
 
     </div>
 

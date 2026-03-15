@@ -1,115 +1,67 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import "../App.css";
 
-function Profile() {
+function Profile(){
 
-  const [profile, setProfile] = useState({
-    name: "alex_user_92",
-    email: "alex.user92@gmail.com"
-  });
+const [name,setName] = useState("alex_user_92")
+const [email,setEmail] = useState("alex.user92@gmail.com")
 
-  const [editField, setEditField] = useState(null);
-  const [tempValue, setTempValue] = useState("");
+return(
 
-  const startEdit = (field) => {
-    setEditField(field);
-    setTempValue(profile[field]);
-  };
+<div className="profile-page">
 
-  const saveEdit = () => {
-    setProfile({
-      ...profile,
-      [editField]: tempValue
-    });
+<div className="profile-wrapper">
 
-    setEditField(null);
-  };
+<img
+src="https://cdn-icons-png.flaticon.com/512/149/149071.png"
+className="profile-avatar"
+alt="profile"
+/>
 
-  return (
-    <div className="profile-wrapper">
+<button className="change-btn">
+Change Profile
+</button>
 
-      <div className="profile-container">
+<div className="profile-card">
 
-        <img
-          src="https://cdn-icons-png.flaticon.com/512/149/149071.png"
-          className="profile-avatar"
-          alt="avatar"
-        />
+<div>
 
-        <button className="change-profile-btn">
-          Change Profile
-        </button>
+<p className="label">Username</p>
+<p className="value">{name}</p>
 
+</div>
 
-        {/* USERNAME CARD */}
+<button className="edit-btn">
+Edit
+</button>
 
-        <div className="profile-card">
+</div>
 
-          <div>
-            <p className="profile-label">Username</p>
+<div className="profile-card">
 
-            {editField === "name" ? (
-              <input
-                value={tempValue}
-                onChange={(e) => setTempValue(e.target.value)}
-              />
-            ) : (
-              <p className="profile-value">{profile.name}</p>
-            )}
+<div>
 
-          </div>
+<p className="label">Email</p>
+<p className="value">{email}</p>
 
-          {editField === "name" ? (
-            <button className="edit-btn" onClick={saveEdit}>
-              Save
-            </button>
-          ) : (
-            <button className="edit-btn" onClick={() => startEdit("name")}>
-              Edit
-            </button>
-          )}
+</div>
 
-        </div>
+<button className="edit-btn">
+Edit
+</button>
 
+</div>
 
-        {/* EMAIL CARD */}
+<button className="logout-btn">
+Log Out
+</button>
 
-        <div className="profile-card">
+</div>
 
-          <div>
-            <p className="profile-label">Email</p>
+</div>
 
-            {editField === "email" ? (
-              <input
-                value={tempValue}
-                onChange={(e) => setTempValue(e.target.value)}
-              />
-            ) : (
-              <p className="profile-value">{profile.email}</p>
-            )}
+)
 
-          </div>
-
-          {editField === "email" ? (
-            <button className="edit-btn" onClick={saveEdit}>
-              Save
-            </button>
-          ) : (
-            <button className="edit-btn" onClick={() => startEdit("email")}>
-              Edit
-            </button>
-          )}
-
-        </div>
-
-        <button className="logout-btn">
-          Log Out
-        </button>
-
-      </div>
-
-    </div>
-  );
 }
 
-export default Profile;
+export default Profile
