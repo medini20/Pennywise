@@ -40,7 +40,7 @@ exports.getBudgets = (req, res) => {
 };
 
 
-// edit budget
+// edit budge
 exports.editBudget = (req, res) => {
 
     const id = req.params.id;

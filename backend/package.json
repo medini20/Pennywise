@@ -14,5 +14,15 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
+<<<<<<< HEAD
+  "type": "commonjs",
+  "dependencies": {
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "mongoose": "^9.3.0"
+  }
+=======
   "type": "commonjs"
+>>>>>>> 6cc428f2d6d8f4b7b2c50438c3d6827c4ab76508
 }
