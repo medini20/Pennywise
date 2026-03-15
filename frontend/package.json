@@ -13,7 +13,11 @@
     "react-icons": "^5.6.0",
     "react-router-dom": "^7.13.1",
     "react-scripts": "5.0.1",
+<<<<<<< HEAD
     "recharts": "^3.8.0",
+=======
+    "react-webcam": "^7.2.0",
+>>>>>>> 136f2b1c152692d7e78d5bb72c0fa38d4795a0b1
     "web-vitals": "^2.1.4"
   },
   "scripts": {
