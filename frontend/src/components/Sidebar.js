@@ -1,24 +1,20 @@
+import React from "react";
 import { Link } from "react-router-dom";
-import "../App.css";
 
 function Sidebar() {
-
   return (
+    <div>
+      <h2>PENNYWISE</h2>
 
-    <div className="sidebar">
-
-      <h2 className="logo">PENNYWISE</h2>
-
-      <Link to="/">Records</Link>
-      <Link to="/analytics">Charts</Link>
-      <Link to="/budget">Budget</Link>
-      <Link to="/alerts">Alerts</Link>
-      <Link to="/profile">Profile</Link>
-
+      <nav>
+        <Link to="/records">Records</Link><br/>
+        <Link to="/charts">Charts</Link><br/>
+        <Link to="/budget">Budget</Link><br/>
+        <Link to="/alerts">Alerts</Link><br/>
+        <Link to="/profile">Profile</Link>
+      </nav>
     </div>
-
   );
-
 }
 
 export default Sidebar;
