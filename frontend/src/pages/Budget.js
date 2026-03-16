@@ -1,232 +1,220 @@
 import React, { useEffect, useState } from "react";
-import { FaEdit, FaTrash, FaUtensils } from "react-icons/fa";
+import { FaEdit, FaTimes, FaTrash, FaUtensils } from "react-icons/fa";
+import "../styles/Budget.css";
 
 function Budget() {
 
   const [budgets, setBudgets] = useState([]);
-
-  const [editModal, setEditModal] = useState(false);
-  const [deleteModal, setDeleteModal] = useState(false);
-
   const [selectedBudget, setSelectedBudget] = useState(null);
-  const [newAmount, setNewAmount] = useState("");
+
+  const [editOpen, setEditOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+
+  const [amount, setAmount] = useState("");
 
   useEffect(() => {
     loadBudgets();
   }, []);
 
   const loadBudgets = () => {
+
     fetch("http://localhost:5000/budget/list")
       .then(res => res.json())
       .then(data => setBudgets(data));
+
   };
 
   const openEdit = (budget) => {
+
     setSelectedBudget(budget);
-    setNewAmount(budget.amount);
-    setEditModal(true);
+    setAmount(budget.amount);
+    setEditOpen(true);
+
   };
 
   const openDelete = (budget) => {
+
     setSelectedBudget(budget);
-    setDeleteModal(true);
+    setDeleteOpen(true);
+
   };
 
-  const saveEdit = () => {
+  const saveBudget = () => {
 
-  fetch("http://localhost:5000/budget/edit", {
+    fetch("http://localhost:5000/budget/edit", {
 
-    method: "PUT",
+      method: "PUT",
+
+      headers: {
+        "Content-Type": "application/json"
+      },
+
+      body: JSON.stringify({
+        budget_id: selectedBudget.budget_id,
+        amount: Number(amount)
+      })
+
+    })
+      .then(res => res.json())
+      .then(() => {
+
+        setEditOpen(false);
+        loadBudgets();
+
+      });
+
+  };
+
+  const deleteBudget = () => {
+
+    fetch(`http://localhost:5000/budget/${selectedBudget.budget_id}`, {
+      method: "DELETE"
+    })
+      .then(() => {
+
+        setDeleteOpen(false);
+        loadBudgets();
+
+      });
+
+  };
+
+  const addBudget = () => {
+
+  const category_id = prompt("Enter Category ID");
+  const amount = prompt("Enter Budget Amount");
+
+  fetch("http://localhost:5000/budget/add", {
+
+    method: "POST",
 
     headers: {
       "Content-Type": "application/json"
     },
 
     body: JSON.stringify({
-      budget_id: selectedBudget.budget_id,
-      amount: Number(newAmount)
+      user_id: 1,
+      category_id: category_id,
+      amount: amount,
+      month: 1
     })
 
   })
   .then(res => res.json())
-  .then(() => {
-    setEditModal(false);
-    loadBudgets();
-  });
+  .then(() => loadBudgets());
 
 };
-
-  const confirmDelete = () => {
-
-    fetch(`http://localhost:5000/budget/${selectedBudget.budget_id}`, {
-      method: "DELETE"
-    })
-      .then(() => {
-        setDeleteModal(false);
-        loadBudgets();
-      });
-
-  };
+<div className="add-category" onClick={addBudget}>
+  + Add New Category
+</div>
 
   return (
+    
 
-    <div style={{ padding: "60px", color: "white" ,maxWidth:"1200px"}}>
+<div className="budget-container">
 
-      <h2 style={{ marginBottom: "40px" }}>
-        Budget Categories
-      </h2>
-
-
-      {budgets.map((b) => {
-
-        const spent = 200;
-        const remaining = b.amount - spent;
-        const percent = (spent / b.amount) * 100;
-
-        return (
-
-          <div
-            key={b.budget_id}
-            style={{
-              background: "#1a2c5b",
-              padding: "28px",
-              borderRadius: "16px",
-              marginBottom: "28px",
-              width: "900px"
-            }}
-          >
-
-            <div style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center"
-            }}>
-
-              <div style={{ display: "flex", gap: "14px", alignItems: "center" }}>
-
-                <div style={{
-                  background: "#253f7d",
-                  padding: "12px",
-                  borderRadius: "50%"
-                }}>
-                  <FaUtensils />
-                </div>
-
-                <h3>{b.name}</h3>
-
-              </div>
+<h2 className="budget-title">Budget Categories</h2>
 
 
-              <div style={{ display: "flex", gap: "18px", fontSize: "18px" }}>
+{budgets.map((b) => {
 
-                <FaEdit
-                  style={{ cursor: "pointer" ,color:"white", opacity:0.8 }}
-                  onClick={() => openEdit(b)}
-                />
+const spent = 200;
+const remaining = b.amount - spent;
+const percent = (spent / b.amount) * 100;
 
-                <FaTrash
-                  style={{ cursor: "pointer", color: "red" }}
-                  onClick={() => openDelete(b)}
-                />
+return (
 
-              </div>
+<div className="budget-card" key={b.budget_id}>
 
-            </div>
+<div className="card-header">
 
+<div className="category">
 
-            <div style={{
-              background: "#2e4076",
-              height: "8px",
-              borderRadius: "6px",
-              marginTop: "18px"
-            }}>
+<div className="category-icon">
+<FaUtensils />
+</div>
 
-              <div style={{
-                width: percent + "%",
-                height: "8px",
-                background: "#ffd700",
-                borderRadius: "6px"
-              }}></div>
+<h3>{b.name}</h3>
 
-            </div>
+</div>
 
 
-            <div style={{
-              marginTop: "12px",
-              display: "flex",
-              gap: "25px"
-            }}>
+<div className="icons">
 
-              <span>Spent: ₹{spent}</span>
-              <span>Budget: ₹{b.amount}</span>
+<FaEdit onClick={() => openEdit(b)} />
 
-              <span style={{ color: "#00ff9c" }}>
-                Remaining: ₹{remaining}
-              </span>
+<FaTrash
+style={{color:"red"}}
+onClick={() => openDelete(b)}
+/>
 
-            </div>
+</div>
 
-          </div>
-
-        );
-
-      })}
+</div>
 
 
-      {/* EDIT MODAL */}
+<div className="progress">
 
-{editModal && (
+<div
+className="progress-bar"
+style={{ width: percent + "%" }}
+/>
 
-<div style={overlay}>
+</div>
 
-<div style={{
-background:"#1c2333",
-padding:"30px",
-borderRadius:"14px",
-width:"420px",
-color:"white",
-boxShadow:"0 0 30px rgba(0,0,0,0.6)"
-}}>
 
-<div style={{display:"flex",justifyContent:"space-between",marginBottom:"15px"}}>
+<div className="budget-info">
 
-<h2>Edit Budget</h2>
+<span>Spent: ₹{spent}</span>
 
-<span
-style={{cursor:"pointer",fontSize:"20px"}}
-onClick={()=>setEditModal(false)}
->
-✕
+<span>Budget: ₹{b.amount}</span>
+
+<span className="remaining">
+Remaining: ₹{remaining}
 </span>
 
 </div>
 
+</div>
 
-<div style={{
-display:"flex",
-alignItems:"center",
-gap:"12px",
-background:"#232b3f",
-padding:"12px",
-borderRadius:"10px",
-marginBottom:"20px"
-}}>
+);
 
-<div style={{
-background:"#253f7d",
-padding:"12px",
-borderRadius:"50%"
-}}>
-<FaUtensils/>
+})}
+
+<div className="add-category" onClick={addBudget}>
+  + Add New Category
+</div>
+
+{/* EDIT MODAL */}
+
+{editOpen && (
+
+<div className="modal-overlay">
+
+<div className="modal">
+
+<div className="modal-header">
+
+<h2>Edit Budget</h2>
+
+<FaTimes
+className="close-icon"
+onClick={()=>setEditOpen(false)}
+/>
+
+</div>
+
+<div className="category-box">
+
+<div className="category-icon">
+<FaUtensils />
 </div>
 
 <div>
 
-<div style={{fontWeight:"500"}}>
-{selectedBudget?.name}
-</div>
+<div>{selectedBudget?.name}</div>
 
-<div style={{fontSize:"13px",opacity:"0.7"}}>
+<div className="current">
 Current: ₹{selectedBudget?.amount}
 </div>
 
@@ -234,74 +222,32 @@ Current: ₹{selectedBudget?.amount}
 
 </div>
 
-
 <label>Category Name</label>
 
 <input
 value={selectedBudget?.name}
 disabled
-style={{
-width:"100%",
-padding:"12px",
-marginTop:"6px",
-background:"#2a3146",
-border:"none",
-borderRadius:"8px",
-color:"white"
-}}
 />
 
-
-<label style={{marginTop:"12px",display:"block"}}>
-Monthly Budget (₹)
-</label>
+<label>Monthly Budget (₹)</label>
 
 <input
-type="number"
-value={newAmount}
-onChange={(e)=>setNewAmount(e.target.value)}
-style={{
-width:"100%",
-padding:"12px",
-marginTop:"6px",
-background:"#2a3146",
-border:"none",
-borderRadius:"8px",
-color:"white"
-}}
+value={amount}
+onChange={(e)=>setAmount(e.target.value)}
 />
 
-
-<div style={{
-display:"flex",
-justifyContent:"space-between",
-marginTop:"20px"
-}}>
+<div className="modal-buttons">
 
 <button
-style={{
-background:"#2b2f3d",
-padding:"10px 20px",
-border:"none",
-borderRadius:"8px",
-color:"white",
-cursor:"pointer"
-}}
-onClick={()=>setEditModal(false)}
+className="cancel"
+onClick={()=>setEditOpen(false)}
 >
 Cancel
 </button>
 
 <button
-style={{
-background:"#20c4d8",
-padding:"10px 20px",
-border:"none",
-borderRadius:"8px",
-color:"white",
-cursor:"pointer"
-}}
-onClick={saveEdit}
+className="save"
+onClick={saveBudget}
 >
 Save Changes
 </button>
@@ -313,82 +259,53 @@ Save Changes
 </div>
 
 )}
-      {/* DELETE MODAL */}
 
-{deleteModal && (
 
-<div style={overlay}>
+{/* DELETE MODAL */}
 
-<div style={{
-background:"#1c2333",
-padding:"28px",
-borderRadius:"14px",
-width:"420px",
-color:"white",
-boxShadow:"0 0 40px rgba(0,0,0,0.6)"
-}}>
+{deleteOpen && (
 
-<div style={{display:"flex",justifyContent:"space-between"}}>
+<div className="modal-overlay">
+
+<div className="modal">
+
+<div className="modal-header">
 
 <h2>Delete Category</h2>
 
-<span
-style={{cursor:"pointer",fontSize:"20px"}}
-onClick={()=>setDeleteModal(false)}
->
-✕
-</span>
+<FaTimes
+className="close-icon"
+onClick={()=>setDeleteOpen(false)}
+/>
 
 </div>
 
+<div className="warning">
 
-<div style={{
-background:"#3a2022",
-padding:"14px",
-borderRadius:"10px",
-marginTop:"16px",
-color:"white"
-}}>
+<p className="delete-main">
+Are you sure you want to delete
+<b> {selectedBudget?.name}</b> ?
+</p>
 
-Are you sure you want to delete <b>{selectedBudget?.name}</b> ?
-
-<br/><br/>
-
+<p className="delete-sub">
 This action cannot be undone. All transactions in this category will be permanently deleted.
+</p>
 
 </div>
 
 
-<div style={{
-display:"flex",
-justifyContent:"space-between",
-marginTop:"22px"
-}}>
+<div className="modal-buttons">
 
 <button
-style={{
-background:"#2b2f3d",
-padding:"10px 20px",
-border:"none",
-borderRadius:"8px",
-color:"white",
-cursor:"pointer"
-}}
-onClick={()=>setDeleteModal(false)}
+className="cancel"
+onClick={()=>setDeleteOpen(false)}
 >
 Cancel
 </button>
 
 <button
-style={{
-background:"#ff3b3b",
-padding:"10px 20px",
-border:"none",
-borderRadius:"8px",
-color:"white",
-cursor:"pointer"
-}}
-onClick={confirmDelete}
+className="delete"
+onClick={deleteBudget}
 >
 Confirm
 </button>
@@ -401,63 +318,11 @@ Confirm
 
 )}
 
-    </div>
+</div>
 
   );
 
 }
 
-const overlay = {
-  position: "fixed",
-  top: 0,
-  left: 0,
-  width: "100%",
-  height: "100%",
-  background: "rgba(0,0,0,0.6)",
-  display: "flex",
-  justifyContent: "center",
-  alignItems: "center"
-};
-
-const modal = {
-  background: "#1c2333",
-  padding: "30px",
-  borderRadius: "10px",
-  width: "320px"
-};
-
-const input = {
-  width: "100%",
-  padding: "10px",
-  marginTop: "10px",
-  background: "#2b3245",
-  color: "white",
-  border: "1px solid #444",
-  borderRadius: "6px"
-};
-
-const cancelBtn = {
-  padding: "8px 14px",
-  background: "#444",
-  color: "white",
-  border: "none",
-  borderRadius:"10px"
-};
-
-const saveBtn = {
-  padding: "8px 14px",
-  background: "#00bcd4",
-  color: "white",
-  border: "none",
-  borderRadius:"10px"
-};
-
-const deleteBtn = {
-  padding: "8px 14px",
-  background: "red",
-  color: "white",
-  border: "none",
-  borderRadius:"10px"
-};
-
 export default Budget;
+// This action cannot be undone. All transactions in this category will be permanently deleted.
