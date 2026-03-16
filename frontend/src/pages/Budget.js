@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { FaEdit, FaTrash, FaUtensils } from "react-icons/fa";
+import { FaEdit, FaTimes, FaTrash, FaUtensils } from "react-icons/fa";
 import "../styles/Budget.css";
 
 function Budget() {
@@ -193,7 +193,16 @@ Remaining: ₹{remaining}
 
 <div className="modal">
 
+<div className="modal-header">
+
 <h2>Edit Budget</h2>
+
+<FaTimes
+className="close-icon"
+onClick={()=>setEditOpen(false)}
+/>
+
+</div>
 
 <div className="category-box">
 
@@ -213,7 +222,6 @@ Current: ₹{selectedBudget?.amount}
 
 </div>
 
-
 <label>Category Name</label>
 
 <input
@@ -221,14 +229,12 @@ value={selectedBudget?.name}
 disabled
 />
 
-
 <label>Monthly Budget (₹)</label>
 
 <input
 value={amount}
 onChange={(e)=>setAmount(e.target.value)}
 />
-
 
 <div className="modal-buttons">
 
@@ -255,7 +261,6 @@ Save Changes
 )}
 
 
-
 {/* DELETE MODAL */}
 
 {deleteOpen && (
@@ -264,17 +269,27 @@ Save Changes
 
 <div className="modal">
 
+<div className="modal-header">
+
 <h2>Delete Category</h2>
+
+<FaTimes
+className="close-icon"
+onClick={()=>setDeleteOpen(false)}
+/>
+
+</div>
 
 <div className="warning">
 
-<h1>Are you sure you want to delete
-<b> {selectedBudget?.name}</b> ?</h1>
+<p className="delete-main">
+Are you sure you want to delete
+<b> {selectedBudget?.name}</b> ?
+</p>
 
-<br/><br/>
-
+<p className="delete-sub">
 This action cannot be undone. All transactions in this category will be permanently deleted.
-
+</p>
 
 </div>
 

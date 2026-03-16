@@ -227,3 +227,35 @@ button:hover {
 .add-category:hover {
   background: #1a2c5b;
 }
+
+.modal-header{
+display:flex;
+justify-content:space-between;
+align-items:center;
+margin-bottom:15px;
+}
+
+.close-icon{
+font-size:18px;
+cursor:pointer;
+color:white;
+opacity:0.8;
+}
+
+.close-icon:hover{
+opacity:1;
+transform:scale(1.1);
+}
+
+.delete-main{
+font-size:18px;
+font-weight:600;
+color:white;
+margin-bottom:10px;
+}
+
+.delete-sub{
+font-size:16px;
+color:#bbbbbb;
+line-height:1.4;
+}
