@@ -88,3 +88,24 @@ exports.deleteBudget = (req, res) => {
   });
 
 };
+
+exports.addBudget = (req, res) => {
+
+  const { user_id, category_id, amount, month } = req.body;
+
+  const query = `
+  INSERT INTO budgets (user_id, category_id, amount, month)
+  VALUES (?, ?, ?, ?)
+  `;
+
+  db.query(query, [user_id, category_id, amount, month], (err, result) => {
+
+    if (err) {
+      return res.status(500).json(err);
+    }
+
+    res.json({ message: "Budget added successfully" });
+
+  });
+
+};
