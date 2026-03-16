@@ -351,7 +351,7 @@ const styles = {
     justifyContent: "center",
     alignItems: "center",
     minHeight: "100vh",
-    background: "linear-gradient(135deg, #0b1220 0%, #111827 100%)",
+    background: "#0a0e27",
     fontFamily: "'Inter', 'Segoe UI', sans-serif",
     color: "#ffffff",
     padding: "40px 16px",
@@ -370,7 +370,7 @@ const styles = {
   logo: {
     width: "88px",
     height: "88px",
-    filter: "drop-shadow(0 0 12px rgba(59, 130, 246, 0.6))"
+    filter: "drop-shadow(0 0 12px rgba(97, 218, 251, 0.5))"
   },
   brandName: {
     fontSize: "36px",
@@ -382,15 +382,14 @@ const styles = {
   card: {
     width: "100%",
     maxWidth: "400px",
-    background: "rgba(31, 41, 55, 0.7)",
-    backdropFilter: "blur(10px)",
+    background: "#0d1430",
     borderRadius: "16px",
     padding: "40px 32px",
     boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
-    border: "1px solid rgba(255, 255, 255, 0.1)"
+    border: "1px solid rgba(255, 255, 255, 0.08)"
   },
   header: { textAlign: "center", marginBottom: "32px" },
-  title: { fontSize: "32px", fontWeight: "bold", margin: "0 0 8px 0", color: "#3b82f6" },
+  title: { fontSize: "32px", fontWeight: "bold", margin: "0 0 8px 0", color: "#2f5be7" },
   subtitle: { fontSize: "14px", color: "#9ca3af", margin: 0 },
   form: { display: "flex", flexDirection: "column", gap: "20px" },
   inputGroup: { display: "flex", flexDirection: "column", gap: "8px" },
@@ -398,8 +397,8 @@ const styles = {
   input: {
     padding: "12px 16px",
     borderRadius: "8px",
-    background: "rgba(17, 24, 39, 0.8)",
-    border: "1px solid #374151",
+    background: "#060d2b",
+    border: "1px solid rgba(183, 193, 255, 0.2)",
     color: "#ffffff",
     fontSize: "15px",
     outline: "none",
@@ -409,7 +408,7 @@ const styles = {
     marginTop: "8px",
     padding: "14px",
     borderRadius: "8px",
-    background: "#3b82f6",
+    background: "#2f5be7",
     color: "#ffffff",
     fontSize: "16px",
     fontWeight: "600",
@@ -438,7 +437,7 @@ const styles = {
   },
   footer: { marginTop: "24px", textAlign: "center" },
   footerText: { fontSize: "14px", color: "#9ca3af" },
-  link: { color: "#3b82f6", textDecoration: "none", fontWeight: "500" },
+  link: { color: "#61dafb", textDecoration: "none", fontWeight: "500" },
   checkboxLabel: {
     display: "flex",
     alignItems: "flex-start",
@@ -452,7 +451,7 @@ const styles = {
     width: "18px",
     height: "18px",
     marginTop: "2px",
-    accentColor: "#3b82f6",
+    accentColor: "#2f5be7",
     cursor: "pointer",
     flexShrink: 0
   }
