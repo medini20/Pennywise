@@ -176,7 +176,8 @@ const styles = {
     display: "flex",
     flexDirection: "row",
     alignItems: "center",
-    gap: "12px"
+    gap: "12px",
+    zIndex: 10
   },
   logo: {
     width: "88px",
