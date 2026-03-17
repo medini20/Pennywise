@@ -23,23 +23,27 @@ const [showOptions, setShowOptions] = useState(false);
   );
   useEffect(() => {
 
-    const token = localStorage.getItem("token");
+  const token = localStorage.getItem("token");
 
-    fetch("http://localhost:5001/api/profile", {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json"
-      }
-    })
-    .then(res => res.json())
-    .then(data => {
-      setUsername(data.username);
-      setEmail(data.email);
-    });
+  if (!token) {
+    navigate("/login");
+    return;
+  }
 
-  }, []);
+  fetch("http://localhost:5001/api/profile", {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json"
+    }
+  })
+  .then(res => res.json())
+  .then(data => {
+    setUsername(data.username);
+    setEmail(data.email);
+  });
 
+}, []);
   /* CHANGE PROFILE IMAGE */
   // SAVE PROFILE TO BACKEND
 const saveProfile = async () => {
