@@ -1,5 +1,6 @@
 const express = require("express");
 const cors = require("cors");
+require("dotenv").config();
 
 const app = express();
 
@@ -9,9 +10,11 @@ app.use(cors());
 
 // import routes
 const budgetRoutes = require("./modules/budget/budgetRoutes");
+const userRoutes = require("./modules/user/userRoutes");
 
 // use routes
 app.use("/budget", budgetRoutes);
+app.use("/auth", userRoutes);
 
 // test route
 app.get("/", (req, res) => {
@@ -19,6 +22,6 @@ app.get("/", (req, res) => {
 });
 
 // start server
-app.listen(5000, () => {
-    console.log("Server running on port 5000");
+app.listen(5001, () => {
+    console.log("Server running on port 5001");
 });
