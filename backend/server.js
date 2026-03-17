@@ -1,13 +1,13 @@
 const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
-
+const profileRoutes = require("./modules/profile/profileRoutes");
 const app = express();
 
 // middleware
 app.use(express.json());
 app.use(cors());
-
+app.use("/api/profile", profileRoutes);
 // import routes
 const budgetRoutes = require("./modules/budget/budgetRoutes");
 const userRoutes = require("./modules/user/userRoutes");

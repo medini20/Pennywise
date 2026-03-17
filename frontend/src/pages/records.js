@@ -2,18 +2,20 @@ import React, { useState } from "react";
 import Transactions from "./Transactions";
 import "./records.css";
 
-export default function Records(){
+export default function Records() {
 
-const [showTransaction,setShowTransaction] = useState(false);
+const [showTransaction, setShowTransaction] = useState(false);
 
-return(
+return (
 
 <div className="records-page">
 
+{/* ALERT */}
 <div className="alert">
-⚠ High Spending Alert — You've spent 60% of your monthly budget.
+⚠️ High Spending Alert — You've spent 60% of your monthly budget.
 </div>
 
+{/* CARDS */}
 <div className="cards">
 
 <div className="card expenseCard">
@@ -42,8 +44,8 @@ return(
 
 </div>
 
-<select className="monthDropdown" size="1">
-
+{/* MONTH DROPDOWN */}
+<select className="monthDropdown">
 <option>Jan 2026</option>
 <option>Feb 2026</option>
 <option>Mar 2026</option>
@@ -56,40 +58,87 @@ return(
 <option>Oct 2026</option>
 <option>Nov 2026</option>
 <option>Dec 2026</option>
-
 </select>
 
+{/* TABLE HEADER */}
+<div className="tableHeader">
+<span>Date</span>
+<span>Description</span>
+<span></span>
+</div>
+
+{/* TRANSACTIONS */}
 <div className="transactions">
 
 <div className="transaction">
-<span>26 Jan - Lunch at restaurant</span>
-<span className="expenseText">₹-45</span>
+
+<div className="left">
+<div className="date">26 Jan</div>
+<div className="day">Sunday</div>
 </div>
+
+<div className="middle">
+Lunch at restaurant
+</div>
+
+<div className="right expenseText">
+₹-45
+</div>
+
+</div>
+
 
 <div className="transaction">
-<span>26 Jan - Movie tickets</span>
-<span className="expenseText">₹-120</span>
+
+<div className="left">
+<div className="date">26 Jan</div>
+<div className="day">Sunday</div>
 </div>
+
+<div className="middle">
+Movie tickets
+</div>
+
+<div className="right expenseText">
+₹-120
+</div>
+
+</div>
+
 
 <div className="transaction">
-<span>25 Jan - Fuel</span>
-<span className="expenseText">₹-80</span>
+
+<div className="left">
+<div className="date">25 Jan</div>
+<div className="day">Saturday</div>
+</div>
+
+<div className="middle">
+Fuel
+</div>
+
+<div className="right expenseText">
+₹-80
 </div>
 
 </div>
 
+</div>
+
+{/* ADD TRANSACTION BUTTON */}
 <button
 className="addTransaction"
-onClick={()=>setShowTransaction(true)}
+onClick={() => setShowTransaction(true)}
 >
 + ADD TRANSACTION
 </button>
 
+{/* MODAL */}
 {showTransaction && (
-<Transactions closeModal={()=>setShowTransaction(false)} />
+<Transactions closeModal={() => setShowTransaction(false)} />
 )}
 
 </div>
 
-)
+);
 }

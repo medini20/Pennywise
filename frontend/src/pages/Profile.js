@@ -1,10 +1,12 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import "./Profile.css";
+
 import Webcam from "react-webcam";
 import { useNavigate } from "react-router-dom";
 function Profile() {
 const navigate = useNavigate();
 const handleLogout = () => {
+  localStorage.removeItem("token");
   navigate("/login");
 };
   const [username, setUsername] = useState("alex_usakshithaakshitha");
@@ -19,8 +21,49 @@ const [showOptions, setShowOptions] = useState(false);
   const [profileImage, setProfileImage] = useState(
     "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
   );
+  useEffect(() => {
+
+    const token = localStorage.getItem("token");
+
+    fetch("http://localhost:5001/api/profile", {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    })
+    .then(res => res.json())
+    .then(data => {
+      setUsername(data.username);
+      setEmail(data.email);
+    });
+
+  }, []);
 
   /* CHANGE PROFILE IMAGE */
+  // SAVE PROFILE TO BACKEND
+const saveProfile = async () => {
+
+  const token = localStorage.getItem("token");
+
+  const res = await fetch("http://localhost:5001/api/profile", {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify({
+      username,
+      email
+    })
+  });
+
+  const data = await res.json();
+
+if (data.message) {
+  alert(data.message);
+} else {
+  alert("Profile updated successfully");
+}
+};
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -38,10 +81,14 @@ const [showOptions, setShowOptions] = useState(false);
     setEditUser(true);
   };
 
-  const saveUser = () => {
-    setUsername(tempUser);
-    setEditUser(false);
-  };
+  const saveUser = async () => {
+
+  setUsername(tempUser);
+  setEditUser(false);
+
+  await saveProfile();
+
+};
 
 
   /* EMAIL EDIT */
@@ -51,10 +98,14 @@ const [showOptions, setShowOptions] = useState(false);
     setEditEmail(true);
   };
 
-  const saveEmail = () => {
-    setEmail(tempEmail);
-    setEditEmail(false);
-  };
+  const saveEmail = async () => {
+
+  setEmail(tempEmail);
+  setEditEmail(false);
+
+  await saveProfile();
+
+};
 
 
   return (
