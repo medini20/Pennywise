@@ -1,0 +1,126 @@
+.category-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.category-modal {
+  width: 380px;
+  background: #1c2233;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+  color: white;
+}
+
+.category-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.nav-text {
+  color: #8c9bba;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.close-x {
+  cursor: pointer;
+  opacity: 0.7;
+}
+
+.category-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.input-group label {
+  display: block;
+  font-size: 12px;
+  color: #8c9bba;
+  margin-bottom: 6px;
+}
+
+.category-input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid #3d465d;
+  color: white;
+  padding: 8px 0;
+  font-size: 16px;
+  outline: none;
+}
+
+.category-input:focus {
+  border-bottom-color: #20c4d8;
+}
+
+.section-label {
+  font-size: 14px;
+  color: #8c9bba;
+  margin-top: 10px;
+}
+
+.icon-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+  max-height: 150px;
+  overflow-y: auto;
+  padding-right: 5px;
+}
+
+.icon-item {
+  height: 45px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #232b3f;
+  border-radius: 10px;
+  font-size: 20px;
+  cursor: pointer;
+  transition: 0.2s;
+  border: 2px solid transparent;
+}
+
+.icon-item:hover {
+  background: #2a3550;
+}
+
+.icon-item.active {
+  border-color: #20c4d8;
+  background: #1a2c5b;
+}
+
+.category-footer {
+  display: flex;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.btn-cancel-modal {
+  flex: 1;
+  background: transparent;
+  color: white;
+  padding: 12px;
+  border-radius: 8px;
+  border: none;
+}
+
+.btn-add-modal {
+  flex: 1;
+  background: #20c4d8;
+  color: #0b1121;
+  padding: 12px;
+  border-radius: 8px;
+  font-weight: 600;
+  border: none;
+}
