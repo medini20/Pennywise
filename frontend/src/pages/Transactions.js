@@ -1,12 +1,13 @@
 import React, { useState } from "react";
 import "./transactions.css";
+import Category from "./Category";   // 👈 import new component
 
-export default function Transactions({closeModal}){
+export default function Transactions({ closeModal }) {
 
-const [showCategory,setShowCategory] = useState(false);
-const [type,setType] = useState("expense");
+const [showCategory, setShowCategory] = useState(false);
+const [type, setType] = useState("expense");
 
-const categories=[
+const categories = [
 {icon:"👕",name:"Clothing"},
 {icon:"🚗",name:"Car"},
 {icon:"🍷",name:"Alcohol"},
@@ -17,27 +18,20 @@ const categories=[
 {icon:"🐶",name:"Pets"}
 ];
 
-const icons=[
-"🛍","🚗","☕","🏠","❤️",
-"🎮","📱","🎵","🍴","🏋️",
-"🎒","💳","🎁","📺","📘",
-"👕","✂️","💊","⛽","⚡"
-];
-
-return(
+return (
 
 <div className="overlay">
 
 <div className="modal">
 
+{/* HEADER */}
 <div className="modalHeader">
-
 <span onClick={closeModal}>Cancel</span>
 <h3>Add</h3>
 <span>📅</span>
-
 </div>
 
+{/* SWITCH */}
 <div className="switch">
 
 <button
@@ -56,6 +50,7 @@ Income
 
 </div>
 
+{/* CATEGORIES */}
 <div className="categories">
 
 {categories.map((c,i)=>(
@@ -67,6 +62,7 @@ Income
 
 </div>
 
+{/* ADD CATEGORY BUTTON */}
 <div
 className="addCategory"
 onClick={()=>setShowCategory(true)}
@@ -74,13 +70,16 @@ onClick={()=>setShowCategory(true)}
 + Add Categories
 </div>
 
+{/* AMOUNT */}
 <div className="amount">0</div>
 
+{/* NOTE */}
 <input
 className="note"
 placeholder="Enter a note..."
 />
 
+{/* KEYPAD */}
 <div className="keypad">
 
 <button>7</button>
@@ -107,63 +106,12 @@ placeholder="Enter a note..."
 
 </div>
 
-
+{/* CATEGORY MODAL */}
 {showCategory && (
-
-<div className="overlay">
-
-<div className="modal small">
-
-<div className="modalHeader">
-
-<span onClick={()=>setShowCategory(false)}>Cancel</span>
-
-<h3>Add Category</h3>
-
-<span onClick={()=>setShowCategory(false)}>✕</span>
-
-</div>
-
-<input
-className="categoryName"
-placeholder="Enter category name"
-/>
-
-<p className="choose">Choose Icon</p>
-
-<div className="iconGrid">
-
-{icons.map((icon,i)=>(
-<div className="iconBox" key={i}>
-{icon}
-</div>
-))}
-
-</div>
-
-<div className="buttons">
-
-<button
-className="cancel"
-onClick={()=>setShowCategory(false)}
->
-Cancel
-</button>
-
-<button className="add">
-Add Category
-</button>
-
-</div>
-
-</div>
-
-</div>
-
+<Category closeCategory={() => setShowCategory(false)} />
 )}
 
 </div>
 
-)
-
+);
 }
