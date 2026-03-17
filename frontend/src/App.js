@@ -1,45 +1,46 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Alerts from "./pages/Alerts";
 
 import Sidebar from "./components/Sidebar";
 
-import Dashboard from "./pages/Dashboard";
+import Records from "./pages/records";
 import Transactions from "./pages/Transactions";
 import Category from "./pages/Category";
 import Budget from "./pages/Budget";
 import Analytics from "./pages/Analytics";
 import Profile from "./pages/Profile";
+import Alerts from "./pages/Alerts";
 
 function App() {
 
-  return (
+return (
 
-    <BrowserRouter>
+<BrowserRouter>
 
-      <div style={{display:"flex"}}>
+<div style={{display:"flex"}}>
 
-        <Sidebar />
+<Sidebar />
 
-        <div className="page-content">
+<div className="page-content">
 
-          <Routes>
+<Routes>
 
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/transactions" element={<Transactions />} />
-            <Route path="/category" element={<Category />} />
-            <Route path="/budget" element={<Budget />} />
-            <Route path="/analytics" element={<Analytics />} />
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/alerts" element={<Alerts />} />
-          </Routes>
+<Route path="/" element={<Records />} />
+<Route path="/transactions" element={<Transactions />} />
+<Route path="/category" element={<Category />} />
+<Route path="/budget" element={<Budget />} />
+<Route path="/analytics" element={<Analytics />} />
+<Route path="/profile" element={<Profile />} />
+<Route path="/alerts" element={<Alerts />} />
 
-        </div>
+</Routes>
 
-      </div>
+</div>
 
-    </BrowserRouter>
+</div>
 
-  );
+</BrowserRouter>
+
+);
 
 }
 
