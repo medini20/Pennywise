@@ -127,10 +127,14 @@ font-weight:bold;
 /* ADD TRANSACTION BUTTON */
 
 .addTransaction{
-position:absolute;
+position:fixed;
 bottom:30px;
-left:50%;
+
+/* MAGIC PART */
+left:calc(50% + 110px);  /* 110 = half of sidebar (220px) */
+
 transform:translateX(-50%);
+
 background:linear-gradient(90deg,#4f8df7,#6ea8ff);
 border:none;
 padding:18px 45px;
@@ -138,10 +142,52 @@ border-radius:40px;
 font-size:16px;
 color:white;
 cursor:pointer;
-z-index:100;
+z-index:999;
 box-shadow:0 10px 40px rgba(0,0,0,0.45);
 }
-
 .addTransaction:hover{
 transform:translateX(-50%) scale(1.03);
+}
+/* HEADER */
+.tableHeader{
+display:flex;
+justify-content:space-between;
+padding:0 10px;
+margin-bottom:10px;
+color:#9ca3af;
+font-size:14px;
+}
+
+/* TRANSACTION LAYOUT */
+.transaction{
+display:flex;
+align-items:center;
+justify-content:space-between;
+background:#162044;
+padding:18px 20px;
+border-radius:16px;
+}
+
+.left{
+display:flex;
+flex-direction:column;
+width:80px;
+}
+
+.date{
+font-weight:600;
+}
+
+.day{
+font-size:12px;
+color:#9ca3af;
+}
+
+.middle{
+flex:1;
+margin-left:20px;
+}
+
+.right{
+font-weight:bold;
 }
