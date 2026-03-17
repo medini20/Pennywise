@@ -1,117 +1,153 @@
 import React, { useState } from "react";
 import "./transactions.css";
-import Category from "./Category";   // 👈 import new component
+import Category from "./Category";
 
-export default function Transactions({ closeModal }) {
+export default function Transactions({ closeModal, addTransaction }) {
 
-const [showCategory, setShowCategory] = useState(false);
-const [type, setType] = useState("expense");
+  const [showCategory, setShowCategory] = useState(false);
+  const [type, setType] = useState("expense");
 
-const categories = [
-{icon:"👕",name:"Clothing"},
-{icon:"🚗",name:"Car"},
-{icon:"🍷",name:"Alcohol"},
-{icon:"🚬",name:"Cigarettes"},
-{icon:"📱",name:"Electronics"},
-{icon:"✈️",name:"Travel"},
-{icon:"❤️",name:"Health"},
-{icon:"🐶",name:"Pets"}
-];
+  const [amount, setAmount] = useState("");
+  const [note, setNote] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState(null);
 
-return (
+  const [categories, setCategories] = useState([
+    {icon:"👕",name:"Clothing"},
+    {icon:"🚗",name:"Car"},
+    {icon:"🍷",name:"Alcohol"},
+    {icon:"🚬",name:"Cigarettes"},
+    {icon:"📱",name:"Electronics"},
+    {icon:"✈️",name:"Travel"},
+    {icon:"❤️",name:"Health"},
+    {icon:"🐶",name:"Pets"}
+  ]);
 
-<div className="overlay">
+  return (
+    <div className="overlay">
 
-<div className="modal">
+      <div className="modal">
 
-{/* HEADER */}
-<div className="modalHeader">
-<span onClick={closeModal}>Cancel</span>
-<h3>Add</h3>
-<span>📅</span>
-</div>
+        <div className="modalHeader">
+          <span onClick={closeModal}>Cancel</span>
+          <h3>Add</h3>
+          <span>📅</span>
+        </div>
 
-{/* SWITCH */}
-<div className="switch">
+        {/* SWITCH */}
+        <div className="switch">
+          <button
+            className={type==="expense" ? "active" : ""}
+            onClick={() => setType("expense")}
+          >
+            Expense
+          </button>
 
-<button
-className={type==="expense"?"active":""}
-onClick={()=>setType("expense")}
->
-Expense
-</button>
+          <button
+            className={type==="income" ? "active" : ""}
+            onClick={() => setType("income")}
+          >
+            Income
+          </button>
+        </div>
 
-<button
-className={type==="income"?"active":""}
-onClick={()=>setType("income")}
->
-Income
-</button>
+        {/* CATEGORIES */}
+        <div className="categories">
+          {categories.map((c,i)=>(
+            <div 
+              className={`category ${selectedCategory === c.name ? "selected" : ""}`}
+              key={i}
+              onClick={() => setSelectedCategory(c.name)}
+            >
+              <div className="circle">{c.icon}</div>
+              <p>{c.name}</p>
+            </div>
+          ))}
+        </div>
 
-</div>
+        {/* ADD CATEGORY */}
+        <div
+          className="addCategory"
+          onClick={() => setShowCategory(true)}
+        >
+          + Add Categories
+        </div>
 
-{/* CATEGORIES */}
-<div className="categories">
+        {/* AMOUNT */}
+        <div className="amount">{amount || 0}</div>
 
-{categories.map((c,i)=>(
-<div className="category" key={i}>
-<div className="circle">{c.icon}</div>
-<p>{c.name}</p>
-</div>
-))}
+        {/* NOTE */}
+        <input
+          className="note"
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder="Enter a note..."
+        />
 
-</div>
+        {/* KEYPAD */}
+        <div className="keypad">
 
-{/* ADD CATEGORY BUTTON */}
-<div
-className="addCategory"
-onClick={()=>setShowCategory(true)}
->
-+ Add Categories
-</div>
+          <button onClick={() => setAmount(amount + "7")}>7</button>
+          <button onClick={() => setAmount(amount + "8")}>8</button>
+          <button onClick={() => setAmount(amount + "9")}>9</button>
+          <button className="today">Today</button>
 
-{/* AMOUNT */}
-<div className="amount">0</div>
+          <button onClick={() => setAmount(amount + "4")}>4</button>
+          <button onClick={() => setAmount(amount + "5")}>5</button>
+          <button onClick={() => setAmount(amount + "6")}>6</button>
+          <button>+</button>
 
-{/* NOTE */}
-<input
-className="note"
-placeholder="Enter a note..."
-/>
+          <button onClick={() => setAmount(amount + "1")}>1</button>
+          <button onClick={() => setAmount(amount + "2")}>2</button>
+          <button onClick={() => setAmount(amount + "3")}>3</button>
+          <button>-</button>
 
-{/* KEYPAD */}
-<div className="keypad">
+          <button onClick={() => setAmount(amount + ".")}>.</button>
+          <button onClick={() => setAmount(amount + "0")}>0</button>
+          <button onClick={() => setAmount(amount.slice(0, -1))}>⌫</button>
 
-<button>7</button>
-<button>8</button>
-<button>9</button>
-<button className="today">Today</button>
+          <button
+            className="ok"
+            onClick={() => {
+              if (!amount) return;
+              if (!selectedCategory) {
+                alert("Select a category");
+                return;
+              }
 
-<button>4</button>
-<button>5</button>
-<button>6</button>
-<button>+</button>
+              const newTransaction = {
+                amount: Number(amount),
+                note: note || selectedCategory,
+                type,
+                category: selectedCategory,
+                date: new Date().toLocaleDateString("en-GB", {
+                  day: "numeric",
+                  month: "short"
+                }),
+                day: new Date().toLocaleDateString("en-GB", {
+                  weekday: "long"
+                })
+              };
 
-<button>1</button>
-<button>2</button>
-<button>3</button>
-<button>-</button>
+              addTransaction(newTransaction);
+              closeModal();
+            }}
+          >
+            ✔
+          </button>
 
-<button>.</button>
-<button>0</button>
-<button>⌫</button>
-<button className="ok">✔</button>
+        </div>
 
-</div>
+      </div>
 
-</div>
+      {showCategory && (
+        <Category
+          closeCategory={() => setShowCategory(false)}
+          addNewCategory={(newCat) => {
+            setCategories([...categories, newCat]);
+          }}
+        />
+      )}
 
-{/* CATEGORY MODAL */}
-{showCategory && (
-<Category closeCategory={() => setShowCategory(false)} />
-)}
-
-</div>
-
-);
+    </div>
+  );
 }

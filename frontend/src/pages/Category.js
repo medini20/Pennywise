@@ -1,64 +1,68 @@
-import React from "react";
-import "./transactions.css";
+import React, { useState } from "react";
 
-export default function Category({ closeCategory }) {
+export default function Category({ closeCategory, addNewCategory }) {
 
-const icons = [
-"🛍","🚗","☕","🏠","❤️",
-"🎮","📱","🎵","🍴","🏋️",
-"🎒","💳","🎁","📺","📘",
-"👕","✂️","💊","⛽","⚡"
-];
+  const [name, setName] = useState("");
+  const [selectedIcon, setSelectedIcon] = useState("");
 
-return (
+  const icons = ["🏠","🚗","☕","🏡","❤️","🎮","📱","🎵","🍽️","🏋️","🎒","💳","🎁","📺","📘","👕","✂️","💊","⛽","⚡"];
 
-<div className="overlay">
+  return (
+    <div className="overlay">
 
-<div className="modal small">
+      <div className="modal small">
 
-<div className="modalHeader">
+        <div className="modalHeader">
+          <span onClick={closeCategory}>Cancel</span>
+          <h3>Add Category</h3>
+          <span onClick={closeCategory}>✖</span>
+        </div>
 
-<span onClick={closeCategory}>Cancel</span>
-<h3>Add Category</h3>
-<span onClick={closeCategory}>✕</span>
+        <input
+          className="note"
+          placeholder="Enter category name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+        />
 
-</div>
+        <p style={{marginTop:"15px"}}>Choose Icon</p>
 
-<input
-className="categoryName"
-placeholder="Enter category name"
-/>
+        <div className="iconGrid">
+          {icons.map((icon,i)=>(
+            <div
+              key={i}
+              className={`iconBox ${selectedIcon === icon ? "selected" : ""}`}
+              onClick={() => setSelectedIcon(icon)}
+            >
+              {icon}
+            </div>
+          ))}
+        </div>
 
-<p className="choose">Choose Icon</p>
+        <div className="buttons">
+          <button className="cancel" onClick={closeCategory}>
+            Cancel
+          </button>
 
-<div className="iconGrid">
+          <button
+            className="add"
+            onClick={() => {
+              if (!name || !selectedIcon) return;
 
-{icons.map((icon,i)=>(
-<div className="iconBox" key={i}>
-{icon}
-</div>
-))}
+              addNewCategory({
+                name,
+                icon: selectedIcon
+              });
 
-</div>
+              closeCategory();
+            }}
+          >
+            Add Category
+          </button>
+        </div>
 
-<div className="buttons">
+      </div>
 
-<button
-className="cancel"
-onClick={closeCategory}
->
-Cancel
-</button>
-
-<button className="add">
-Add Category
-</button>
-
-</div>
-
-</div>
-
-</div>
-
-);
+    </div>
+  );
 }
