@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import logo from "../logo.svg";
+import logo from "../logo.jpeg";
 
 function ForgotPassword() {
   const [email, setEmail] = useState("");
