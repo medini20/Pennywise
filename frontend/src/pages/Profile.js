@@ -1,9 +1,12 @@
 import React, { useState, useRef } from "react";
 import "./Profile.css";
 import Webcam from "react-webcam";
-
+import { useNavigate } from "react-router-dom";
 function Profile() {
-
+const navigate = useNavigate();
+const handleLogout = () => {
+  navigate("/login");
+};
   const [username, setUsername] = useState("alex_usakshithaakshitha");
   const [email, setEmail] = useState("alex.user92@gmail.com");
 const webcamRef = useRef(null);
@@ -222,9 +225,9 @@ Cancel
       </div>
 
 
-      <button className="logout-btn">
-        Log Out
-      </button>
+     <button className="logout-btn" onClick={handleLogout}>
+  Log Out
+</button>
 
     </div>
   );
