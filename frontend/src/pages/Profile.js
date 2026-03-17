@@ -9,7 +9,7 @@ const handleLogout = () => {
   localStorage.removeItem("token");
   navigate("/login");
 };
-  const [username, setUsername] = useState("alex_usakshithaakshitha");
+  const [username, setUsername] = useState("alex_user");
   const [email, setEmail] = useState("alex.user92@gmail.com");
 const webcamRef = useRef(null);
   const [editUser, setEditUser] = useState(false);
@@ -26,8 +26,10 @@ const [showOptions, setShowOptions] = useState(false);
     const token = localStorage.getItem("token");
 
     fetch("http://localhost:5001/api/profile", {
+      method: "GET",
       headers: {
-        Authorization: `Bearer ${token}`
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json"
       }
     })
     .then(res => res.json())
@@ -48,21 +50,20 @@ const saveProfile = async () => {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`
+      "Authorization": `Bearer ${token}`
     },
     body: JSON.stringify({
-      username,
-      email
+      username: tempUser,
+      email: tempEmail
     })
   });
 
   const data = await res.json();
 
-if (data.message) {
-  alert(data.message);
-} else {
-  alert("Profile updated successfully");
-}
+  setUsername(tempUser);
+  setEmail(tempEmail);
+
+  alert(data.message || "Profile updated successfully");
 };
 
   const handleImageChange = (e) => {
@@ -86,10 +87,21 @@ if (data.message) {
   setUsername(tempUser);
   setEditUser(false);
 
-  await saveProfile();
+  const token = localStorage.getItem("token");
+
+  await fetch("http://localhost:5001/api/profile", {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify({
+      username: tempUser,
+      email
+    })
+  });
 
 };
-
 
   /* EMAIL EDIT */
 
@@ -103,10 +115,21 @@ if (data.message) {
   setEmail(tempEmail);
   setEditEmail(false);
 
-  await saveProfile();
+  const token = localStorage.getItem("token");
+
+  await fetch("http://localhost:5001/api/profile", {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify({
+      username,
+      email: tempEmail
+    })
+  });
 
 };
-
 
   return (
     <div className="profile-wrapper">
