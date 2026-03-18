@@ -1,169 +1,153 @@
 import React, { useState } from "react";
 import "./transactions.css";
+import Category from "./Category";
 
-export default function Transactions({closeModal}){
+export default function Transactions({ closeModal, addTransaction }) {
 
-const [showCategory,setShowCategory] = useState(false);
-const [type,setType] = useState("expense");
+  const [showCategory, setShowCategory] = useState(false);
+  const [type, setType] = useState("expense");
 
-const categories=[
-{icon:"👕",name:"Clothing"},
-{icon:"🚗",name:"Car"},
-{icon:"🍷",name:"Alcohol"},
-{icon:"🚬",name:"Cigarettes"},
-{icon:"📱",name:"Electronics"},
-{icon:"✈️",name:"Travel"},
-{icon:"❤️",name:"Health"},
-{icon:"🐶",name:"Pets"}
-];
+  const [amount, setAmount] = useState("");
+  const [note, setNote] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState(null);
 
-const icons=[
-"🛍","🚗","☕","🏠","❤️",
-"🎮","📱","🎵","🍴","🏋️",
-"🎒","💳","🎁","📺","📘",
-"👕","✂️","💊","⛽","⚡"
-];
+  const [categories, setCategories] = useState([
+    {icon:"👕",name:"Clothing"},
+    {icon:"🚗",name:"Car"},
+    {icon:"🍷",name:"Alcohol"},
+    {icon:"🚬",name:"Cigarettes"},
+    {icon:"📱",name:"Electronics"},
+    {icon:"✈️",name:"Travel"},
+    {icon:"❤️",name:"Health"},
+    {icon:"🐶",name:"Pets"}
+  ]);
 
-return(
+  return (
+    <div className="overlay">
 
-<div className="overlay">
+      <div className="modal">
 
-<div className="modal">
+        <div className="modalHeader">
+          <span onClick={closeModal}>Cancel</span>
+          <h3>Add</h3>
+          <span>📅</span>
+        </div>
 
-<div className="modalHeader">
+        {/* SWITCH */}
+        <div className="switch">
+          <button
+            className={type==="expense" ? "active" : ""}
+            onClick={() => setType("expense")}
+          >
+            Expense
+          </button>
 
-<span onClick={closeModal}>Cancel</span>
-<h3>Add</h3>
-<span>📅</span>
+          <button
+            className={type==="income" ? "active" : ""}
+            onClick={() => setType("income")}
+          >
+            Income
+          </button>
+        </div>
 
-</div>
+        {/* CATEGORIES */}
+        <div className="categories">
+          {categories.map((c,i)=>(
+            <div 
+              className={`category ${selectedCategory === c.name ? "selected" : ""}`}
+              key={i}
+              onClick={() => setSelectedCategory(c.name)}
+            >
+              <div className="circle">{c.icon}</div>
+              <p>{c.name}</p>
+            </div>
+          ))}
+        </div>
 
-<div className="switch">
+        {/* ADD CATEGORY */}
+        <div
+          className="addCategory"
+          onClick={() => setShowCategory(true)}
+        >
+          + Add Categories
+        </div>
 
-<button
-className={type==="expense"?"active":""}
-onClick={()=>setType("expense")}
->
-Expense
-</button>
+        {/* AMOUNT */}
+        <div className="amount">{amount || 0}</div>
 
-<button
-className={type==="income"?"active":""}
-onClick={()=>setType("income")}
->
-Income
-</button>
+        {/* NOTE */}
+        <input
+          className="note"
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder="Enter a note..."
+        />
 
-</div>
+        {/* KEYPAD */}
+        <div className="keypad">
 
-<div className="categories">
+          <button onClick={() => setAmount(amount + "7")}>7</button>
+          <button onClick={() => setAmount(amount + "8")}>8</button>
+          <button onClick={() => setAmount(amount + "9")}>9</button>
+          <button className="today">Today</button>
 
-{categories.map((c,i)=>(
-<div className="category" key={i}>
-<div className="circle">{c.icon}</div>
-<p>{c.name}</p>
-</div>
-))}
+          <button onClick={() => setAmount(amount + "4")}>4</button>
+          <button onClick={() => setAmount(amount + "5")}>5</button>
+          <button onClick={() => setAmount(amount + "6")}>6</button>
+          <button>+</button>
 
-</div>
+          <button onClick={() => setAmount(amount + "1")}>1</button>
+          <button onClick={() => setAmount(amount + "2")}>2</button>
+          <button onClick={() => setAmount(amount + "3")}>3</button>
+          <button>-</button>
 
-<div
-className="addCategory"
-onClick={()=>setShowCategory(true)}
->
-+ Add Categories
-</div>
+          <button onClick={() => setAmount(amount + ".")}>.</button>
+          <button onClick={() => setAmount(amount + "0")}>0</button>
+          <button onClick={() => setAmount(amount.slice(0, -1))}>⌫</button>
 
-<div className="amount">0</div>
+          <button
+            className="ok"
+            onClick={() => {
+              if (!amount) return;
+              if (!selectedCategory) {
+                alert("Select a category");
+                return;
+              }
 
-<input
-className="note"
-placeholder="Enter a note..."
-/>
+              const newTransaction = {
+                amount: Number(amount),
+                note: note || selectedCategory,
+                type,
+                category: selectedCategory,
+                date: new Date().toLocaleDateString("en-GB", {
+                  day: "numeric",
+                  month: "short"
+                }),
+                day: new Date().toLocaleDateString("en-GB", {
+                  weekday: "long"
+                })
+              };
 
-<div className="keypad">
+              addTransaction(newTransaction);
+              closeModal();
+            }}
+          >
+            ✔
+          </button>
 
-<button>7</button>
-<button>8</button>
-<button>9</button>
-<button className="today">Today</button>
+        </div>
 
-<button>4</button>
-<button>5</button>
-<button>6</button>
-<button>+</button>
+      </div>
 
-<button>1</button>
-<button>2</button>
-<button>3</button>
-<button>-</button>
+      {showCategory && (
+        <Category
+          closeCategory={() => setShowCategory(false)}
+          addNewCategory={(newCat) => {
+            setCategories([...categories, newCat]);
+          }}
+        />
+      )}
 
-<button>.</button>
-<button>0</button>
-<button>⌫</button>
-<button className="ok">✔</button>
-
-</div>
-
-</div>
-
-
-{showCategory && (
-
-<div className="overlay">
-
-<div className="modal small">
-
-<div className="modalHeader">
-
-<span onClick={()=>setShowCategory(false)}>Cancel</span>
-
-<h3>Add Category</h3>
-
-<span onClick={()=>setShowCategory(false)}>✕</span>
-
-</div>
-
-<input
-className="categoryName"
-placeholder="Enter category name"
-/>
-
-<p className="choose">Choose Icon</p>
-
-<div className="iconGrid">
-
-{icons.map((icon,i)=>(
-<div className="iconBox" key={i}>
-{icon}
-</div>
-))}
-
-</div>
-
-<div className="buttons">
-
-<button
-className="cancel"
-onClick={()=>setShowCategory(false)}
->
-Cancel
-</button>
-
-<button className="add">
-Add Category
-</button>
-
-</div>
-
-</div>
-
-</div>
-
-)}
-
-</div>
-
-)
-
+    </div>
+  );
 }

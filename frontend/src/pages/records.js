@@ -2,94 +2,131 @@ import React, { useState } from "react";
 import Transactions from "./Transactions";
 import "./records.css";
 
-export default function Records(){
+export default function Records() {
 
-const [showTransaction,setShowTransaction] = useState(false);
+  const [showTransaction, setShowTransaction] = useState(false);
+  const [transactions, setTransactions] = useState([]);
+  const [filter, setFilter] = useState("all");
 
-return(
+  // totals
+  const totalExpense = transactions
+    .filter(t => t.type === "expense")
+    .reduce((sum, t) => sum + t.amount, 0);
 
-<div className="records-page">
+  const totalIncome = transactions
+    .filter(t => t.type === "income")
+    .reduce((sum, t) => sum + t.amount, 0);
 
-<div className="alert">
-⚠ High Spending Alert — You've spent 60% of your monthly budget.
-</div>
+  const balance = totalIncome - totalExpense;
 
-<div className="cards">
+  return (
+    <div className="records-page">
 
-<div className="card expenseCard">
-<div className="cardTitle">
-<span className="icon expenseIcon">↘</span>
-<span>Expenses</span>
-</div>
-<h2>₹3,000</h2>
-</div>
+      {/* CARDS */}
+      <div className="cards">
 
-<div className="card incomeCard">
-<div className="cardTitle">
-<span className="icon incomeIcon">↗</span>
-<span>Income</span>
-</div>
-<h2>₹10,000</h2>
-</div>
+        <div 
+          className="card expenseCard"
+          onClick={() => setFilter("expense")}
+        >
+          <div className="cardTitle">
+            <span className="icon expenseIcon">↘</span>
+            <span>Expenses</span>
+          </div>
+          <h2>₹{totalExpense}</h2>
+        </div>
 
-<div className="card balanceCard">
-<div className="cardTitle">
-<span className="icon balanceIcon">◎</span>
-<span>Balance</span>
-</div>
-<h2>₹7,000</h2>
-</div>
+        <div 
+          className="card incomeCard"
+          onClick={() => setFilter("income")}
+        >
+          <div className="cardTitle">
+            <span className="icon incomeIcon">↗</span>
+            <span>Income</span>
+          </div>
+          <h2>₹{totalIncome}</h2>
+        </div>
 
-</div>
+        <div 
+          className="card balanceCard"
+          onClick={() => setFilter("all")}
+        >
+          <div className="cardTitle">
+            <span className="icon balanceIcon">◎</span>
+            <span>Balance</span>
+          </div>
+          <h2>₹{balance}</h2>
+        </div>
 
-<select className="monthDropdown" size="1">
+      </div>
 
-<option>Jan 2026</option>
-<option>Feb 2026</option>
-<option>Mar 2026</option>
-<option>Apr 2026</option>
-<option>May 2026</option>
-<option>Jun 2026</option>
-<option>Jul 2026</option>
-<option>Aug 2026</option>
-<option>Sep 2026</option>
-<option>Oct 2026</option>
-<option>Nov 2026</option>
-<option>Dec 2026</option>
-
+      {/* MONTH */}
+      <select className="monthDropdown">
+  {[
+    "Jan","Feb","Mar","Apr","May","Jun",
+    "Jul","Aug","Sep","Oct","Nov","Dec"
+  ].map((month, i) => (
+    <option key={i}>
+      {month} 2026
+    </option>
+  ))}
 </select>
 
-<div className="transactions">
+      {/* HEADER */}
+      <div className="tableHeader">
+        <span>Date</span>
+        <span>Description</span>
+        <span></span>
+      </div>
 
-<div className="transaction">
-<span>26 Jan - Lunch at restaurant</span>
-<span className="expenseText">₹-45</span>
-</div>
+      {/* TRANSACTIONS */}
+      <div className="transactions">
 
-<div className="transaction">
-<span>26 Jan - Movie tickets</span>
-<span className="expenseText">₹-120</span>
-</div>
+        {[...transactions]
+  .reverse()
+  .filter(t => {
+    if (filter === "all") return true;
+    return t.type === filter;
+  })
+          .map((t, i) => (
+            <div className="transaction" key={i}>
 
-<div className="transaction">
-<span>25 Jan - Fuel</span>
-<span className="expenseText">₹-80</span>
-</div>
+              <div className="left">
+                <div className="date">{t.date}</div>
+                <div className="day">{t.day}</div>
+              </div>
 
-</div>
+              <div className="middle">
+                {t.note}
+              </div>
 
-<button
-className="addTransaction"
-onClick={()=>setShowTransaction(true)}
->
-+ ADD TRANSACTION
-</button>
+              <div className={`right ${t.type === "expense" ? "expenseText" : "incomeText"}`}>
+                ₹{t.type === "expense" ? "-" : "+"}{t.amount}
+              </div>
 
-{showTransaction && (
-<Transactions closeModal={()=>setShowTransaction(false)} />
-)}
+            </div>
+          ))}
 
-</div>
+      </div>
 
-)
+      {/* ADD BUTTON */}
+      <button
+        className="addTransaction"
+        onClick={() => setShowTransaction(true)}
+      >
+        + ADD TRANSACTION
+      </button>
+
+      {/* MODAL */}
+      {showTransaction && (
+        <Transactions
+          closeModal={() => setShowTransaction(false)}
+          addTransaction={(data) => {
+            setTransactions([...transactions, data]);
+          }}
+        />
+      )}
+
+    </div>
+  );
 }

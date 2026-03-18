@@ -1,13 +1,15 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import "./Profile.css";
+
 import Webcam from "react-webcam";
 import { useNavigate } from "react-router-dom";
 function Profile() {
 const navigate = useNavigate();
 const handleLogout = () => {
+  localStorage.removeItem("token");
   navigate("/login");
 };
-  const [username, setUsername] = useState("alex_usakshithaakshitha");
+  const [username, setUsername] = useState("alex_user");
   const [email, setEmail] = useState("alex.user92@gmail.com");
 const webcamRef = useRef(null);
   const [editUser, setEditUser] = useState(false);
@@ -19,8 +21,54 @@ const [showOptions, setShowOptions] = useState(false);
   const [profileImage, setProfileImage] = useState(
     "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
   );
+  useEffect(() => {
 
+  const token = localStorage.getItem("token");
+
+  if (!token) {
+    navigate("/login");
+    return;
+  }
+
+  fetch("http://localhost:5001/api/profile", {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json"
+    }
+  })
+  .then(res => res.json())
+  .then(data => {
+    setUsername(data.username);
+    setEmail(data.email);
+  });
+
+}, []);
   /* CHANGE PROFILE IMAGE */
+  // SAVE PROFILE TO BACKEND
+const saveProfile = async () => {
+
+  const token = localStorage.getItem("token");
+
+  const res = await fetch("http://localhost:5001/api/profile", {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`
+    },
+    body: JSON.stringify({
+      username: tempUser,
+      email: tempEmail
+    })
+  });
+
+  const data = await res.json();
+
+  setUsername(tempUser);
+  setEmail(tempEmail);
+
+  alert(data.message || "Profile updated successfully");
+};
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -38,11 +86,26 @@ const [showOptions, setShowOptions] = useState(false);
     setEditUser(true);
   };
 
-  const saveUser = () => {
-    setUsername(tempUser);
-    setEditUser(false);
-  };
+  const saveUser = async () => {
 
+  setUsername(tempUser);
+  setEditUser(false);
+
+  const token = localStorage.getItem("token");
+
+  await fetch("http://localhost:5001/api/profile", {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify({
+      username: tempUser,
+      email
+    })
+  });
+
+};
 
   /* EMAIL EDIT */
 
@@ -51,11 +114,26 @@ const [showOptions, setShowOptions] = useState(false);
     setEditEmail(true);
   };
 
-  const saveEmail = () => {
-    setEmail(tempEmail);
-    setEditEmail(false);
-  };
+  const saveEmail = async () => {
 
+  setEmail(tempEmail);
+  setEditEmail(false);
+
+  const token = localStorage.getItem("token");
+
+  await fetch("http://localhost:5001/api/profile", {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify({
+      username,
+      email: tempEmail
+    })
+  });
+
+};
 
   return (
     <div className="profile-wrapper">
