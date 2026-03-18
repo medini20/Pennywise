@@ -1,13 +1,12 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import logo from "../logo.jpeg";
 
 function ForgotPassword() {
   const [email, setEmail] = useState("");
   const [otpCode, setOtpCode] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [step, setStep] = useState(1); // 1 = Request OTP, 2 = Verify & Reset
+  const [step, setStep] = useState(1);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
@@ -73,69 +72,94 @@ function ForgotPassword() {
 
   return (
     <div style={styles.container}>
-      {/* Logo & Brand top-left */}
-      <div style={styles.brandSection}>
-        <img src={logo} alt="Pennywise" style={styles.logo} />
-        <span style={styles.brandName}>Pennywise</span>
+      {/* Back to Login - top right */}
+      <Link to="/login" style={styles.backLink}>Back to Login</Link>
+
+      {/* Left Panel - Branding */}
+      <div style={styles.leftPanel}>
+        <div style={styles.brandWrapper}>
+          <img src="/pennywise-logo.png" alt="Pennywise" style={styles.logo} />
+          <h1 style={styles.brandName}>PENNYWISE</h1>
+        </div>
       </div>
 
-      <div style={styles.card}>
-        <div style={styles.header}>
-          <h1 style={styles.title}>Reset Password</h1>
-          <p style={styles.subtitle}>
-            {step === 1 ? "Enter your email to receive an OTP." : "Enter the OTP and your new password."}
-          </p>
-        </div>
-        
+      {/* Divider */}
+      <div style={styles.dividerLine}></div>
+
+      {/* Right Panel - Form */}
+      <div style={styles.rightPanel}>
+        <h2 style={styles.title}>Forgot Password</h2>
+
         {error && <div style={styles.errorBanner}>{error}</div>}
         {message && <div style={styles.successBanner}>{message}</div>}
 
         {step === 1 ? (
           <form onSubmit={handleRequestOtp} style={styles.form}>
-            <div style={styles.inputGroup}>
-              <label style={styles.label}>Email Address</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                style={styles.input}
-                placeholder="Enter your email"
-                required
-              />
-            </div>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              style={styles.input}
+              placeholder="Email"
+              required
+            />
 
-            <button type="submit" style={styles.button} disabled={loading}>
-              {loading ? "Sending..." : "Send Reset Code"}
-            </button>
-          </form>
-        ) : (
-          <form onSubmit={handleResetPassword} style={styles.form}>
-            <div style={styles.inputGroup}>
-              <label style={styles.label}>Verification Code (OTP)</label>
+            <div style={{ display: "flex", gap: "12px", alignItems: "stretch" }}>
               <input
                 type="text"
                 value={otpCode}
                 onChange={(e) => setOtpCode(e.target.value)}
-                style={styles.input}
-                placeholder="Enter 6-digit code"
-                maxLength="6"
+                style={{ ...styles.input, flex: 1 }}
+                placeholder="Enter OTP"
+                disabled
+              />
+              <button type="submit" style={styles.sendOtpBtn} disabled={loading}>
+                {loading ? "Sending..." : "Send OTP"}
+              </button>
+            </div>
+
+            <button
+              type="button"
+              style={{ ...styles.button, opacity: 0.5, cursor: "not-allowed" }}
+              disabled
+            >
+              Verify
+            </button>
+          </form>
+        ) : (
+          <form onSubmit={handleResetPassword} style={styles.form}>
+            <input
+              type="email"
+              value={email}
+              style={{ ...styles.input, opacity: 0.6 }}
+              disabled
+            />
+
+            <div style={{ display: "flex", gap: "12px", alignItems: "stretch" }}>
+              <input
+                type="text"
+                value={otpCode}
+                onChange={(e) => setOtpCode(e.target.value)}
+                style={{ ...styles.input, flex: 1 }}
+                placeholder="Enter OTP"
                 required
               />
+              <span style={styles.otpSentBadge}>✓ Sent</span>
             </div>
-            <div style={styles.inputGroup}>
-              <label style={styles.label}>New Password</label>
+
+            <div>
               <input
                 type="password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 style={styles.input}
-                placeholder="Create new password"
+                placeholder="New Password"
                 required
               />
             </div>
-            <div style={styles.inputGroup}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <label style={styles.label}>Confirm New Password</label>
+
+            <div>
+              <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "6px" }}>
                 {confirmPassword.length > 0 && (
                   <span style={{ fontSize: "12px", fontWeight: "600", color: passwordsMatch ? "#22c55e" : "#ef4444" }}>
                     {passwordsMatch ? "✅ Passwords match" : "❌ Passwords don't match"}
@@ -150,12 +174,13 @@ function ForgotPassword() {
                   ...styles.input,
                   borderColor: confirmPassword.length > 0
                     ? (passwordsMatch ? "#22c55e" : "#ef4444")
-                    : "#374151"
+                    : "rgba(255, 255, 255, 0.25)"
                 }}
                 placeholder="Re-enter new password"
                 required
               />
             </div>
+
             <button
               type="submit"
               style={{
@@ -165,15 +190,13 @@ function ForgotPassword() {
               }}
               disabled={loading || showMismatch}
             >
-              {loading ? "Resetting..." : "Reset Password"}
+              {loading ? "Resetting..." : "Verify"}
             </button>
           </form>
         )}
 
         <div style={styles.footer}>
-          <p style={styles.footerText}>
-            Remember your password? <Link to="/login" style={styles.link}>Sign in</Link>
-          </p>
+          <Link to="/signup" style={styles.link}>Create account</Link>
         </div>
       </div>
     </div>
@@ -183,78 +206,155 @@ function ForgotPassword() {
 const styles = {
   container: {
     display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
     minHeight: "100vh",
-    background: "#0a0e27",
+    background: "#080c24",
     fontFamily: "'Inter', 'Segoe UI', sans-serif",
     color: "#ffffff",
-    position: "relative"
+    position: "relative",
   },
-  brandSection: {
+  backLink: {
     position: "absolute",
     top: "24px",
-    left: "32px",
+    right: "32px",
+    color: "#00ccff",
+    textDecoration: "none",
+    fontSize: "14px",
+    fontWeight: "500",
+    zIndex: 10,
+  },
+  leftPanel: {
+    flex: 1,
     display: "flex",
-    flexDirection: "row",
+    justifyContent: "center",
     alignItems: "center",
-    gap: "12px",
-    zIndex: 10
+    background: "#080c24",
+  },
+  brandWrapper: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: "20px",
   },
   logo: {
-    width: "88px",
-    height: "88px",
-    filter: "drop-shadow(0 0 12px rgba(97, 218, 251, 0.5))"
+    width: "200px",
+    height: "200px",
+    objectFit: "contain",
+    filter: "drop-shadow(0 0 30px rgba(0, 180, 255, 0.4))",
   },
   brandName: {
+    fontSize: "32px",
+    fontWeight: "800",
+    letterSpacing: "8px",
+    color: "#ffffff",
+    margin: 0,
+    textAlign: "center",
+  },
+  dividerLine: {
+    width: "1px",
+    background: "linear-gradient(to bottom, transparent, rgba(0, 180, 255, 0.3), transparent)",
+    alignSelf: "stretch",
+  },
+  rightPanel: {
+    flex: 1,
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: "40px",
+    background: "#0a0e27",
+  },
+  title: {
     fontSize: "36px",
     fontWeight: "700",
-    color: "#e2e8f0",
-    margin: 0,
-    letterSpacing: "0.5px"
+    marginBottom: "30px",
+    color: "#ffffff",
   },
-  card: {
+  form: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "18px",
     width: "100%",
     maxWidth: "400px",
-    background: "#0d1430",
-    borderRadius: "16px",
-    padding: "40px 32px",
-    boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
-    border: "1px solid rgba(255, 255, 255, 0.08)"
   },
-  header: { textAlign: "center", marginBottom: "32px" },
-  title: { fontSize: "32px", fontWeight: "bold", margin: "0 0 8px 0", color: "#2f5be7" },
-  subtitle: { fontSize: "14px", color: "#9ca3af", margin: 0 },
-  form: { display: "flex", flexDirection: "column", gap: "20px" },
-  inputGroup: { display: "flex", flexDirection: "column", gap: "8px" },
-  label: { fontSize: "14px", fontWeight: "500", color: "#e5e7eb" },
   input: {
-    padding: "12px 16px",
-    borderRadius: "8px",
-    background: "#060d2b",
-    border: "1px solid rgba(183, 193, 255, 0.2)",
+    width: "100%",
+    padding: "14px 18px",
+    borderRadius: "6px",
+    background: "transparent",
+    border: "1px solid rgba(255, 255, 255, 0.25)",
     color: "#ffffff",
     fontSize: "15px",
     outline: "none",
-    transition: "border-color 0.2s"
+    transition: "border-color 0.3s",
+    boxSizing: "border-box",
   },
   button: {
-    marginTop: "8px",
+    marginTop: "5px",
     padding: "14px",
-    borderRadius: "8px",
-    background: "#2f5be7",
+    borderRadius: "6px",
+    background: "linear-gradient(135deg, #0066ff, #00ccff)",
     color: "#ffffff",
     fontSize: "16px",
     fontWeight: "600",
-    border: "none",
+    border: "1px solid rgba(0, 180, 255, 0.5)",
     cursor: "pointer",
-    transition: "background 0.2s, transform 0.1s"
+    boxShadow: "0 0 20px rgba(0, 150, 255, 0.4), 0 0 40px rgba(0, 150, 255, 0.15)",
+    transition: "box-shadow 0.3s, transform 0.1s",
   },
-  errorBanner: { padding: "12px", borderRadius: "4px", marginBottom: "20px", fontSize: "14px", background: "rgba(239, 68, 68, 0.1)", borderLeft: "4px solid #ef4444", color: "#fca5a5" },
-  successBanner: { padding: "12px", borderRadius: "4px", marginBottom: "20px", fontSize: "14px", background: "rgba(34, 197, 94, 0.1)", borderLeft: "4px solid #22c55e", color: "#86efac" },
-  footer: { marginTop: "32px", textAlign: "center" },
-  footerText: { fontSize: "14px", color: "#9ca3af" },
-  link: { color: "#61dafb", textDecoration: "none", fontWeight: "500" }
+  sendOtpBtn: {
+    padding: "14px 20px",
+    borderRadius: "6px",
+    background: "#2f5be7",
+    color: "#ffffff",
+    fontSize: "14px",
+    fontWeight: "600",
+    border: "1px solid rgba(0, 180, 255, 0.3)",
+    cursor: "pointer",
+    whiteSpace: "nowrap",
+    transition: "background 0.2s",
+  },
+  otpSentBadge: {
+    display: "flex",
+    alignItems: "center",
+    padding: "0 16px",
+    color: "#22c55e",
+    fontSize: "14px",
+    fontWeight: "600",
+  },
+  errorBanner: {
+    background: "rgba(239, 68, 68, 0.1)",
+    borderLeft: "4px solid #ef4444",
+    color: "#fca5a5",
+    padding: "12px",
+    borderRadius: "4px",
+    fontSize: "14px",
+    width: "100%",
+    maxWidth: "400px",
+    boxSizing: "border-box",
+    marginBottom: "10px",
+  },
+  successBanner: {
+    background: "rgba(34, 197, 94, 0.1)",
+    borderLeft: "4px solid #22c55e",
+    color: "#86efac",
+    padding: "12px",
+    borderRadius: "4px",
+    fontSize: "14px",
+    width: "100%",
+    maxWidth: "400px",
+    boxSizing: "border-box",
+    marginBottom: "10px",
+  },
+  footer: {
+    marginTop: "32px",
+    textAlign: "center",
+  },
+  link: {
+    color: "#00ccff",
+    textDecoration: "none",
+    fontWeight: "500",
+    fontSize: "14px",
+  },
 };
 
 export default ForgotPassword;

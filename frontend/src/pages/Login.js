@@ -1,64 +1,20 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import logo from "../logo.jpeg";
-
-const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID;
 
 function Login() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const googleBtnRef = useRef(null);
 
   useEffect(() => {
-    if (window.google && GOOGLE_CLIENT_ID) {
-      window.google.accounts.id.initialize({
-        client_id: GOOGLE_CLIENT_ID,
-        callback: handleGoogleResponse,
-      });
-      window.google.accounts.id.renderButton(googleBtnRef.current, {
-        theme: "filled_black",
-        size: "large",
-        width: "336",
-        text: "signin_with",
-        shape: "rectangular",
-      });
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const handleGoogleResponse = async (response) => {
-    setError("");
-    setLoading(true);
-    try {
-      const res = await fetch("http://localhost:5001/auth/google", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ credential: response.credential }),
-      });
-      const data = await res.json();
-
-      if (res.ok) {
-        localStorage.setItem("token", data.token);
-        localStorage.setItem("user", JSON.stringify(data.user));
-        navigate("/");
-      } else {
-        setError(data.error || "Google login failed");
-      }
-    } catch (err) {
-      setError("Network error. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
+    const user = localStorage.getItem("user");
+    if (user) navigate("/");
+  }, [navigate]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setError("");
-    setLoading(true);
-
     try {
       const response = await fetch("http://localhost:5001/auth/login", {
         method: "POST",
@@ -66,92 +22,72 @@ function Login() {
         body: JSON.stringify({ username, password }),
       });
       const data = await response.json();
-
       if (response.ok) {
-        localStorage.setItem("token", data.token);
         localStorage.setItem("user", JSON.stringify(data.user));
+        localStorage.setItem("token", data.token);
         navigate("/");
       } else {
         setError(data.error || "Login failed");
       }
-    } catch (err) {
+    } catch {
       setError("Network error. Please try again.");
-    } finally {
-      setLoading(false);
     }
   };
 
   return (
     <div style={styles.container}>
-      {/* Logo & Brand top-left */}
-      <div style={styles.brandSection}>
-        <img src={logo} alt="Pennywise" style={styles.logo} />
-        <span style={styles.brandName}>Pennywise</span>
+      {/* Left Panel - Branding */}
+      <div style={styles.leftPanel}>
+        <div style={styles.brandWrapper}>
+          <img
+            src="/pennywise-logo.png"
+            alt="Pennywise"
+            style={styles.logo}
+          />
+          <h1 style={styles.brandName}>PENNYWISE</h1>
+        </div>
       </div>
 
-      <div style={styles.card}>
-        <div style={styles.header}>
-          <h1 style={styles.title}>Welcome Back</h1>
-          <p style={styles.subtitle}>Welcome back! Please login to your account.</p>
-        </div>
-        
-        {error && <div style={styles.errorBanner}>{error}</div>}
+      {/* Divider */}
+      <div style={styles.dividerLine}></div>
+
+      {/* Right Panel - Form */}
+      <div style={styles.rightPanel}>
+        <h2 style={styles.title}>Login</h2>
 
         <form onSubmit={handleLogin} style={styles.form}>
-          <div style={styles.inputGroup}>
-            <label style={styles.label}>Username</label>
-            <input
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              style={styles.input}
-              placeholder="Enter your username"
-              required
-            />
-          </div>
+          {error && <div style={styles.errorBanner}>{error}</div>}
 
-          <div style={styles.inputGroup}>
-            <label style={styles.label}>Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              style={styles.input}
-              placeholder="Enter your password"
-              required
-            />
-          </div>
+          <input
+            type="text"
+            placeholder="Email"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            style={styles.input}
+            required
+          />
 
-          <button type="submit" style={styles.button} disabled={loading}>
-            {loading ? "Signing in..." : "Sign In"}
+          <input
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            style={styles.input}
+            required
+          />
+
+          <button type="submit" style={styles.button}>
+            Login
           </button>
-
-          <div style={{ textAlign: "center", marginTop: "-4px" }}>
-            <Link to="/forgot-password" style={styles.forgotLink}>Forgot password?</Link>
-          </div>
         </form>
 
-        {/* Divider */}
-        <div style={styles.divider}>
-          <div style={styles.dividerLine}></div>
-          <span style={styles.dividerText}>or</span>
-          <div style={styles.dividerLine}></div>
-        </div>
-
-        {/* Google Sign-In Button */}
-        <div style={{ display: "flex", justifyContent: "center" }}>
-          <div ref={googleBtnRef}></div>
-        </div>
-        {!GOOGLE_CLIENT_ID && (
-          <p style={{ textAlign: "center", fontSize: "12px", color: "#6b7280", marginTop: "8px" }}>
-            Google Sign-In not configured. Set REACT_APP_GOOGLE_CLIENT_ID.
-          </p>
-        )}
-
-        <div style={styles.footer}>
-          <p style={styles.footerText}>
-            Don't have an account? <Link to="/signup" style={styles.link}>Sign up</Link>
-          </p>
+        <div style={styles.linksRow}>
+          <Link to="/forgot-password" style={styles.link}>
+            Forgot password?
+          </Link>
+          <Link to="/signup" style={styles.link}>
+            Create account
+          </Link>
         </div>
       </div>
     </div>
@@ -161,72 +97,87 @@ function Login() {
 const styles = {
   container: {
     display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
     minHeight: "100vh",
-    background: "#0a0e27",
+    background: "#080c24",
     fontFamily: "'Inter', 'Segoe UI', sans-serif",
     color: "#ffffff",
-    position: "relative"
   },
-  brandSection: {
-    position: "absolute",
-    top: "24px",
-    left: "32px",
+  leftPanel: {
+    flex: 1,
     display: "flex",
-    flexDirection: "row",
+    justifyContent: "center",
     alignItems: "center",
-    gap: "12px",
-    zIndex: 10
+    background: "#080c24",
+  },
+  brandWrapper: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: "20px",
   },
   logo: {
-    width: "88px",
-    height: "88px",
-    filter: "drop-shadow(0 0 12px rgba(97, 218, 251, 0.5))"
+    width: "200px",
+    height: "200px",
+    objectFit: "contain",
+    filter: "drop-shadow(0 0 30px rgba(0, 180, 255, 0.4))",
   },
   brandName: {
+    fontSize: "32px",
+    fontWeight: "800",
+    letterSpacing: "8px",
+    color: "#ffffff",
+    margin: 0,
+    textAlign: "center",
+  },
+  dividerLine: {
+    width: "1px",
+    background: "linear-gradient(to bottom, transparent, rgba(0, 180, 255, 0.3), transparent)",
+    alignSelf: "stretch",
+  },
+  rightPanel: {
+    flex: 1,
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: "40px",
+    background: "#0a0e27",
+  },
+  title: {
     fontSize: "36px",
     fontWeight: "700",
-    color: "#e2e8f0",
-    margin: 0,
-    letterSpacing: "0.5px"
+    marginBottom: "40px",
+    color: "#ffffff",
   },
-  card: {
+  form: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "20px",
     width: "100%",
     maxWidth: "400px",
-    background: "#0d1430",
-    borderRadius: "16px",
-    padding: "40px 32px",
-    boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
-    border: "1px solid rgba(255, 255, 255, 0.08)"
   },
-  header: { textAlign: "center", marginBottom: "32px" },
-  title: { fontSize: "32px", fontWeight: "bold", margin: "0 0 8px 0", color: "#2f5be7" },
-  subtitle: { fontSize: "14px", color: "#9ca3af", margin: 0 },
-  form: { display: "flex", flexDirection: "column", gap: "20px" },
-  inputGroup: { display: "flex", flexDirection: "column", gap: "8px" },
-  label: { fontSize: "14px", fontWeight: "500", color: "#e5e7eb" },
   input: {
-    padding: "12px 16px",
-    borderRadius: "8px",
-    background: "#060d2b",
-    border: "1px solid rgba(183, 193, 255, 0.2)",
+    padding: "14px 18px",
+    borderRadius: "6px",
+    background: "transparent",
+    border: "1px solid rgba(255, 255, 255, 0.25)",
     color: "#ffffff",
     fontSize: "15px",
     outline: "none",
-    transition: "border-color 0.2s"
+    transition: "border-color 0.3s",
   },
   button: {
-    marginTop: "8px",
+    marginTop: "10px",
     padding: "14px",
-    borderRadius: "8px",
-    background: "#2f5be7",
+    borderRadius: "6px",
+    background: "linear-gradient(135deg, #0066ff, #00ccff)",
     color: "#ffffff",
     fontSize: "16px",
     fontWeight: "600",
-    border: "none",
+    border: "1px solid rgba(0, 180, 255, 0.5)",
     cursor: "pointer",
-    transition: "background 0.2s, transform 0.1s"
+    boxShadow: "0 0 20px rgba(0, 150, 255, 0.4), 0 0 40px rgba(0, 150, 255, 0.15)",
+    transition: "box-shadow 0.3s, transform 0.1s",
   },
   errorBanner: {
     background: "rgba(239, 68, 68, 0.1)",
@@ -234,30 +185,22 @@ const styles = {
     color: "#fca5a5",
     padding: "12px",
     borderRadius: "4px",
-    marginBottom: "20px",
-    fontSize: "14px"
+    fontSize: "14px",
   },
-  divider: {
+  linksRow: {
     display: "flex",
-    alignItems: "center",
-    margin: "24px 0",
-    gap: "12px"
+    justifyContent: "space-between",
+    width: "100%",
+    maxWidth: "400px",
+    marginTop: "24px",
   },
-  dividerLine: {
-    flex: 1,
-    height: "1px",
-    background: "rgba(255, 255, 255, 0.15)"
+  link: {
+    color: "#00ccff",
+    textDecoration: "none",
+    fontSize: "14px",
+    fontWeight: "500",
+    transition: "color 0.2s",
   },
-  dividerText: {
-    fontSize: "13px",
-    color: "#6b7280",
-    textTransform: "uppercase",
-    letterSpacing: "1px"
-  },
-  footer: { marginTop: "24px", textAlign: "center" },
-  footerText: { fontSize: "14px", color: "#9ca3af" },
-  link: { color: "#61dafb", textDecoration: "none", fontWeight: "500" },
-  forgotLink: { color: "#61dafb", fontSize: "13px", textDecoration: "none" }
 };
 
 export default Login;
