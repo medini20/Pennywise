@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import logo from "../logo.svg";
 
 const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID;
 
@@ -177,167 +176,152 @@ function Signup() {
 
   return (
     <div style={styles.container}>
-      {/* Logo & Brand above the card */}
-      <div style={styles.brandSection}>
-        <img src={logo} alt="Pennywise" style={styles.logo} />
-        <h2 style={styles.brandName}>Pennywise</h2>
+      {/* Left Panel - Branding */}
+      <div style={styles.leftPanel}>
+        <div style={styles.brandWrapper}>
+          <img src="/pennywise-logo.png" alt="Pennywise" style={styles.logo} />
+          <h1 style={styles.brandName}>PENNYWISE</h1>
+        </div>
       </div>
 
-      <div style={styles.card}>
-        <div style={styles.header}>
-          <h1 style={styles.title}>Sign Up</h1>
-          <p style={styles.subtitle}>
-            {step === 1 ? "Join Pennywise and take control of your finances." : "Enter the OTP sent to your email."}
-          </p>
-        </div>
+      {/* Divider */}
+      <div style={styles.dividerLine}></div>
 
-        {error && <div style={styles.errorBanner}>{error}</div>}
-        {message && <div style={styles.successBanner}>{message}</div>}
+      {/* Right Panel - Form */}
+      <div style={styles.rightPanel}>
+        <h2 style={styles.title}>{step === 1 ? "Create Account" : "Verify Email"}</h2>
 
         {step === 1 ? (
-          <>
-            <form onSubmit={handleSignup} style={styles.form}>
-              <div style={styles.inputGroup}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <label style={styles.label}>Username</label>
-                  {usernameIndicator()}
-                </div>
-                <input
-                  type="text"
-                  name="username"
-                  value={formData.username}
-                  onChange={handleChange}
-                  style={{
-                    ...styles.input,
-                    borderColor: usernameStatus === "taken" ? "#ef4444" : usernameStatus === "available" ? "#22c55e" : "#374151"
-                  }}
-                  placeholder="Choose a username"
-                  required
-                />
+          <form onSubmit={handleSignup} style={styles.form}>
+            {error && <div style={styles.errorBanner}>{error}</div>}
+            {message && <div style={styles.successBanner}>{message}</div>}
+
+            <div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                <span style={styles.label}>Username</span>
+                {usernameIndicator()}
               </div>
-
-              <div style={styles.inputGroup}>
-                <label style={styles.label}>Email Address</label>
-                <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  style={styles.input}
-                  placeholder="Enter your email"
-                  required
-                />
-              </div>
-
-              <div style={styles.inputGroup}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <label style={styles.label}>Password</label>
-                  {formData.password && (
-                    <span style={{ color: passwordStrength.color, fontSize: "12px", fontWeight: "600" }}>
-                      {passwordStrength.label}
-                    </span>
-                  )}
-                </div>
-                <input
-                  type="password"
-                  name="password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  style={styles.input}
-                  placeholder="Create a password"
-                  required
-                />
-                {formData.password && (
-                  <div style={{ display: "flex", gap: "4px", marginTop: "4px" }}>
-                    {[1, 2, 3, 4, 5].map((level) => (
-                      <div
-                        key={level}
-                        style={{
-                          flex: 1,
-                          height: "4px",
-                          borderRadius: "2px",
-                          background: passwordStrength.score >= level ? passwordStrength.color : "rgba(255,255,255,0.1)",
-                          transition: "background 0.3s"
-                        }}
-                      />
-                    ))}
-                  </div>
-                )}
-                <p style={{ fontSize: "11px", color: "#6b7280", margin: "4px 0 0 0" }}>
-                  Use 6+ characters with uppercase, numbers & symbols
-                </p>
-              </div>
-
-              {/* Terms checkbox */}
-              <label style={styles.checkboxLabel}>
-                <input
-                  type="checkbox"
-                  checked={agreedToTerms}
-                  onChange={(e) => setAgreedToTerms(e.target.checked)}
-                  style={styles.checkbox}
-                />
-                <span>
-                  I agree to the{" "}
-                  <span style={{ color: "#3b82f6", cursor: "pointer" }}>Terms of Service</span>{" "}
-                  and{" "}
-                  <span style={{ color: "#3b82f6", cursor: "pointer" }}>Privacy Policy</span>
-                </span>
-              </label>
-
-              <button
-                type="submit"
-                style={{
-                  ...styles.button,
-                  opacity: usernameStatus === "taken" || !agreedToTerms ? 0.5 : 1,
-                  cursor: usernameStatus === "taken" || !agreedToTerms ? "not-allowed" : "pointer"
-                }}
-                disabled={loading || usernameStatus === "taken" || !agreedToTerms}
-              >
-                {loading ? "Creating account..." : "Sign Up"}
-              </button>
-            </form>
-
-            {/* Divider */}
-            <div style={styles.divider}>
-              <div style={styles.dividerLine}></div>
-              <span style={styles.dividerText}>or</span>
-              <div style={styles.dividerLine}></div>
-            </div>
-
-            {/* Google Sign-Up Button */}
-            <div style={{ display: "flex", justifyContent: "center" }}>
-              <div ref={googleBtnRef}></div>
-            </div>
-            {!GOOGLE_CLIENT_ID && (
-              <p style={{ textAlign: "center", fontSize: "12px", color: "#6b7280", marginTop: "8px" }}>
-                Google Sign-In not configured. Set REACT_APP_GOOGLE_CLIENT_ID.
-              </p>
-            )}
-          </>
-        ) : (
-          <form onSubmit={handleVerifyOtp} style={styles.form}>
-            <div style={styles.inputGroup}>
-              <label style={styles.label}>Verification Code (OTP)</label>
               <input
                 type="text"
-                value={otpCode}
-                onChange={(e) => setOtpCode(e.target.value)}
+                name="username"
+                placeholder="Choose a username"
+                value={formData.username}
+                onChange={handleChange}
                 style={styles.input}
-                placeholder="Enter 6-digit code"
-                maxLength="6"
                 required
               />
             </div>
+
+            <div>
+              <span style={styles.label}>Email</span>
+              <input
+                type="email"
+                name="email"
+                placeholder="Enter your email"
+                value={formData.email}
+                onChange={handleChange}
+                style={styles.input}
+                required
+              />
+            </div>
+
+            <div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                <span style={styles.label}>Password</span>
+                {formData.password && (
+                  <span style={{ color: passwordStrength.color, fontSize: "12px", fontWeight: "600" }}>
+                    {passwordStrength.label}
+                  </span>
+                )}
+              </div>
+              <input
+                type="password"
+                name="password"
+                placeholder="Create a password"
+                value={formData.password}
+                onChange={handleChange}
+                style={styles.input}
+                required
+              />
+              {formData.password && (
+                <div style={{ display: "flex", gap: "4px", marginTop: "8px" }}>
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <div key={i} style={{
+                      flex: 1, height: "4px", borderRadius: "2px",
+                      background: i <= passwordStrength.score ? passwordStrength.color : "rgba(255,255,255,0.1)"
+                    }}></div>
+                  ))}
+                </div>
+              )}
+              <p style={{ fontSize: "12px", color: "#6b7280", marginTop: "6px" }}>
+                Use 6+ characters with uppercase, numbers & symbols
+              </p>
+            </div>
+
+            <label style={styles.checkboxLabel}>
+              <input
+                type="checkbox"
+                checked={agreedToTerms}
+                onChange={(e) => setAgreedToTerms(e.target.checked)}
+                style={styles.checkbox}
+              />
+              <span>
+                I agree to the <span style={{ color: "#00ccff" }}>Terms of Service</span> and <span style={{ color: "#00ccff" }}>Privacy Policy</span>
+              </span>
+            </label>
+
+            <button
+              type="submit"
+              style={{
+                ...styles.button,
+                opacity: !agreedToTerms || loading ? 0.5 : 1,
+                cursor: !agreedToTerms || loading ? "not-allowed" : "pointer"
+              }}
+              disabled={!agreedToTerms || loading}
+            >
+              {loading ? "Creating..." : "Continue"}
+            </button>
+
+            {/* Google Sign-In */}
+            <div style={styles.orDivider}>
+              <div style={styles.orLine}></div>
+              <span style={styles.orText}>OR</span>
+              <div style={styles.orLine}></div>
+            </div>
+
+            {GOOGLE_CLIENT_ID ? (
+              <div ref={googleBtnRef} style={{ display: "flex", justifyContent: "center" }}></div>
+            ) : (
+              <p style={{ textAlign: "center", fontSize: "12px", color: "#6b7280" }}>
+                Google Sign-In not configured.
+              </p>
+            )}
+          </form>
+        ) : (
+          <form onSubmit={handleVerifyOtp} style={styles.form}>
+            {error && <div style={styles.errorBanner}>{error}</div>}
+            {message && <div style={styles.successBanner}>{message}</div>}
+
+            <input
+              type="text"
+              placeholder="Enter OTP code"
+              value={otpCode}
+              onChange={(e) => setOtpCode(e.target.value)}
+              style={styles.input}
+              required
+            />
+
             <button type="submit" style={styles.button} disabled={loading}>
-              {loading ? "Verifying..." : "Verify OTP"}
+              {loading ? "Verifying..." : "Verify"}
             </button>
           </form>
         )}
 
         <div style={styles.footer}>
-          <p style={styles.footerText}>
-            Already have an account? <Link to="/login" style={styles.link}>Sign in</Link>
-          </p>
+          <span style={{ color: "#9ca3af", fontSize: "14px" }}>
+            Already have an account?{" "}
+            <Link to="/login" style={styles.link}>Sign in</Link>
+          </span>
         </div>
       </div>
     </div>
@@ -347,97 +331,139 @@ function Signup() {
 const styles = {
   container: {
     display: "flex",
+    minHeight: "100vh",
+    background: "#080c24",
+    fontFamily: "'Inter', 'Segoe UI', sans-serif",
+    color: "#ffffff",
+  },
+  leftPanel: {
+    flex: 1,
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    background: "#080c24",
+  },
+  brandWrapper: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: "20px",
+  },
+  logo: {
+    width: "200px",
+    height: "200px",
+    objectFit: "contain",
+    filter: "drop-shadow(0 0 30px rgba(0, 180, 255, 0.4))",
+  },
+  brandName: {
+    fontSize: "32px",
+    fontWeight: "800",
+    letterSpacing: "8px",
+    color: "#ffffff",
+    margin: 0,
+    textAlign: "center",
+  },
+  dividerLine: {
+    width: "1px",
+    background: "linear-gradient(to bottom, transparent, rgba(0, 180, 255, 0.3), transparent)",
+    alignSelf: "stretch",
+  },
+  rightPanel: {
+    flex: 1,
+    display: "flex",
     flexDirection: "column",
     justifyContent: "center",
     alignItems: "center",
-    minHeight: "100vh",
+    padding: "40px",
     background: "#0a0e27",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif",
-    color: "#ffffff",
-    padding: "40px 16px",
-    position: "relative"
+    overflowY: "auto",
   },
-  brandSection: {
-    position: "absolute",
-    top: "24px",
-    left: "32px",
-    display: "flex",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: "12px",
-    zIndex: 10
-  },
-  logo: {
-    width: "88px",
-    height: "88px",
-    filter: "drop-shadow(0 0 12px rgba(97, 218, 251, 0.5))"
-  },
-  brandName: {
+  title: {
     fontSize: "36px",
     fontWeight: "700",
-    color: "#e2e8f0",
-    margin: 0,
-    letterSpacing: "0.5px"
+    marginBottom: "30px",
+    color: "#ffffff",
   },
-  card: {
+  form: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "18px",
     width: "100%",
     maxWidth: "400px",
-    background: "#0d1430",
-    borderRadius: "16px",
-    padding: "40px 32px",
-    boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
-    border: "1px solid rgba(255, 255, 255, 0.08)"
   },
-  header: { textAlign: "center", marginBottom: "32px" },
-  title: { fontSize: "32px", fontWeight: "bold", margin: "0 0 8px 0", color: "#2f5be7" },
-  subtitle: { fontSize: "14px", color: "#9ca3af", margin: 0 },
-  form: { display: "flex", flexDirection: "column", gap: "20px" },
-  inputGroup: { display: "flex", flexDirection: "column", gap: "8px" },
-  label: { fontSize: "14px", fontWeight: "500", color: "#e5e7eb" },
+  label: {
+    fontSize: "13px",
+    fontWeight: "500",
+    color: "#e5e7eb",
+    display: "block",
+    marginBottom: "6px",
+  },
   input: {
-    padding: "12px 16px",
-    borderRadius: "8px",
-    background: "#060d2b",
-    border: "1px solid rgba(183, 193, 255, 0.2)",
+    width: "100%",
+    padding: "14px 18px",
+    borderRadius: "6px",
+    background: "transparent",
+    border: "1px solid rgba(255, 255, 255, 0.25)",
     color: "#ffffff",
     fontSize: "15px",
     outline: "none",
-    transition: "border-color 0.3s"
+    transition: "border-color 0.3s",
+    boxSizing: "border-box",
   },
   button: {
-    marginTop: "8px",
+    marginTop: "5px",
     padding: "14px",
-    borderRadius: "8px",
-    background: "#2f5be7",
+    borderRadius: "6px",
+    background: "linear-gradient(135deg, #0066ff, #00ccff)",
     color: "#ffffff",
     fontSize: "16px",
     fontWeight: "600",
-    border: "none",
+    border: "1px solid rgba(0, 180, 255, 0.5)",
     cursor: "pointer",
-    transition: "background 0.2s, transform 0.1s"
+    boxShadow: "0 0 20px rgba(0, 150, 255, 0.4), 0 0 40px rgba(0, 150, 255, 0.15)",
+    transition: "box-shadow 0.3s, transform 0.1s",
   },
-  errorBanner: { padding: "12px", borderRadius: "4px", marginBottom: "20px", fontSize: "14px", background: "rgba(239, 68, 68, 0.1)", borderLeft: "4px solid #ef4444", color: "#fca5a5" },
-  successBanner: { padding: "12px", borderRadius: "4px", marginBottom: "20px", fontSize: "14px", background: "rgba(34, 197, 94, 0.1)", borderLeft: "4px solid #22c55e", color: "#86efac" },
-  divider: {
+  errorBanner: {
+    background: "rgba(239, 68, 68, 0.1)",
+    borderLeft: "4px solid #ef4444",
+    color: "#fca5a5",
+    padding: "12px",
+    borderRadius: "4px",
+    fontSize: "14px",
+  },
+  successBanner: {
+    background: "rgba(34, 197, 94, 0.1)",
+    borderLeft: "4px solid #22c55e",
+    color: "#86efac",
+    padding: "12px",
+    borderRadius: "4px",
+    fontSize: "14px",
+  },
+  orDivider: {
     display: "flex",
     alignItems: "center",
-    margin: "24px 0",
-    gap: "12px"
+    gap: "12px",
+    margin: "8px 0",
   },
-  dividerLine: {
+  orLine: {
     flex: 1,
     height: "1px",
-    background: "rgba(255, 255, 255, 0.15)"
+    background: "rgba(255, 255, 255, 0.12)",
   },
-  dividerText: {
+  orText: {
     fontSize: "13px",
     color: "#6b7280",
-    textTransform: "uppercase",
-    letterSpacing: "1px"
+    letterSpacing: "1px",
   },
-  footer: { marginTop: "24px", textAlign: "center" },
-  footerText: { fontSize: "14px", color: "#9ca3af" },
-  link: { color: "#61dafb", textDecoration: "none", fontWeight: "500" },
+  footer: {
+    marginTop: "24px",
+    textAlign: "center",
+  },
+  link: {
+    color: "#00ccff",
+    textDecoration: "none",
+    fontWeight: "500",
+  },
   checkboxLabel: {
     display: "flex",
     alignItems: "flex-start",
@@ -445,16 +471,16 @@ const styles = {
     fontSize: "13px",
     color: "#9ca3af",
     cursor: "pointer",
-    lineHeight: "1.4"
+    lineHeight: "1.4",
   },
   checkbox: {
     width: "18px",
     height: "18px",
     marginTop: "2px",
-    accentColor: "#2f5be7",
+    accentColor: "#00ccff",
     cursor: "pointer",
-    flexShrink: 0
-  }
+    flexShrink: 0,
+  },
 };
 
 export default Signup;
