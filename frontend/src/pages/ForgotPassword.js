@@ -239,7 +239,6 @@ const styles = {
     width: "420px",
     height: "420px",
     objectFit: "contain",
-    filter: "drop-shadow(0 0 30px rgba(0, 180, 255, 0.4))",
   },
   brandName: {
     fontSize: "32px",
