@@ -78,7 +78,7 @@ function ForgotPassword() {
       {/* Left Panel - Branding */}
       <div style={styles.leftPanel}>
         <div style={styles.brandWrapper}>
-          <img src="/pennywise-logo.png" alt="Pennywise" style={styles.logo} />
+          <img src="/pennywise-logo.jpeg" alt="Pennywise" style={styles.logo} />
           <h1 style={styles.brandName}>PENNYWISE</h1>
         </div>
       </div>

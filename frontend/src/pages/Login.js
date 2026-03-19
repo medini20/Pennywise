@@ -40,7 +40,7 @@ function Login() {
       <div style={styles.leftPanel}>
         <div style={styles.brandWrapper}>
           <img
-            src="/pennywise-logo.png"
+            src="/pennywise-logo.jpeg"
             alt="Pennywise"
             style={styles.logo}
           />
