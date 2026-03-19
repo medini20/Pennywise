@@ -331,7 +331,7 @@ const styles = {
   container: {
     display: "flex",
     minHeight: "100vh",
-    background: "#080c24",
+    background: "#000000",
     fontFamily: "'Inter', 'Segoe UI', sans-serif",
     color: "#ffffff",
   },
@@ -340,7 +340,7 @@ const styles = {
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
-    background: "#080c24",
+    background: "#000000",
     padding: "40px",
   },
   brandWrapper: {
