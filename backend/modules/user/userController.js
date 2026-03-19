@@ -27,12 +27,12 @@ exports.signup = async (req, res) => {
     try {
         // Check email uniqueness
         db.all("SELECT * FROM users WHERE email = ?", [email], async (err, emailRows) => {
-            if (err) return res.status(500).json({ error: "Database error" });
+            if (err) { console.error("Signup email check error:", err.message); return res.status(500).json({ error: "Database error" }); }
             if (emailRows.length > 0) return res.status(400).json({ error: "Email already exists" });
 
             // Check username uniqueness
             db.all("SELECT * FROM users WHERE username = ?", [username], async (err, userRows) => {
-                if (err) return res.status(500).json({ error: "Database error" });
+                if (err) { console.error("Signup username check error:", err.message); return res.status(500).json({ error: "Database error" }); }
                 if (userRows.length > 0) return res.status(400).json({ error: "Username already taken" });
 
                 const salt = await bcrypt.genSalt(10);
@@ -42,7 +42,7 @@ exports.signup = async (req, res) => {
                     "INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)",
                     [username, email, password_hash],
                     function (err) {
-                        if (err) return res.status(500).json({ error: "Failed to create user" });
+                        if (err) { console.error("Signup INSERT user error:", err.message); return res.status(500).json({ error: "Failed to create user" }); }
 
                         const otp = generateOTP();
                         const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
@@ -51,10 +51,20 @@ exports.signup = async (req, res) => {
                             "INSERT INTO otps (email, otp_code, purpose, expires_at) VALUES (?, ?, 'SIGNUP', ?)",
                             [email, otp, expiresAt],
                             async function (err) {
-                                if (err) return res.status(500).json({ error: "Failed to generate OTP" });
+                                if (err) { console.error("Signup INSERT OTP error:", err.message); return res.status(500).json({ error: "Failed to generate OTP" }); }
 
-                                await emailService.sendOTP(email, otp);
-                                res.status(201).json({ message: "User registered. Please check email for OTP." });
+                                try {
+                                    const sent = await emailService.sendOTP(email, otp);
+                                    if (sent) {
+                                        res.status(201).json({ message: "User registered. Please check email for OTP." });
+                                    } else {
+                                        console.error("OTP email send failed for:", email);
+                                        res.status(201).json({ message: "User registered but email failed. Contact support." });
+                                    }
+                                } catch (emailErr) {
+                                    console.error("OTP email exception:", emailErr.message);
+                                    res.status(201).json({ message: "User registered but email failed. Contact support." });
+                                }
                             }
                         );
                     }
