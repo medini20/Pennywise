@@ -97,7 +97,7 @@ const styles = {
   container: {
     display: "flex",
     minHeight: "100vh",
-    background: "#000000",
+    background: "#080c24",
     fontFamily: "'Inter', 'Segoe UI', sans-serif",
     color: "#ffffff",
   },
@@ -106,7 +106,7 @@ const styles = {
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
-    background: "#000000",
+    background: "#080c24",
     padding: "40px",
   },
   brandWrapper: {
