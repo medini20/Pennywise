@@ -353,6 +353,7 @@ const styles = {
     width: "420px",
     height: "420px",
     objectFit: "contain",
+    mixBlendMode: "lighten",
   },
   brandName: {
     fontSize: "32px",
