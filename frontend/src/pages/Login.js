@@ -60,7 +60,7 @@ function Login() {
 
           <input
             type="text"
-            placeholder="Email"
+            placeholder="Username or Email"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             style={styles.input}

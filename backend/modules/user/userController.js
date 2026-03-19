@@ -100,7 +100,13 @@ exports.verifyOtp = (req, res) => {
 
 exports.login = (req, res) => {
     const { username, password } = req.body;
-    db.all("SELECT * FROM users WHERE username = ?", [username], async (err, rows) => {
+    // Support login with either username or email
+    const isEmail = username && username.includes('@');
+    const query = isEmail
+        ? "SELECT * FROM users WHERE email = ?"
+        : "SELECT * FROM users WHERE username = ?";
+
+    db.all(query, [username], async (err, rows) => {
         if (err) return res.status(500).json({ error: "Database error" });
         if (rows.length === 0) return res.status(400).json({ error: "Invalid username or password" });
 
