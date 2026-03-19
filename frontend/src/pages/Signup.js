@@ -180,7 +180,6 @@ function Signup() {
       <div style={styles.leftPanel}>
         <div style={styles.brandWrapper}>
           <img src="/pennywise-logo.jpeg" alt="Pennywise" style={styles.logo} />
-          <h1 style={styles.brandName}>PENNYWISE</h1>
         </div>
       </div>
 
@@ -350,8 +349,8 @@ const styles = {
     gap: "20px",
   },
   logo: {
-    width: "200px",
-    height: "200px",
+    width: "320px",
+    height: "320px",
     objectFit: "contain",
     filter: "drop-shadow(0 0 30px rgba(0, 180, 255, 0.4))",
   },
