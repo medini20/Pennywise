@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { FaEdit, FaTimes, FaTrash, FaUtensils } from "react-icons/fa";
 import "../styles/Budget.css";
-import Category from "./Category"; // Required to link the pop-up
+import Category from "./Category"; 
 
 function Budget() {
-  const [budgets, setBudgets] = useState([]);
+  const [budgets, setBudgets] = useState([]); // Initialized as empty array
   const [selectedBudget, setSelectedBudget] = useState(null);
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -18,7 +18,14 @@ function Budget() {
   const loadBudgets = () => {
     fetch("http://localhost:5001/budget/list")
       .then((res) => res.json())
-      .then((data) => setBudgets(data));
+      .then((data) => {
+        // Fix for "map is not a function": Only set state if data is an array
+        setBudgets(Array.isArray(data) ? data : []);
+      })
+      .catch((err) => {
+        console.error("Fetch error:", err);
+        setBudgets([]); 
+      });
   };
 
   const openEdit = (budget) => {
@@ -41,7 +48,6 @@ function Budget() {
         amount: Number(amount),
       }),
     })
-      .then((res) => res.json())
       .then(() => {
         setEditOpen(false);
         loadBudgets();
@@ -69,7 +75,6 @@ function Budget() {
         month: 1,
       }),
     })
-      .then((res) => res.json())
       .then(() => {
         setIsCategoryModalOpen(false);
         loadBudgets();
@@ -80,40 +85,50 @@ function Budget() {
     <div className="budget-container">
       <h2 className="budget-title">Budget Categories</h2>
 
-      {budgets.map((b) => {
-        const spent = 0; // Hardcoded for now
-        const remaining = b.amount - spent;
-        const percent = (spent / b.amount) * 100;
+      {/* Check if budgets exist before mapping */}
+      <div className="budget-list">
+        {budgets.length > 0 ? (
+          budgets.map((b) => {
+            const spent = 0; 
+            const remaining = b.amount - spent;
+            const percent = Math.min((spent / b.amount) * 100, 100);
 
-        return (
-          <div className="budget-card" key={b.budget_id}>
-            <div className="card-header">
-              <div className="category">
-                <div className="category-icon">
-                  {/* Shows your selected emoji icon */}
-                  {b.icon ? b.icon : <FaUtensils />}
+            return (
+              <div className="budget-card" key={b.budget_id}>
+                <div className="card-header">
+                  <div className="category">
+                    <div className="category-icon">
+                      {b.icon ? b.icon : <FaUtensils />}
+                    </div>
+                    {/* Fallback to icon name if name column is empty */}
+                    <h3>{b.name || b.icon || "New Category"}</h3>
+                  </div>
+
+                  <div className="icons">
+                    <FaEdit onClick={() => openEdit(b)} style={{ cursor: "pointer" }} />
+                    <FaTrash 
+                      style={{ color: "red", cursor: "pointer" }} 
+                      onClick={() => openDelete(b)} 
+                    />
+                  </div>
                 </div>
-                <h3>{b.name}</h3>
+
+                <div className="progress">
+                  <div className="progress-bar" style={{ width: percent + "%" }} />
+                </div>
+
+                <div className="budget-info">
+                  <span>Spent: ₹{spent}</span>
+                  <span>Budget: ₹{b.amount}</span>
+                  <span className="remaining">Remaining: ₹{remaining}</span>
+                </div>
               </div>
-
-              <div className="icons">
-                <FaEdit onClick={() => openEdit(b)} />
-                <FaTrash style={{ color: "red" }} onClick={() => openDelete(b)} />
-              </div>
-            </div>
-
-            <div className="progress">
-              <div className="progress-bar" style={{ width: percent + "%" }} />
-            </div>
-
-            <div className="budget-info">
-              <span>Spent: ₹{spent}</span>
-              <span>Budget: ₹{b.amount}</span>
-              <span className="remaining">Remaining: ₹{remaining}</span>
-            </div>
-          </div>
-        );
-      })}
+            );
+          })
+        ) : (
+          <p className="no-data">No budget categories found. Add one to get started!</p>
+        )}
+      </div>
 
       <div className="add-category" onClick={() => setIsCategoryModalOpen(true)}>
         + Add New Category
@@ -135,28 +150,22 @@ function Budget() {
               <h2>Edit Budget</h2>
               <FaTimes className="close-icon" onClick={() => setEditOpen(false)} />
             </div>
-
             <div className="category-box">
               <div className="category-icon">{selectedBudget?.icon}</div>
               <div>
-                <div>{selectedBudget?.name}</div>
+                <div>{selectedBudget?.name || selectedBudget?.icon}</div>
                 <div className="current">Current: ₹{selectedBudget?.amount}</div>
               </div>
             </div>
-
-            <label>Category Name</label>
-            <input value={selectedBudget?.name} disabled />
-
             <label>Monthly Budget (₹)</label>
-            <input value={amount} onChange={(e) => setAmount(e.target.value)} />
-
+            <input 
+              type="number"
+              value={amount} 
+              onChange={(e) => setAmount(e.target.value)} 
+            />
             <div className="modal-buttons">
-              <button className="cancel" onClick={() => setEditOpen(false)}>
-                Cancel
-              </button>
-              <button className="save" onClick={saveBudget}>
-                Save Changes
-              </button>
+              <button className="cancel" onClick={() => setEditOpen(false)}>Cancel</button>
+              <button className="save" onClick={saveBudget}>Save Changes</button>
             </div>
           </div>
         </div>
@@ -170,25 +179,15 @@ function Budget() {
               <h2>Delete Category</h2>
               <FaTimes className="close-icon" onClick={() => setDeleteOpen(false)} />
             </div>
-
             <div className="warning">
               <p className="delete-main">
-                Are you sure you want to delete
-                <b> {selectedBudget?.name}</b> ?
+                Are you sure you want to delete <b>{selectedBudget?.name || selectedBudget?.icon}</b>?
               </p>
-              <p className="delete-sub">
-                This action cannot be undone. All transactions in this category will be
-                permanently deleted.
-              </p>
+              <p className="delete-sub">This action cannot be undone.</p>
             </div>
-
             <div className="modal-buttons">
-              <button className="cancel" onClick={() => setDeleteOpen(false)}>
-                Cancel
-              </button>
-              <button className="delete" onClick={deleteBudget}>
-                Confirm
-              </button>
+              <button className="cancel" onClick={() => setDeleteOpen(false)}>Cancel</button>
+              <button className="delete" onClick={deleteBudget}>Confirm</button>
             </div>
           </div>
         </div>
