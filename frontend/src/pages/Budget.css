@@ -1,0 +1,510 @@
+/* =========================================
+   BUDGET PAGE STYLES
+   ========================================= */
+
+/* 1. CONTAINER & LAYOUT */
+.budget-container {
+  padding: 60px;
+  color: white;
+  max-width: 1100px;
+  margin: 0 auto;
+  font-family: 'Inter', -apple-system, sans-serif;
+}
+
+.budget-title {
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 24px;
+  margin-top: 0;
+  color: white;
+}
+
+.budget-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* =========================================
+   2. BUDGET CARDS
+   ========================================= */
+.budget-card {
+  background: rgba(10, 26, 74, 0.4); /* Glassmorphic deep blue */
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(59, 130, 246, 0.15);
+  border-radius: 16px;
+  padding: 24px;
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;
+}
+
+.budget-card:hover {
+  transform: scale(1.01);
+  background: rgba(10, 26, 74, 0.5);
+  border: 1px solid rgba(59, 130, 246, 0.25);
+}
+
+/* Card Left - Icon Wrapper */
+.icon-wrapper {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%; /* Using 50% for full circle as typical or 12px for rounded-xl */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  flex-shrink: 0;
+  /* background & border handled inline dynamically in JS */
+}
+
+/* Card Right - Content */
+.card-right {
+  flex: 1;
+  min-width: 0; /* Ensures truncation works if text is too long */
+}
+
+/* Card Header Container */
+.card-header-flex {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px; /* Spacing above progress bar */
+}
+
+.cat-name {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+  color: white;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Card Action Buttons */
+.card-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.action-btn {
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 8px;
+  font-size: 16px;
+  opacity: 0.8;
+  transition: all 0.2s ease;
+  background: rgba(255, 255, 255, 0.05); /* Slight box around icon on hover */
+}
+
+.action-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  opacity: 1;
+  transform: scale(1.05);
+}
+
+.edit {
+  color: #9CA3AF;
+}
+
+.delete {
+  color: #EF4444;
+}
+
+/* =========================================
+   3. PROGRESS BAR & STATS
+   ========================================= */
+.progress-track {
+  width: 100%;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: 6px;
+  transition: width 0.4s ease-out, background-color 0.4s;
+  /* width and dynamic color handled inline in JS */
+}
+
+.stats-row {
+  display: flex;
+  justify-content: flex-start;
+  gap: 20px;
+  align-items: center;
+  font-size: 13px;
+  color: #9CA3AF;
+}
+
+.stats-row span {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.val {
+  font-weight: 600;
+  color: #E5E7EB;
+}
+
+.remaining-val {
+  color: #00ff9c;
+  font-weight: 600;
+}
+
+/* =========================================
+   4. ADD CATEGORY & EMPTY STATE
+   ========================================= */
+.add-card-dashed {
+  border: 2px dashed rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(10px);
+  padding: 24px;
+  text-align: center;
+  border-radius: 16px;
+  cursor: pointer;
+  margin-top: 24px;
+  transition: all 0.2s ease;
+  color: white;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.add-card-dashed:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: scale(1.01);
+}
+
+.plus-icon-container {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(59, 130, 246, 0.15);
+  border: 1.5px solid rgba(59, 130, 246, 0.3);
+  font-size: 24px;
+  color: #3B82F6;
+}
+
+.add-card-dashed span {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.empty-msg {
+  opacity: 0.7;
+  text-align: center;
+  padding: 20px 0;
+  font-size: 14px;
+  color: #9CA3AF;
+}
+
+/* =========================================
+   5. MODALS & OVERLAYS
+   ========================================= */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(6px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 100;
+}
+
+.modal {
+  width: 420px;
+  max-width: 90%;
+  background: #1c2333; /* Dark background matching screenshots */
+  padding: 30px;
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+/* Modal Header */
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.modal-header h2 {
+  font-size: 24px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.close-icon {
+  font-size: 20px;
+  cursor: pointer;
+  color: #9CA3AF;
+  padding: 8px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.close-icon:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+/* Selected Category Display in Edit Modal */
+.category-box {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: rgba(255, 255, 255, 0.05); /* Slightly lighter box */
+  padding: 16px;
+  border-radius: 12px;
+  margin-bottom: 24px;
+}
+
+.category-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  /* Handled dynamically inline in JS, e.g. color #20c4d8 */
+}
+
+.category-box > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.category-box > div > div:first-child {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.current {
+  font-size: 13px;
+  color: #9CA3AF;
+}
+
+/* Modal Inputs */
+.modal label {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: #9CA3AF;
+  margin-bottom: 8px;
+}
+
+.modal input {
+  width: 100%;
+  padding: 14px 16px;
+  border: 1.5px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.08);
+  color: white;
+  margin-bottom: 24px;
+  font-size: 16px;
+  box-sizing: border-box;
+  transition: all 0.2s ease;
+}
+
+.modal input:focus {
+  outline: none;
+  border-color: #20c4d8;
+  box-shadow: 0 0 0 3px rgba(32, 196, 216, 0.2);
+}
+
+.modal input:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+/* Modal Buttons */
+.modal-buttons {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.modal-buttons button {
+  flex: 1;
+  padding: 14px 20px;
+  border: none;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.modal-buttons button:hover {
+  transform: translateY(-2px);
+  opacity: 0.9;
+}
+
+.modal-buttons button:active {
+  transform: translateY(1px);
+}
+
+/* Dark Cancel Button */
+.cancel {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1.5px solid rgba(255, 255, 255, 0.15);
+  color: white;
+}
+
+.cancel:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Cyan Save Button */
+.save {
+  background: #06B6D4;
+  color: white;
+  box-shadow: 0 4px 12px rgba(6, 182, 212, 0.5);
+}
+
+/* Red Delete Button */
+.delete {
+  background: #EF4444;
+  color: white;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.5);
+}
+
+/* =========================================
+   6. DELETE WARNING ALERTS
+   ========================================= */
+.warning {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  padding: 16px;
+  border-radius: 12px;
+  margin-bottom: 30px;
+}
+
+.delete-main {
+  font-size: 16px;
+  color: white;
+  margin: 0 0 8px 0;
+  line-height: 1.5;
+}
+
+.delete-main b {
+  font-weight: 700;
+}
+
+.delete-sub {
+  font-size: 14px;
+  color: #9CA3AF;
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* Layout */
+.app-container {
+  display: flex;
+  min-height: 100vh;
+  background-color: #050a18; /* Dark Navy */
+}
+
+/* Sidebar Toggle */
+.sidebar {
+  width: 260px;
+  transition: all 0.3s ease;
+  background: #081028;
+}
+
+.sidebar-hidden .sidebar {
+  width: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Top Bar Styling */
+.top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 30px;
+  background: transparent;
+}
+
+.menu-btn {
+  background: none;
+  border: none;
+  color: #8b949e;
+  font-size: 22px;
+  cursor: pointer;
+}
+
+/* Profile & Dropdown */
+.profile-section {
+  position: relative;
+}
+
+.avatar-wrapper {
+  width: 45px;
+  height: 45px;
+  border-radius: 50%;
+  border: 2px solid #ffcc00; /* Yellow border from your image */
+  box-shadow: 0 0 15px rgba(255, 204, 0, 0.4); /* Yellow glow */
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.profile-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.profile-dropdown {
+  position: absolute;
+  top: 55px;
+  right: 0;
+  background: #121826;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  width: 150px;
+  z-index: 100;
+  padding: 10px 0;
+}
+
+.dropdown-item {
+  padding: 10px 20px;
+  color: white;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.dropdown-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.logout {
+  color: #ff4d4d;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}

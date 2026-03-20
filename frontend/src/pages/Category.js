@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import "../styles/Category.css";
+import "../pages/Category.css";
 
 export default function Category({ closeCategory, addNewCategory }) {
   const [name, setName] = useState("");
@@ -8,19 +8,34 @@ export default function Category({ closeCategory, addNewCategory }) {
 
   const icons = ["🏠","🚗","☕","🏡","❤️","🎮","📱","🎵","🍽️","🏋️","🎒","💳","🎁","📺","📘","👕","✂️","💊","⛽","⚡"];
 
-  const handleSave = () => {
-    if (!name || !selectedIcon || !amount) {
-      alert("Please fill in all fields and select an icon.");
-      return;
-    }
 
-    // Sends all 3 pieces of data back to Budget.js
-    addNewCategory({
+  const handleSave = () => {
+  if (!name || !selectedIcon || !amount) {
+    alert("Please fill in all fields.");
+    return;
+  }
+
+  fetch("http://localhost:5001/budget/add", {
+    method: "POST", // CRITICAL: Must be POST
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
       name: name,
+      amount: Number(amount),
       icon: selectedIcon,
-      amount: amount
-    });
-  };
+      user_id: 1, // Matches controller
+      month: 1
+    }),
+  })
+  .then((res) => {
+    if (res.ok) {
+      addNewCategory(); // This refreshes the list in Budget.js
+      closeCategory();
+    } else {
+      alert("Failed to save category to server.");
+    }
+  })
+  .catch(err => console.error("Error:", err));
+};
 
   return (
     <div className="overlay">
