@@ -1,191 +1,150 @@
-import React, { useState, useMemo } from 'react';
-import { Bell, Plus, Edit2, Trash2, X, AlertTriangle, CheckCircle } from 'lucide-react';
+import React, { useState, useEffect } from "react";
+import { Plus, Trash2, AlertTriangle, CheckCircle, Edit2, Check, X } from "lucide-react";
 
-/**
- * We define the function normally, then export it as 'default' at the bottom.
- * This allows App.js to import it as 'import Alerts from ...'
- */
-function AlertsView() {
-  const [budget, setBudget] = useState(5000);
-  const [currentSpending, setCurrentSpending] = useState(3000);
-  const [showBudgetDialog, setShowBudgetDialog] = useState(false);
+export default function AlertsView() {
+  // 1. Budget State
+  const [budget, setBudget] = useState(() => {
+    const saved = localStorage.getItem("totalBudget");
+    return saved ? parseFloat(saved) : 5000;
+  });
+  const [isEditingBudget, setIsEditingBudget] = useState(false);
+  const [tempBudget, setTempBudget] = useState(budget);
+
+  // 2. Spending State
+  const [currentSpending, setCurrentSpending] = useState(0);
+
+  // 3. Alerts States
+  const [alerts, setAlerts] = useState([]);
+  const [newAlertPercentage, setNewAlertPercentage] = useState("");
   const [showAddAlertDialog, setShowAddAlertDialog] = useState(false);
-  const [editBudgetValue, setEditBudgetValue] = useState('');
-  const [newAlertPercentage, setNewAlertPercentage] = useState('');
-  
-  const [alerts, setAlerts] = useState([
-    { id: '1', percentage: 50 },
-    { id: '2', percentage: 75 },
-    { id: '3', percentage: 90 },
-  ]);
 
-  // Derived values: Calculated on every render
-  const spentPercentage = useMemo(() => (currentSpending / budget) * 100, [currentSpending, budget]);
+  // Load data and remove 40% alert specifically
+  useEffect(() => {
+    const savedAlerts = JSON.parse(localStorage.getItem("budgetAlerts"));
+    
+    if (Array.isArray(savedAlerts) && savedAlerts.length > 0) {
+      // Filter out any existing 40% alerts to clean the UI
+      const filtered = savedAlerts.filter(a => a.percentage !== 40);
+      setAlerts(filtered);
+    } else {
+      // Default set (50, 75, 90) - No 40% here
+      setAlerts([
+        { id: 2, percentage: 50 },
+        { id: 3, percentage: 75 },
+        { id: 4, percentage: 90 }
+      ]);
+    }
 
-  const getAlertStatus = (percentage) => spentPercentage >= percentage;
+    const savedSpending = localStorage.getItem("currentSpending");
+    if (savedSpending) setCurrentSpending(parseFloat(savedSpending));
 
-  const getAlertColor = (percentage) => {
-    if (percentage <= 50) return '#22C55E';
-    if (percentage <= 75) return '#FACC15';
-    return '#EF4444';
+    const handleStorage = () => {
+      const updatedSpending = localStorage.getItem("currentSpending");
+      if (updatedSpending) setCurrentSpending(parseFloat(updatedSpending));
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, []);
+
+  // Sync to LocalStorage
+  useEffect(() => {
+    localStorage.setItem("budgetAlerts", JSON.stringify(alerts));
+    localStorage.setItem("totalBudget", budget.toString());
+  }, [alerts, budget]);
+
+  const spentPercentage = budget > 0 ? (currentSpending / budget) * 100 : 0;
+
+  const handleSaveBudget = () => {
+    setBudget(tempBudget);
+    setIsEditingBudget(false);
   };
 
   const handleAddAlert = () => {
     const percentage = parseInt(newAlertPercentage);
     if (!isNaN(percentage) && percentage > 0 && percentage <= 100) {
-      const newAlert = {
-        id: Date.now().toString(),
-        percentage,
-      };
+      const newAlert = { id: Date.now(), percentage };
       setAlerts([...alerts, newAlert].sort((a, b) => a.percentage - b.percentage));
-      setNewAlertPercentage('');
+      setNewAlertPercentage("");
       setShowAddAlertDialog(false);
     }
   };
 
-  const handleDeleteAlert = (id) => {
-    setAlerts(alerts.filter(alert => alert.id !== id));
-  };
-
-  const handleUpdateBudget = () => {
-    const val = parseInt(editBudgetValue);
-    if (!isNaN(val) && val > 0) {
-      setBudget(val);
-      setEditBudgetValue('');
-      setShowBudgetDialog(false);
-    }
-  };
-
   return (
-    <div className="w-full p-4" style={{ color: 'white' }}>
-      {/* Budget Summary Section */}
-      <div className="rounded-xl p-6 mb-6" style={{ background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
-        <div className="flex justify-between items-center mb-4">
-          <div>
-            <p className="text-sm text-gray-400">Monthly Budget</p>
-            <h2 className="text-3xl font-bold">₹{budget.toLocaleString()}</h2>
-          </div>
-          <button 
-            onClick={() => { setEditBudgetValue(budget.toString()); setShowBudgetDialog(true); }}
-            className="p-2 bg-blue-500/20 rounded-lg text-blue-400 hover:bg-blue-500/30 transition-all"
-          >
-            <Edit2 size={20} />
+    <div className="alerts-page" style={{ color: "white", padding: "20px" }}>
+      
+      {/* Monthly Budget Card */}
+      <div style={{ background: "#111827", border: "1px solid #1f2937", borderRadius: "16px", padding: "24px", marginBottom: "32px", position: "relative" }}>
+        {!isEditingBudget ? (
+          <button onClick={() => { setIsEditingBudget(true); setTempBudget(budget); }} style={{ position: "absolute", right: "24px", top: "24px", background: "#1f2937", border: "none", padding: "8px", borderRadius: "8px", color: "#6366f1", cursor: "pointer" }}>
+            <Edit2 size={18} />
           </button>
+        ) : (
+          <div style={{ position: "absolute", right: "24px", top: "24px", display: "flex", gap: "8px" }}>
+            <button onClick={handleSaveBudget} style={{ background: "#065f46", border: "none", padding: "8px", borderRadius: "8px", color: "#34d399", cursor: "pointer" }}><Check size={18}/></button>
+            <button onClick={() => setIsEditingBudget(false)} style={{ background: "#7f1d1d", border: "none", padding: "8px", borderRadius: "8px", color: "#f87171", cursor: "pointer" }}><X size={18}/></button>
+          </div>
+        )}
+        <p style={{ color: "#9ca3af", fontSize: "14px", margin: "0 0 8px 0" }}>Monthly Budget</p>
+        {isEditingBudget ? (
+          <input type="number" value={tempBudget} onChange={(e) => setTempBudget(parseFloat(e.target.value))} style={{ fontSize: "32px", background: "transparent", border: "1px solid #6366f1", color: "white", fontWeight: "bold", width: "200px", borderRadius: "8px", marginBottom: "20px", outline: "none", padding: "0 10px" }} autoFocus />
+        ) : (
+          <h2 style={{ fontSize: "32px", margin: "0 0 20px 0", fontWeight: "bold" }}>₹{budget.toLocaleString()}</h2>
+        )}
+        <div style={{ height: "10px", width: "100%", background: "#1f2937", borderRadius: "10px", overflow: "hidden" }}>
+          <div style={{ width: `${Math.min(spentPercentage, 100)}%`, height: "100%", background: "#facc15", transition: "0.5s" }} />
         </div>
-        
-        <div className="h-2 w-full bg-gray-700 rounded-full overflow-hidden">
-          <div 
-            className="h-full transition-all duration-500" 
-            style={{ 
-              width: `${Math.min(spentPercentage, 100)}%`, 
-              background: getAlertColor(spentPercentage) 
-            }} 
-          />
+        <div style={{ display: "flex", justifyContent: "space-between", marginTop: "12px" }}>
+            <p style={{ color: "#9ca3af", fontSize: "14px", margin: 0 }}>Spent: ₹{currentSpending.toLocaleString()}</p>
+            <p style={{ color: "#9ca3af", fontSize: "14px", margin: 0 }}>{spentPercentage.toFixed(1)}%</p>
         </div>
-        <p className="mt-2 text-sm text-gray-400">Current Progress: {spentPercentage.toFixed(1)}%</p>
       </div>
 
-      {/* Thresholds List */}
-      <div className="flex justify-between items-center mb-6">
-        <h3 className="text-xl font-semibold text-white">Alert Thresholds</h3>
-        <button 
-          onClick={() => setShowAddAlertDialog(true)}
-          className="flex items-center gap-2 bg-yellow-500 text-black px-4 py-2 rounded-lg font-bold hover:bg-yellow-400 transition-colors"
-        >
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+        <h3 style={{ fontSize: "20px", fontWeight: "600", margin: 0 }}>Alert Thresholds</h3>
+        <button onClick={() => setShowAddAlertDialog(true)} style={{ background: "#facc15", color: "black", border: "none", padding: "10px 20px", borderRadius: "8px", fontWeight: "bold", display: "flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
           <Plus size={18} /> Add Alert
         </button>
       </div>
 
-      <div className="space-y-3">
+      {/* Threshold List */}
+      <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
         {alerts.map((alert) => {
-          const isTriggered = getAlertStatus(alert.percentage);
-          const color = getAlertColor(alert.percentage);
+          const isTriggered = spentPercentage >= alert.percentage;
+          const triggerAmount = (budget * (alert.percentage / 100)).toLocaleString();
           return (
-            <div 
-              key={alert.id} 
-              className="flex items-center justify-between p-4 rounded-xl transition-all"
-              style={{ 
-                background: 'rgba(255,255,255,0.03)', 
-                border: `1px solid ${isTriggered ? color : 'rgba(255,255,255,0.1)'}` 
-              }}
-            >
-              <div className="flex items-center gap-4">
-                <div 
-                  className="w-10 h-10 rounded-full flex items-center justify-center" 
-                  style={{ background: `${color}20` }}
-                >
-                  {isTriggered ? <AlertTriangle size={20} color={color} /> : <CheckCircle size={20} color={color} />}
+            <div key={alert.id} style={{ background: "#111827", border: `1px solid ${isTriggered ? "#065f46" : "#1f2937"}`, borderRadius: "12px", padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+                <div style={{ width: "40px", height: "40px", borderRadius: "50%", background: isTriggered ? "#064e3b" : "#1f2937", display: "flex", alignItems: "center", justifyContent: "center", color: isTriggered ? "#34d399" : "#9ca3af" }}>
+                   {isTriggered ? <AlertTriangle size={20} /> : <CheckCircle size={20} />}
                 </div>
                 <div>
-                  <div className="flex items-center gap-2">
-                    <p className="font-bold text-white">{alert.percentage}% Alert</p>
-                    {isTriggered && (
-                      <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-widest" style={{ background: color, color: '#000' }}>
-                        Triggered
-                      </span>
-                    )}
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <span style={{ fontWeight: "600", fontSize: "16px" }}>{alert.percentage}% Alert</span>
+                    {isTriggered && <span style={{ background: "#065f46", color: "#34d399", fontSize: "10px", padding: "2px 8px", borderRadius: "4px", fontWeight: "bold" }}>TRIGGERED</span>}
                   </div>
-                  <p className="text-xs text-gray-400">Triggers at ₹{((budget * alert.percentage) / 100).toLocaleString()}</p>
+                  <p style={{ margin: "4px 0 0 0", color: "#6b7280", fontSize: "12px" }}>Triggers at ₹{triggerAmount}</p>
                 </div>
               </div>
-              <button 
-                onClick={() => handleDeleteAlert(alert.id)} 
-                className="text-gray-500 hover:text-red-400 p-2 transition-colors"
-              >
-                <Trash2 size={18} />
-              </button>
+              <button onClick={() => setAlerts(alerts.filter(a => a.id !== alert.id))} style={{ background: "none", border: "none", color: "#4b5563", cursor: "pointer" }}><Trash2 size={18} /></button>
             </div>
           );
         })}
       </div>
 
-      {/* Edit Budget Modal */}
-      {showBudgetDialog && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
-          <div className="bg-slate-900 p-8 rounded-2xl border border-white/10 w-full max-w-md text-white shadow-2xl">
-            <h2 className="text-2xl font-bold mb-6">Modify Monthly Budget</h2>
-            <input 
-              type="number" 
-              className="w-full p-4 bg-white/5 rounded-xl mb-6 outline-none border border-white/10 focus:border-blue-500 transition-all text-lg"
-              value={editBudgetValue}
-              onChange={(e) => setEditBudgetValue(e.target.value)}
-              autoFocus
-            />
-            <div className="flex gap-3">
-              <button onClick={() => setShowBudgetDialog(false)} className="flex-1 py-3 bg-white/5 rounded-xl hover:bg-white/10 transition-all font-semibold">Cancel</button>
-              <button onClick={handleUpdateBudget} className="flex-1 py-3 bg-blue-600 rounded-xl hover:bg-blue-500 transition-all font-semibold">Update</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Add Alert Modal */}
+      {/* FIXED Add Alert Dialog */}
       {showAddAlertDialog && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
-          <div className="bg-slate-900 p-8 rounded-2xl border border-white/10 w-full max-w-md text-white shadow-2xl">
-            <h2 className="text-2xl font-bold mb-6">New Alert Percentage</h2>
-            <input 
-              type="number" 
-              placeholder="e.g. 85"
-              className="w-full p-4 bg-white/5 rounded-xl mb-6 outline-none border border-white/10 focus:border-yellow-500 transition-all text-lg"
-              value={newAlertPercentage}
-              onChange={(e) => setNewAlertPercentage(e.target.value)}
-              autoFocus
-            />
-            <div className="flex gap-3">
-              <button onClick={() => setShowAddAlertDialog(false)} className="flex-1 py-3 bg-white/5 rounded-xl hover:bg-white/10 transition-all font-semibold">Cancel</button>
-              <button onClick={handleAddAlert} className="flex-1 py-3 bg-yellow-500 text-black font-bold rounded-xl hover:bg-yellow-400 transition-all">Add Alert</button>
-            </div>
-          </div>
+        <div style={{ marginTop: "20px", padding: "20px", background: "#111827", border: "1px solid #6366f1", borderRadius: "12px", display: "flex", gap: "10px", alignItems: "center" }}>
+          <input 
+            type="number" 
+            value={newAlertPercentage} 
+            onChange={(e) => setNewAlertPercentage(e.target.value)}
+            placeholder="%" 
+            style={{ flex: 1, background: "transparent", border: "1px solid #1f2937", color: "white", padding: "10px", borderRadius: "8px", outline: "none" }}
+          />
+          <button onClick={handleAddAlert} style={{ background: "#facc15", color: "black", border: "none", padding: "10px 20px", borderRadius: "8px", fontWeight: "bold", cursor: "pointer" }}>Add</button>
+          <button onClick={() => setShowAddAlertDialog(false)} style={{ background: "transparent", color: "white", border: "1px solid #1f2937", padding: "10px 20px", borderRadius: "8px", cursor: "pointer" }}>Cancel</button>
         </div>
       )}
     </div>
   );
 }
-
-/**
- * EXPORT DEFAULT:
- * This line is the magic fix. It tells React that when someone imports 
- * this file, 'AlertsView' is the component they get by default.
- */
-export default AlertsView;

@@ -1,3 +1,4 @@
+import React, { useState } from "react"; // Added useState
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 
 import Sidebar from "./components/Sidebar";
@@ -16,17 +17,38 @@ import ForgotPassword from "./pages/ForgotPassword";
 
 function AppLayout() {
   const location = useLocation();
+  
+  // State to manage whether the sidebar is tucked away
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   const isAuthRoute =
     location.pathname === "/login" ||
     location.pathname === "/signup" ||
     location.pathname === "/forgot-password";
 
+  // This function handles the horizontal enlargement of the layout
+  const getMarginLeft = () => {
+    if (isAuthRoute) return "0px";
+    // When collapsed, margin becomes 0, allowing the layout to fill the screen
+    return isCollapsed ? "0px" : "220px";
+  };
+
   return (
     <div style={{ display: "flex" }}>
-      {!isAuthRoute && <Sidebar />}
+      {/* Pass the state and the setter to the Sidebar */}
+      {!isAuthRoute && (
+        <Sidebar isCollapsed={isCollapsed} setIsCollapsed={setIsCollapsed} />
+      )}
 
-      <div className="page-content" style={{ flex: 1 }}>
+      <div 
+        className="page-content" 
+        style={{ 
+          flex: 1, 
+          marginLeft: getMarginLeft(),
+          transition: "margin-left 0.3s ease-in-out", // Creates the smooth enlarging effect
+          minHeight: "100vh"
+        }}
+      >
         <Routes>
           {/* Auth Routes */}
           <Route path="/login" element={<Login />} />
