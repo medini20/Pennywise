@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X } from 'lucide-react'; // Import icons for the toggle
+import { Menu } from 'lucide-react'; 
 import '../App.css'; 
 import logoImg from './images/logo.png';
 
@@ -28,11 +28,8 @@ const Icon = ({ type }) => {
   );
 };
 
-export function Sidebar() {
+export function Sidebar({ isCollapsed, setIsCollapsed }) {
   const location = useLocation();
-  // State to track if sidebar is hidden
-  const [isCollapsed, setIsCollapsed] = useState(false);
-
   const menuItems = [
     { name: 'Records', path: '/', type: 'credit-card' },
     { name: 'Charts', path: '/analytics', type: 'pie-chart' },
@@ -41,40 +38,35 @@ export function Sidebar() {
     { name: 'Profile', path: '/profile', type: 'user' },
   ];
 
-  const toggleSidebar = () => setIsCollapsed(!isCollapsed);
-
   return (
-    <>
-      {/* 3-Lines Button (Hamburger Menu) */}
-      <button 
-        className={`sidebar-toggle ${isCollapsed ? 'left-most' : ''}`} 
-        onClick={toggleSidebar}
-      >
-        {isCollapsed ? <Menu size={24} /> : <X size={24} />}
-      </button>
-
-      <div className={`sidebar ${isCollapsed ? 'collapsed' : ''}`}>
-        <div className="logo">
-          <div className="logo-glow-box">
-            <img src={logoImg} alt="Logo" className="logo-img" />
-          </div>
-          <span>PENNYWISE</span>
-        </div>
-
-        <nav className="sidebar-nav">
-          {menuItems.map((item) => (
-            <Link
-              key={item.name}
-              to={item.path}
-              className={`nav-link ${location.pathname === item.path ? 'active' : ''}`}
-            >
-              <Icon type={item.type} />
-              <span>{item.name}</span>
-            </Link>
-          ))}
-        </nav>
+    <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''}`}>
+      <div className="logo">
+        <button className="sidebar-toggle" onClick={() => setIsCollapsed(!isCollapsed)}>
+          <Menu size={24} />
+        </button>
+        {!isCollapsed && (
+          <>
+            <div className="logo-glow-box">
+              <img src={logoImg} alt="Logo" className="logo-img" />
+            </div>
+            <span>PENNYWISE</span>
+          </>
+        )}
       </div>
-    </>
+
+      <nav className="sidebar-nav">
+        {menuItems.map((item) => (
+          <Link
+            key={item.name}
+            to={item.path}
+            className={`nav-link ${location.pathname === item.path ? 'active' : ''}`}
+          >
+            <Icon type={item.type} />
+            {!isCollapsed && <span>{item.name}</span>}
+          </Link>
+        ))}
+      </nav>
+    </aside>
   );
 }
 
