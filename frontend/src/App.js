@@ -22,13 +22,15 @@ function AppLayout() {
   const location = useLocation();
   const [isCollapsed, setIsCollapsed] = useState(false);
 
+  // Identify auth routes to remove sidebar and margins
   const isAuthRoute = ["/login", "/signup", "/forgot-password"].includes(location.pathname);
 
-  // This defines the EXACT space the sidebar takes
+  // Define sidebar width to match your CSS exactly
   const sidebarWidth = isCollapsed ? "70px" : "260px";
 
   return (
     <div style={{ display: "flex", backgroundColor: "#050a15", minHeight: "100vh", width: "100%" }}>
+      {/* Sidebar only shows on app pages */}
       {!isAuthRoute && (
         <Sidebar isCollapsed={isCollapsed} setIsCollapsed={setIsCollapsed} />
       )}
@@ -37,11 +39,12 @@ function AppLayout() {
         className="page-content" 
         style={{ 
           flex: 1, 
+          // CRITICAL: 0px for login, sidebarWidth for app
           marginLeft: isAuthRoute ? "0px" : sidebarWidth,
           transition: "margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-          width: "100%",
+          width: isAuthRoute ? "100%" : `calc(100% - ${sidebarWidth})`,
           display: "block",
-          boxSizing: "border-box" // CRITICAL: Prevents padding from adding to width
+          boxSizing: "border-box"
         }}
       >
         <Routes>
