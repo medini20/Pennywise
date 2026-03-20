@@ -1,7 +1,10 @@
+import React, { useState } from "react";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 
+// Components
 import Sidebar from "./components/Sidebar";
 
+// Pages
 import Records from "./pages/records";
 import Transactions from "./pages/Transactions";
 import Category from "./pages/Category";
@@ -10,37 +13,51 @@ import Analytics from "./pages/Analytics";
 import Profile from "./pages/Profile";
 import Alerts from "./pages/Alerts";
 
+// Auth Pages
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import ForgotPassword from "./pages/ForgotPassword";
 
 function AppLayout() {
   const location = useLocation();
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
-  const isAuthRoute =
-    location.pathname === "/login" ||
-    location.pathname === "/signup" ||
-    location.pathname === "/forgot-password";
+  // Identify auth routes to remove sidebar and margins
+  const isAuthRoute = ["/login", "/signup", "/forgot-password"].includes(location.pathname);
+
+  // Define sidebar width to match your CSS exactly
+  const sidebarWidth = isCollapsed ? "70px" : "260px";
 
   return (
-    <div style={{ display: "flex" }}>
-      {!isAuthRoute && <Sidebar />}
+    <div style={{ display: "flex", backgroundColor: "#050a15", minHeight: "100vh", width: "100%" }}>
+      {/* Sidebar only shows on app pages */}
+      {!isAuthRoute && (
+        <Sidebar isCollapsed={isCollapsed} setIsCollapsed={setIsCollapsed} />
+      )}
 
-      <div className="page-content" style={{ flex: 1 }}>
+      <div 
+        className="page-content" 
+        style={{ 
+          flex: 1, 
+          // CRITICAL: 0px for login, sidebarWidth for app
+          marginLeft: isAuthRoute ? "0px" : sidebarWidth,
+          transition: "margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+          width: isAuthRoute ? "100%" : `calc(100% - ${sidebarWidth})`,
+          display: "block",
+          boxSizing: "border-box"
+        }}
+      >
         <Routes>
-          {/* Auth Routes */}
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
-
-          {/* Main Routes */}
           <Route path="/" element={<Records />} />
           <Route path="/transactions" element={<Transactions />} />
           <Route path="/category" element={<Category />} />
           <Route path="/budget" element={<Budget />} />
           <Route path="/analytics" element={<Analytics />} />
-          <Route path="/profile" element={<Profile />} />
           <Route path="/alerts" element={<Alerts />} />
+          <Route path="/profile" element={<Profile />} />
         </Routes>
       </div>
     </div>
