@@ -2,51 +2,35 @@ import React, { useState, useEffect } from "react";
 import { Plus, Trash2, AlertTriangle, CheckCircle, Edit2, Check, X } from "lucide-react";
 
 export default function AlertsView() {
-  // 1. Budget State
   const [budget, setBudget] = useState(() => {
     const saved = localStorage.getItem("totalBudget");
     return saved ? parseFloat(saved) : 5000;
   });
   const [isEditingBudget, setIsEditingBudget] = useState(false);
   const [tempBudget, setTempBudget] = useState(budget);
-
-  // 2. Spending State
   const [currentSpending, setCurrentSpending] = useState(0);
-
-  // 3. Alerts States
   const [alerts, setAlerts] = useState([]);
   const [newAlertPercentage, setNewAlertPercentage] = useState("");
   const [showAddAlertDialog, setShowAddAlertDialog] = useState(false);
+  
+  // New state for showing a red error message inside the modal
+  const [errorMessage, setErrorMessage] = useState("");
 
-  // Load data and remove 40% alert specifically
   useEffect(() => {
     const savedAlerts = JSON.parse(localStorage.getItem("budgetAlerts"));
-    
     if (Array.isArray(savedAlerts) && savedAlerts.length > 0) {
-      // Filter out any existing 40% alerts to clean the UI
-      const filtered = savedAlerts.filter(a => a.percentage !== 40);
-      setAlerts(filtered);
+      setAlerts(savedAlerts.filter(a => a.percentage !== 40));
     } else {
-      // Default set (50, 75, 90) - No 40% here
       setAlerts([
         { id: 2, percentage: 50 },
         { id: 3, percentage: 75 },
         { id: 4, percentage: 90 }
       ]);
     }
-
     const savedSpending = localStorage.getItem("currentSpending");
     if (savedSpending) setCurrentSpending(parseFloat(savedSpending));
-
-    const handleStorage = () => {
-      const updatedSpending = localStorage.getItem("currentSpending");
-      if (updatedSpending) setCurrentSpending(parseFloat(updatedSpending));
-    };
-    window.addEventListener('storage', handleStorage);
-    return () => window.removeEventListener('storage', handleStorage);
   }, []);
 
-  // Sync to LocalStorage
   useEffect(() => {
     localStorage.setItem("budgetAlerts", JSON.stringify(alerts));
     localStorage.setItem("totalBudget", budget.toString());
@@ -61,16 +45,42 @@ export default function AlertsView() {
 
   const handleAddAlert = () => {
     const percentage = parseInt(newAlertPercentage);
-    if (!isNaN(percentage) && percentage > 0 && percentage <= 100) {
-      const newAlert = { id: Date.now(), percentage };
-      setAlerts([...alerts, newAlert].sort((a, b) => a.percentage - b.percentage));
-      setNewAlertPercentage("");
-      setShowAddAlertDialog(false);
+    
+    // 1. Basic Validation (Empty/Not a Number)
+    if (isNaN(percentage)) {
+      setErrorMessage("Please enter a valid number");
+      return;
     }
+
+    // 2. Limit Validation (More than 100)
+    if (percentage > 100) {
+      setErrorMessage("Value is wrong. Please enter less than 100%");
+      return;
+    }
+
+    // 3. Zero/Negative Validation
+    if (percentage <= 0) {
+      setErrorMessage("Please enter a value greater than 0");
+      return;
+    }
+
+    // 4. DUPLICATE CHECK
+    const alreadyExists = alerts.some(alert => alert.percentage === percentage);
+    if (alreadyExists) {
+      setErrorMessage(`An alert for ${percentage}% already exists!`);
+      return;
+    }
+
+    // Success: Clear error and add alert
+    setErrorMessage("");
+    const newAlert = { id: Date.now(), percentage };
+    setAlerts([...alerts, newAlert].sort((a, b) => a.percentage - b.percentage));
+    setNewAlertPercentage("");
+    setShowAddAlertDialog(false);
   };
 
   return (
-    <div className="alerts-page" style={{ color: "white", padding: "20px" }}>
+    <div className="alerts-page" style={{ color: "white", padding: "20px", position: "relative", minHeight: "100vh" }}>
       
       {/* Monthly Budget Card */}
       <div style={{ background: "#111827", border: "1px solid #1f2937", borderRadius: "16px", padding: "24px", marginBottom: "32px", position: "relative" }}>
@@ -131,18 +141,41 @@ export default function AlertsView() {
         })}
       </div>
 
-      {/* FIXED Add Alert Dialog */}
+      {/* FIGMA STYLE MODAL OVERLAY */}
       {showAddAlertDialog && (
-        <div style={{ marginTop: "20px", padding: "20px", background: "#111827", border: "1px solid #6366f1", borderRadius: "12px", display: "flex", gap: "10px", alignItems: "center" }}>
-          <input 
-            type="number" 
-            value={newAlertPercentage} 
-            onChange={(e) => setNewAlertPercentage(e.target.value)}
-            placeholder="%" 
-            style={{ flex: 1, background: "transparent", border: "1px solid #1f2937", color: "white", padding: "10px", borderRadius: "8px", outline: "none" }}
-          />
-          <button onClick={handleAddAlert} style={{ background: "#facc15", color: "black", border: "none", padding: "10px 20px", borderRadius: "8px", fontWeight: "bold", cursor: "pointer" }}>Add</button>
-          <button onClick={() => setShowAddAlertDialog(false)} style={{ background: "transparent", color: "white", border: "1px solid #1f2937", padding: "10px 20px", borderRadius: "8px", cursor: "pointer" }}>Cancel</button>
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0, 0, 0, 0.7)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000, backdropFilter: "blur(4px)" }}>
+          <div style={{ background: "#1f2937", width: "400px", borderRadius: "16px", padding: "24px", position: "relative" }}>
+            <button onClick={() => { setShowAddAlertDialog(false); setErrorMessage(""); }} style={{ position: "absolute", right: "16px", top: "16px", background: "none", border: "none", color: "#9ca3af", cursor: "pointer" }}>
+              <X size={20} />
+            </button>
+
+            <h3 style={{ fontSize: "20px", fontWeight: "bold", marginBottom: "8px" }}>Add Alert</h3>
+            <p style={{ color: "#9ca3af", fontSize: "14px", marginBottom: "20px" }}>
+              Get notified when your spending reaches a certain percentage of your budget.
+            </p>
+
+            <div style={{ marginBottom: "20px" }}>
+              <label style={{ display: "block", fontSize: "13px", color: "#9ca3af", marginBottom: "8px" }}>Alert Percentage (%)</label>
+              <input 
+                type="number" 
+                value={newAlertPercentage} 
+                onChange={(e) => {
+                  setNewAlertPercentage(e.target.value);
+                  setErrorMessage(""); // Clear error while typing
+                }}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleAddAlert(); }}
+                placeholder="e.g., 50, 75, 90" 
+                autoFocus
+                style={{ width: "100%", background: "rgba(0,0,0,0.2)", border: errorMessage ? "1px solid #ef4444" : "1px solid #374151", color: "white", padding: "12px", borderRadius: "8px", outline: "none", boxSizing: "border-box" }}
+              />
+              {errorMessage && <p style={{ color: "#ef4444", fontSize: "12px", marginTop: "8px", fontWeight: "500" }}>{errorMessage}</p>}
+            </div>
+
+            <div style={{ display: "flex", gap: "12px" }}>
+              <button onClick={() => { setShowAddAlertDialog(false); setErrorMessage(""); }} style={{ flex: 1, background: "#374151", color: "white", border: "none", padding: "12px", borderRadius: "8px", fontWeight: "600", cursor: "pointer" }}>Cancel</button>
+              <button onClick={handleAddAlert} style={{ flex: 1, background: "#facc15", color: "black", border: "none", padding: "12px", borderRadius: "8px", fontWeight: "bold", cursor: "pointer" }}>Add Alert</button>
+            </div>
+          </div>
         </div>
       )}
     </div>
