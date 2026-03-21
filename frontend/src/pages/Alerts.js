@@ -83,7 +83,7 @@ export default function AlertsView() {
     <div className="alerts-page" style={{ color: "white", padding: "20px", position: "relative", minHeight: "100vh" }}>
       
       {/* Monthly Budget Card */}
-      <div style={{ background: "#111827", border: "1px solid #1f2937", borderRadius: "16px", padding: "24px", marginBottom: "32px", position: "relative" }}>
+      <div style={{ background: "#13234535", border: "1px solid #4c88e2", borderRadius: "16px", padding: "24px", marginBottom: "32px", position: "relative" }}>
         {!isEditingBudget ? (
           <button onClick={() => { setIsEditingBudget(true); setTempBudget(budget); }} style={{ position: "absolute", right: "24px", top: "24px", background: "#1f2937", border: "none", padding: "8px", borderRadius: "8px", color: "#6366f1", cursor: "pointer" }}>
             <Edit2 size={18} />
@@ -100,7 +100,7 @@ export default function AlertsView() {
         ) : (
           <h2 style={{ fontSize: "32px", margin: "0 0 20px 0", fontWeight: "bold" }}>₹{budget.toLocaleString()}</h2>
         )}
-        <div style={{ height: "10px", width: "100%", background: "#1f2937", borderRadius: "10px", overflow: "hidden" }}>
+        <div style={{ height: "10px", width: "100%", background: "#073b80", borderRadius: "10px", overflow: "hidden" }}>
           <div style={{ width: `${Math.min(spentPercentage, 100)}%`, height: "100%", background: "#facc15", transition: "0.5s" }} />
         </div>
         <div style={{ display: "flex", justifyContent: "space-between", marginTop: "12px" }}>
@@ -122,7 +122,7 @@ export default function AlertsView() {
           const isTriggered = spentPercentage >= alert.percentage;
           const triggerAmount = (budget * (alert.percentage / 100)).toLocaleString();
           return (
-            <div key={alert.id} style={{ background: "#111827", border: `1px solid ${isTriggered ? "#065f46" : "#1f2937"}`, borderRadius: "12px", padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div key={alert.id} style={{ background: "#021849", border: `1px solid ${isTriggered ? "#065f46" : "#1f2937"}`, borderRadius: "12px", padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
                 <div style={{ width: "40px", height: "40px", borderRadius: "50%", background: isTriggered ? "#064e3b" : "#1f2937", display: "flex", alignItems: "center", justifyContent: "center", color: isTriggered ? "#34d399" : "#9ca3af" }}>
                    {isTriggered ? <AlertTriangle size={20} /> : <CheckCircle size={20} />}
@@ -132,7 +132,7 @@ export default function AlertsView() {
                     <span style={{ fontWeight: "600", fontSize: "16px" }}>{alert.percentage}% Alert</span>
                     {isTriggered && <span style={{ background: "#065f46", color: "#34d399", fontSize: "10px", padding: "2px 8px", borderRadius: "4px", fontWeight: "bold" }}>TRIGGERED</span>}
                   </div>
-                  <p style={{ margin: "4px 0 0 0", color: "#6b7280", fontSize: "12px" }}>Triggers at ₹{triggerAmount}</p>
+                  <p style={{ margin: "4px 0 0 0", color: "#f1f4f8", fontSize: "12px" }}>Triggers at ₹{triggerAmount}</p>
                 </div>
               </div>
               <button onClick={() => setAlerts(alerts.filter(a => a.id !== alert.id))} style={{ background: "none", border: "none", color: "#4b5563", cursor: "pointer" }}><Trash2 size={18} /></button>

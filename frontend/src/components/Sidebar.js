@@ -4,6 +4,7 @@ import { Menu } from 'lucide-react';
 import '../App.css'; 
 import logoImg from './images/logo.png';
 
+// Custom Icon component to handle the specific SVG paths you provided
 const Icon = ({ type }) => {
   const paths = {
     'credit-card': <path d="M2 10h20M2 5a2 2 0 012-2h16a2 2 0 012 2v14a2 2 0 01-2 2H4a2 2 0 01-2-2V5z" />,
@@ -30,6 +31,7 @@ const Icon = ({ type }) => {
 
 export function Sidebar({ isCollapsed, setIsCollapsed }) {
   const location = useLocation();
+  
   const menuItems = [
     { name: 'Records', path: '/', type: 'credit-card' },
     { name: 'Charts', path: '/analytics', type: 'pie-chart' },
@@ -40,17 +42,17 @@ export function Sidebar({ isCollapsed, setIsCollapsed }) {
 
   return (
     <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''}`}>
-      <div className="logo">
+      <div className="logo-section">
         <button className="sidebar-toggle" onClick={() => setIsCollapsed(!isCollapsed)}>
           <Menu size={24} />
         </button>
         {!isCollapsed && (
-          <>
+          <div className="logo-content">
             <div className="logo-glow-box">
               <img src={logoImg} alt="Logo" className="logo-img" />
             </div>
-            <span>PENNYWISE</span>
-          </>
+            <span className="logo-text">PENNYWISE</span>
+          </div>
         )}
       </div>
 
