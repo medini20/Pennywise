@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import "./transactions.css";
-import Category from "./Category";
+import Category from "./category1";
 
 export default function Transactions({ closeModal, addTransaction }) {
 
