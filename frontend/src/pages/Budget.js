@@ -25,23 +25,15 @@ const handleLogout = () => {
   // Add your logout logic here (e.g., clear localStorage, redirect)
 };
   const loadBudgets = () => {
-    fetch("http://localhost:5001/budget/list")
-      .then((res) => res.json())
-      .then((data) => {
-        if (Array.isArray(data)) {
-          setBudgets(data);
-        } else if (data && Array.isArray(data.budgets)) {
-          setBudgets(data.budgets);
-        } else {
-          setBudgets([]); 
-        }
-      })
-      .catch((err) => {
-        console.error("Fetch error:", err);
-        setBudgets([]); 
-      });
-  };
-
+  fetch("http://localhost:5001/budget/list")
+    .then(res => res.json())
+    .then(data => {
+      // Fix: Some backends send {budgets: []}, others send []
+      const list = Array.isArray(data) ? data : (data.budgets || []);
+      setBudgets(list);
+    })
+    .catch(err => console.log("Database offline"));
+};
  const renderIcon = (iconValue, color) => {
   const style = { color: color || "#3b82f6", fontSize: "20px" };
 
