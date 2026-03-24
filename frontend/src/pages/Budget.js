@@ -97,6 +97,8 @@ function Budget() {
 
           return (
             <div className="budget-card" key={b.budget_id}>
+              
+              {/* LEFT: ICON */}
               <div 
                 className="icon-wrapper" 
                 style={{ background: `${accentColor}15` }}
@@ -104,10 +106,11 @@ function Budget() {
                 {renderIcon(b.icon || 'Food', accentColor)}
               </div>
 
+              {/* RIGHT: CONTENT & STATS */}
               <div className="card-content">
-                <h3 className="cat-name">{b.name || b.icon}</h3>
+                <div className="cat-name">{b.name || b.icon}</div>
                 
-                <div className="progress-container">
+                <div className="progress-row">
                   <div className="progress-track">
                     <div 
                       className="progress-fill" 
@@ -130,12 +133,14 @@ function Budget() {
                   <span className="remaining-val" style={{color: '#10b981'}}>Remaining: ₹{remaining}</span>
                 </div>
               </div>
+
             </div>
           );
         }) : (
           <p className="empty-msg">No budgets found. Add one to start tracking!</p>
         )}
 
+        {/* Updated "Add Budget" Text */}
         <div className="add-card-dashed" onClick={() => setIsCategoryModalOpen(true)}>
           <div className="plus-icon-container"><FaPlus /></div>
           <span>Add Budget</span>
