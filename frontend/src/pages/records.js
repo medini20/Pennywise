@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import Transactions from "./Transactions";
 import Notifications from "../components/Notifications";
 import { MdWarning } from "react-icons/md";
 import "./records.css";
+
+const API_BASE_URL = "http://localhost:5001";
 
 export default function Records() {
   const [showTransaction, setShowTransaction] = useState(false);
@@ -10,77 +12,74 @@ export default function Records() {
   const [filter, setFilter] = useState("all");
   const [notifications, setNotifications] = useState([]);
 
-  // --- LOGIC START: READING EXPENSES & BUDGET ---
-  
-  // Calculate totals (Ensure amount is treated as a number)
   const totalExpense = transactions
-    .filter(t => t.type === "expense")
-    .reduce((sum, t) => sum + Number(t.amount), 0);
+    .filter((transaction) => transaction.type === "expense")
+    .reduce((sum, transaction) => sum + Number(transaction.amount), 0);
 
   const totalIncome = transactions
-    .filter(t => t.type === "income")
-    .reduce((sum, t) => sum + Number(t.amount), 0);
+    .filter((transaction) => transaction.type === "income")
+    .reduce((sum, transaction) => sum + Number(transaction.amount), 0);
 
   const balance = totalIncome - totalExpense;
 
-  // Sync totalExpense to localStorage so Alerts page can read it
   useEffect(() => {
     localStorage.setItem("currentSpending", totalExpense.toString());
   }, [totalExpense]);
 
-  // --- LOGIC END ---
-
-  // remove notification
-  const removeNotification = (id) => {
-    setNotifications(prev => prev.filter(n => n.id !== id));
-  };
-
-  // add notification
-  const addNotification = (percentage) => {
-    setNotifications(prev => {
-      const exists = prev.find(n => n.percentage === percentage);
-      if (exists) return prev;
-
-      return [
-        ...prev,
-        {
-          id: Date.now() + Math.random(),
-          percentage: percentage,
-          message: `Spending reached ${percentage}% of your budget`,
-          icon: <MdWarning />
-        }
-      ];
-    });
-  };
-
-  // check customizable alert thresholds
   useEffect(() => {
-    const saved = JSON.parse(localStorage.getItem("budgetAlerts"));
-    const alerts = Array.isArray(saved) ? saved : [];
+    const checkTriggeredAlerts = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/alerts/check`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            current_spending: totalExpense
+          })
+        });
 
-    // Reading the budget set from Alerts.js
-    const budget = Number(localStorage.getItem("totalBudget")) || 5000;
+        const data = await response.json();
 
-    const percent = (totalExpense / budget) * 100;
+        if (!response.ok) {
+          throw new Error(data.error || "Unable to check alerts right now.");
+        }
 
-    alerts.forEach(alert => {
-      if (percent >= alert.percentage) {
-        addNotification(alert.percentage);
+        const triggeredAlerts = Array.isArray(data.triggered_alerts)
+          ? data.triggered_alerts
+          : [];
+
+        setNotifications(
+          triggeredAlerts.map((alert) => ({
+            id: alert.id,
+            percentage: alert.percentage,
+            message: `Spending reached ${alert.percentage}% of your budget`,
+            icon: <MdWarning />
+          }))
+        );
+      } catch (error) {
+        console.error(error.message);
       }
-    });
+    };
+
+    checkTriggeredAlerts();
   }, [totalExpense]);
+
+  const removeNotification = (id) => {
+    setNotifications((prevNotifications) =>
+      prevNotifications.filter((notification) => notification.id !== id)
+    );
+  };
 
   return (
     <div className="records-page">
-      {/* Notifications */} 
       <Notifications
         notifications={notifications}
         removeNotification={removeNotification}
       />
 
-      {/* CARDS */}
       <div className="cards">
-        <div 
+        <div
           className="card expenseCard"
           onClick={() => setFilter("expense")}
         >
@@ -91,7 +90,7 @@ export default function Records() {
           <h2>₹{totalExpense}</h2>
         </div>
 
-        <div 
+        <div
           className="card incomeCard"
           onClick={() => setFilter("income")}
         >
@@ -102,7 +101,7 @@ export default function Records() {
           <h2>₹{totalIncome}</h2>
         </div>
 
-        <div 
+        <div
           className="card balanceCard"
           onClick={() => setFilter("all")}
         >
@@ -114,50 +113,49 @@ export default function Records() {
         </div>
       </div>
 
-      {/* MONTH */} 
       <select className="monthDropdown">
         {[
-          "Jan","Feb","Mar","Apr","May","Jun",
-          "Jul","Aug","Sep","Oct","Nov","Dec"
-        ].map((month, i) => (
-          <option key={i}>
+          "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+          "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+        ].map((month, index) => (
+          <option key={index}>
             {month} 2026
           </option>
         ))}
       </select>
 
-      {/* HEADER */}
       <div className="tableHeader">
         <span>Date</span>
         <span>Description</span>
         <span></span>
       </div>
 
-      {/* TRANSACTIONS */}
       <div className="transactions">
         {[...transactions]
           .reverse()
-          .filter(t => {
-            if (filter === "all") return true;
-            return t.type === filter;
+          .filter((transaction) => {
+            if (filter === "all") {
+              return true;
+            }
+
+            return transaction.type === filter;
           })
-          .map((t, i) => (
-            <div className="transaction" key={i}>
+          .map((transaction, index) => (
+            <div className="transaction" key={index}>
               <div className="left">
-                <div className="date">{t.date}</div>
-                <div className="day">{t.day}</div>
+                <div className="date">{transaction.date}</div>
+                <div className="day">{transaction.day}</div>
               </div>
               <div className="middle">
-                {t.note}
+                {transaction.note}
               </div>
-              <div className={`right ${t.type === "expense" ? "expenseText" : "incomeText"}`}>
-                ₹{t.type === "expense" ? "-" : "+"}{t.amount}
+              <div className={`right ${transaction.type === "expense" ? "expenseText" : "incomeText"}`}>
+                ₹{transaction.type === "expense" ? "-" : "+"}{transaction.amount}
               </div>
             </div>
           ))}
       </div>
 
-      {/* ADD BUTTON */}
       <button
         className="addTransaction"
         onClick={() => setShowTransaction(true)}
@@ -165,12 +163,11 @@ export default function Records() {
         + ADD TRANSACTION
       </button>
 
-      {/* MODAL */}
       {showTransaction && (
         <Transactions
           closeModal={() => setShowTransaction(false)}
           addTransaction={(data) => {
-            setTransactions([...transactions, data]);
+            setTransactions((prevTransactions) => [...prevTransactions, data]);
           }}
         />
       )}
