@@ -1,19 +1,42 @@
 import React, { useEffect, useState } from "react";
-import { Plus, Trash2, AlertTriangle, CheckCircle, Edit2, Check, X } from "lucide-react";
+import {
+  AlertTriangle,
+  Check,
+  CheckCircle,
+  Edit2,
+  Plus,
+  Trash2,
+  X
+} from "lucide-react";
 import "./Alerts.css";
 
 const API_BASE_URL = "http://localhost:5001";
 
+const formatCurrency = (value) => `₹${Number(value || 0).toLocaleString()}`;
+
+const getAlertTone = (percentage) => {
+  if (percentage <= 60) {
+    return "safe";
+  }
+
+  if (percentage <= 85) {
+    return "warning";
+  }
+
+  return "danger";
+};
+
 export default function AlertsView() {
   const [budget, setBudget] = useState(5000);
-  const [isEditingBudget, setIsEditingBudget] = useState(false);
   const [tempBudget, setTempBudget] = useState(5000);
+  const [isEditingBudget, setIsEditingBudget] = useState(false);
   const [currentSpending, setCurrentSpending] = useState(0);
   const [alerts, setAlerts] = useState([]);
-  const [newAlertPercentage, setNewAlertPercentage] = useState("");
   const [showAddAlertDialog, setShowAddAlertDialog] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
+  const [newAlertPercentage, setNewAlertPercentage] = useState("");
+  const [dialogError, setDialogError] = useState("");
   const [statusMessage, setStatusMessage] = useState("");
+  const [statusTone, setStatusTone] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSavingBudget, setIsSavingBudget] = useState(false);
   const [isSavingAlert, setIsSavingAlert] = useState(false);
@@ -22,6 +45,7 @@ export default function AlertsView() {
   const loadAlertData = async () => {
     setIsLoading(true);
     setStatusMessage("");
+    setStatusTone("");
 
     try {
       const response = await fetch(`${API_BASE_URL}/alerts/data`);
@@ -39,11 +63,13 @@ export default function AlertsView() {
       setBudget(nextBudget);
       setTempBudget(nextBudget);
       setCurrentSpending(backendSpending > 0 ? backendSpending : storedSpending);
-      setAlerts(nextAlerts);
-
+      setAlerts(
+        nextAlerts.slice().sort((left, right) => left.percentage - right.percentage)
+      );
       localStorage.setItem("totalBudget", String(nextBudget));
     } catch (error) {
       setStatusMessage(error.message || "Unable to load alerts right now.");
+      setStatusTone("error");
     } finally {
       setIsLoading(false);
     }
@@ -54,16 +80,29 @@ export default function AlertsView() {
   }, []);
 
   const spentPercentage = budget > 0 ? (currentSpending / budget) * 100 : 0;
+  const remainingAmount = Math.max(budget - currentSpending, 0);
+
+  const closeAddAlertDialog = () => {
+    if (isSavingAlert) {
+      return;
+    }
+
+    setShowAddAlertDialog(false);
+    setNewAlertPercentage("");
+    setDialogError("");
+  };
 
   const handleSaveBudget = async () => {
     const amount = Number(tempBudget);
     if (!Number.isFinite(amount) || amount <= 0) {
       setStatusMessage("Please enter a valid budget amount.");
+      setStatusTone("error");
       return;
     }
 
     setIsSavingBudget(true);
     setStatusMessage("");
+    setStatusTone("");
 
     try {
       const response = await fetch(`${API_BASE_URL}/alerts/budget`, {
@@ -84,37 +123,36 @@ export default function AlertsView() {
       setTempBudget(amount);
       setIsEditingBudget(false);
       setStatusMessage(data.message || "Budget saved successfully.");
+      setStatusTone("success");
       localStorage.setItem("totalBudget", String(amount));
     } catch (error) {
       setStatusMessage(error.message || "Unable to save the budget.");
+      setStatusTone("error");
     } finally {
       setIsSavingBudget(false);
     }
   };
 
-  const closeDialog = () => {
-    setShowAddAlertDialog(false);
-    setErrorMessage("");
-    setNewAlertPercentage("");
-  };
-
   const handleAddAlert = async () => {
     const percentage = parseInt(newAlertPercentage, 10);
+
     if (Number.isNaN(percentage)) {
-      setErrorMessage("Please enter a valid number");
+      setDialogError("Please enter a valid number.");
       return;
     }
-    if (percentage > 100) {
-      setErrorMessage("Value is wrong. Please enter less than 100%");
-      return;
-    }
+
     if (percentage <= 0) {
-      setErrorMessage("Please enter a value greater than 0");
+      setDialogError("Please enter a value greater than 0.");
+      return;
+    }
+
+    if (percentage > 100) {
+      setDialogError("Please enter a value less than or equal to 100.");
       return;
     }
 
     setIsSavingAlert(true);
-    setErrorMessage("");
+    setDialogError("");
 
     try {
       const response = await fetch(`${API_BASE_URL}/alerts`, {
@@ -131,14 +169,16 @@ export default function AlertsView() {
         throw new Error(data.error || "Unable to add alert.");
       }
 
-      setAlerts((prevAlerts) =>
-        [...prevAlerts, { id: data.alert_id, percentage }]
-          .sort((a, b) => a.percentage - b.percentage)
+      setAlerts((previousAlerts) =>
+        [...previousAlerts, { id: data.alert_id, percentage }].sort(
+          (left, right) => left.percentage - right.percentage
+        )
       );
       setStatusMessage(data.message || "Alert added successfully.");
-      closeDialog();
+      setStatusTone("success");
+      closeAddAlertDialog();
     } catch (error) {
-      setErrorMessage(error.message || "Unable to add alert.");
+      setDialogError(error.message || "Unable to add alert.");
     } finally {
       setIsSavingAlert(false);
     }
@@ -147,6 +187,7 @@ export default function AlertsView() {
   const handleDeleteAlert = async (alertId) => {
     setDeletingAlertId(alertId);
     setStatusMessage("");
+    setStatusTone("");
 
     try {
       const response = await fetch(`${API_BASE_URL}/alerts/${alertId}`, {
@@ -159,171 +200,223 @@ export default function AlertsView() {
         throw new Error(data.error || "Unable to delete alert.");
       }
 
-      setAlerts((prevAlerts) => prevAlerts.filter((alert) => alert.id !== alertId));
+      setAlerts((previousAlerts) =>
+        previousAlerts.filter((alert) => alert.id !== alertId)
+      );
       setStatusMessage(data.message || "Alert deleted successfully.");
+      setStatusTone("success");
     } catch (error) {
       setStatusMessage(error.message || "Unable to delete alert.");
+      setStatusTone("error");
     } finally {
       setDeletingAlertId(null);
     }
   };
 
   return (
-    <div className="alerts-page">
-      {statusMessage && <p className="error-text">{statusMessage}</p>}
+    <div className="alertsPage">
+      <div className="alertsContent">
+        <h1 className="alertsTitle">Alerts</h1>
 
-      <div className="budget-card">
-        {!isEditingBudget ? (
-          <button
-            className="edit-btn"
-            onClick={() => {
-              setIsEditingBudget(true);
-              setTempBudget(budget);
-              setStatusMessage("");
-            }}
+        {statusMessage && (
+          <p
+            className={`alertsStatus ${
+              statusTone === "error" ? "alertsStatusError" : "alertsStatusSuccess"
+            }`}
           >
-            <Edit2 size={18} />
-          </button>
-        ) : (
-          <div className="edit-actions">
-            <button
-              className="save-btn"
-              onClick={handleSaveBudget}
-              disabled={isSavingBudget}
-              style={{ background: "#065f46", border: "none", padding: "8px", borderRadius: "8px", color: "#34d399", cursor: "pointer", marginRight: "8px" }}
-            >
-              <Check size={18} />
-            </button>
-            <button
-              className="cancel-edit-btn"
-              onClick={() => {
-                setIsEditingBudget(false);
-                setTempBudget(budget);
-                setStatusMessage("");
-              }}
-              disabled={isSavingBudget}
-              style={{ background: "#7f1d1d", border: "none", padding: "8px", borderRadius: "8px", color: "#f87171", cursor: "pointer" }}
-            >
-              <X size={18} />
-            </button>
-          </div>
+            {statusMessage}
+          </p>
         )}
 
-        <p className="card-label">Monthly Budget</p>
-
-        {isEditingBudget ? (
-          <input
-            type="number"
-            value={tempBudget}
-            onChange={(e) => setTempBudget(e.target.value)}
-            className="modal-input"
-            style={{ width: "200px", fontSize: "24px", marginBottom: "12px" }}
-            autoFocus
-          />
-        ) : (
-          <h2 className="budget-value">₹{budget.toLocaleString()}</h2>
-        )}
-
-        <div className="progress-stats">
-          <span>Current Spending: ₹{currentSpending.toLocaleString()}</span>
-          <span style={{ color: "#10b981" }}>{spentPercentage.toFixed(1)}%</span>
-        </div>
-
-        <div className="progress-bar-bg">
-          <div className="progress-bar-fill" style={{ width: `${Math.min(spentPercentage, 100)}%` }} />
-        </div>
-
-        <p className="remaining-text">Remaining: ₹{Math.max(budget - currentSpending, 0).toLocaleString()}</p>
-      </div>
-
-      <div className="section-header">
-        <h3>Alert Thresholds</h3>
-        <button className="add-alert-trigger" onClick={() => setShowAddAlertDialog(true)}>
-          <Plus size={18} /> Add Alert
-        </button>
-      </div>
-
-      {isLoading ? (
-        <div className="alerts-list">
-          <p className="alert-subtitle">Loading alerts...</p>
-        </div>
-      ) : (
-        <div className="alerts-list">
-          {alerts.map((alert) => {
-            const isTriggered = spentPercentage >= alert.percentage;
-            const triggerAmount = (budget * (alert.percentage / 100)).toLocaleString();
-            return (
-              <div
-                key={alert.id}
-                className={`alert-item ${isTriggered ? "triggered" : ""}`}
-              >
-                <div className="alert-item-left">
-                  <div className="alert-icon-wrapper">
-                    {isTriggered ? <AlertTriangle size={20} /> : <CheckCircle size={20} />}
-                  </div>
-                  <div>
-                    <div className="alert-title-row">
-                      <span className="alert-title">{alert.percentage}% Alert</span>
-                      {isTriggered && <span className="triggered-badge">TRIGGERED</span>}
-                    </div>
-                    <p className="alert-subtitle">Triggers at ₹{triggerAmount}</p>
-                  </div>
-                </div>
+        <section className="alertsBudgetCard">
+          <div className="alertsBudgetEditArea">
+            {isEditingBudget ? (
+              <div className="alertsBudgetEditActions">
                 <button
-                  className="delete-alert-btn"
-                  onClick={() => handleDeleteAlert(alert.id)}
-                  disabled={deletingAlertId === alert.id}
+                  className="alertsSquareButton alertsSquareButtonSave"
+                  type="button"
+                  onClick={handleSaveBudget}
+                  disabled={isSavingBudget}
+                  aria-label="Save budget"
                 >
-                  <Trash2 size={18} />
+                  <Check size={18} />
+                </button>
+                <button
+                  className="alertsSquareButton alertsSquareButtonCancel"
+                  type="button"
+                  onClick={() => {
+                    setTempBudget(budget);
+                    setIsEditingBudget(false);
+                    setStatusMessage("");
+                    setStatusTone("");
+                  }}
+                  disabled={isSavingBudget}
+                  aria-label="Cancel budget edit"
+                >
+                  <X size={18} />
                 </button>
               </div>
-            );
-          })}
-          {alerts.length === 0 && (
-            <p className="alert-subtitle">No alert thresholds yet. Add one to start tracking.</p>
+            ) : (
+              <button
+                className="alertsSquareButton alertsSquareButtonEdit"
+                type="button"
+                onClick={() => {
+                  setTempBudget(budget);
+                  setIsEditingBudget(true);
+                  setStatusMessage("");
+                  setStatusTone("");
+                }}
+                aria-label="Edit budget"
+              >
+                <Edit2 size={18} />
+              </button>
+            )}
+          </div>
+
+          <p className="alertsBudgetLabel">Monthly Budget</p>
+
+          {isEditingBudget ? (
+            <input
+              className="alertsBudgetInput"
+              type="number"
+              value={tempBudget}
+              onChange={(event) => setTempBudget(event.target.value)}
+              autoFocus
+            />
+          ) : (
+            <h2 className="alertsBudgetValue">{formatCurrency(budget)}</h2>
           )}
-        </div>
-      )}
+
+          <div className="alertsBudgetStats">
+            <span>Current Spending: {formatCurrency(currentSpending)}</span>
+            <span className="alertsBudgetPercentage">
+              {spentPercentage.toFixed(1)}%
+            </span>
+          </div>
+
+          <div className="alertsProgressTrack">
+            <div
+              className="alertsProgressFill"
+              style={{ width: `${Math.min(spentPercentage, 100)}%` }}
+            />
+          </div>
+
+          <p className="alertsRemainingText">
+            Remaining: {formatCurrency(remainingAmount)}
+          </p>
+        </section>
+
+        <section className="alertsThresholdsCard">
+          <div className="alertsThresholdsHeader">
+            <h2>Alert Thresholds</h2>
+            <button
+              className="alertsAddButton"
+              type="button"
+              onClick={() => {
+                setShowAddAlertDialog(true);
+                setDialogError("");
+                setNewAlertPercentage("");
+              }}
+            >
+              <Plus size={16} />
+              <span>Add Alert</span>
+            </button>
+          </div>
+
+          {isLoading ? (
+            <p className="alertsEmptyState">Loading alerts...</p>
+          ) : alerts.length === 0 ? (
+            <p className="alertsEmptyState">
+              No alert thresholds yet. Add one to start tracking.
+            </p>
+          ) : (
+            <div className="alertsThresholdsList">
+              {alerts.map((alert) => {
+                const tone = getAlertTone(alert.percentage);
+                const isTriggered = spentPercentage >= alert.percentage;
+                const triggerAmount = budget * (alert.percentage / 100);
+
+                return (
+                  <div
+                    className={`alertsThresholdItem alertsThresholdItem--${tone}`}
+                    key={alert.id}
+                  >
+                    <div className={`alertsThresholdIcon alertsThresholdIcon--${tone}`}>
+                      {isTriggered ? <AlertTriangle size={20} /> : <CheckCircle size={20} />}
+                    </div>
+
+                    <div className="alertsThresholdCopy">
+                      <div className="alertsThresholdTitleRow">
+                        <h3>{alert.percentage}% Alert</h3>
+                        {isTriggered && (
+                          <span className="alertsTriggeredBadge">Triggered</span>
+                        )}
+                      </div>
+                      <p>
+                        Alert when spending reaches {formatCurrency(triggerAmount)}
+                      </p>
+                    </div>
+
+                    <button
+                      className="alertsDeleteButton"
+                      type="button"
+                      onClick={() => handleDeleteAlert(alert.id)}
+                      disabled={deletingAlertId === alert.id}
+                      aria-label={`Delete ${alert.percentage}% alert`}
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      </div>
 
       {showAddAlertDialog && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <button className="modal-close-icon" onClick={closeDialog}>
-              <X size={20} />
-            </button>
-
-            <h3 className="modal-title">Add Alert</h3>
-            <p className="modal-description">
-              Get notified when your spending reaches a certain percentage of your budget.
+        <div className="alertsModalOverlay">
+          <div className="alertsModal">
+            <h2>Add Alert</h2>
+            <p className="alertsModalHint">
+              Enter the budget percentage that should trigger this alert.
             </p>
 
-            <div className="modal-input-group">
-              <label>Alert Percentage (%)</label>
-              <input
-                className={`modal-input ${errorMessage ? "input-error" : ""}`}
-                type="number"
-                value={newAlertPercentage}
-                onChange={(e) => {
-                  setNewAlertPercentage(e.target.value);
-                  setErrorMessage("");
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    handleAddAlert();
-                  }
-                }}
-                placeholder="e.g., 50, 75, 90"
-                autoFocus
-              />
-              {errorMessage && <p className="error-text">{errorMessage}</p>}
-            </div>
+            <input
+              className="alertsModalInput"
+              type="number"
+              placeholder="Alert percentage"
+              value={newAlertPercentage}
+              onChange={(event) => {
+                setNewAlertPercentage(event.target.value);
+                setDialogError("");
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  handleAddAlert();
+                }
+              }}
+              autoFocus
+            />
 
-            <div className="modal-footer">
-              <button className="btn-secondary" onClick={closeDialog}>
+            {dialogError && <p className="alertsDialogError">{dialogError}</p>}
+
+            <div className="alertsModalButtons">
+              <button
+                className="alertsModalCancel"
+                type="button"
+                onClick={closeAddAlertDialog}
+                disabled={isSavingAlert}
+              >
                 Cancel
               </button>
-              <button className="btn-primary" onClick={handleAddAlert} disabled={isSavingAlert}>
-                Add Alert
+              <button
+                className="alertsModalSave"
+                type="button"
+                onClick={handleAddAlert}
+                disabled={isSavingAlert}
+              >
+                Save
               </button>
             </div>
           </div>

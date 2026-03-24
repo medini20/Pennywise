@@ -1,358 +1,457 @@
-/* =========================================
-   PAGE LAYOUT
-========================================= */
-.alerts-page {
-  padding: 40px;
-  background-color: transparent; /* Uses the #081744 from App.css */
+.alertsPage {
   min-height: 100vh;
-  color: white;
+  color: #ffffff;
+  background: transparent;
 }
 
-/* =========================================
-   MONTHLY BUDGET CARD
-========================================= */
-.budget-card {
-  display: block; /* Forces it to break out of any global flex rows */
-  background: rgba(17, 24, 39, 0.5); /* Glassmorphism dark background */
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 16px;
-  padding: 32px;
-  margin-bottom: 40px;
-  position: relative;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+.alertsContent {
+  max-width: 1380px;
+  margin: 0 auto;
+  padding: 32px 42px 48px;
 }
 
-.edit-btn {
-  position: absolute;
-  top: 24px;
-  right: 24px;
-  background: rgba(59, 130, 246, 0.1);
-  color: #3b82f6;
-  border: none;
-  padding: 10px;
-  border-radius: 10px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  transition: background 0.2s;
-}
-
-.edit-btn:hover {
-  background: rgba(59, 130, 246, 0.2);
-}
-
-.edit-actions {
-  position: absolute;
-  top: 24px;
-  right: 24px;
-  display: flex;
-  gap: 8px;
-}
-
-.card-label {
-  color: #94a3b8;
-  font-size: 14px;
-  margin: 0 0 8px 0;
-  display: block;
-}
-
-.budget-value {
-  font-size: 36px;
+.alertsTitle {
+  margin: 0 0 24px;
+  font-size: 26px;
   font-weight: 700;
-  margin: 0 0 16px 0;
-  color: white;
+  letter-spacing: -0.02em;
 }
 
-.progress-stats {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 12px;
-  color: #94a3b8;
-  font-size: 14px;
-}
-
-.progress-bar-bg {
-  height: 8px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
-  width: 100%;
-  overflow: hidden;
-  margin-bottom: 12px;
-}
-
-.progress-bar-fill {
-  height: 100%;
-  background: #10b981; /* Figma Green */
-  border-radius: 10px;
-  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.remaining-text {
-  color: #64748b;
+.alertsStatus {
+  margin: -8px 0 18px;
   font-size: 13px;
-  margin: 0;
+  font-weight: 500;
 }
 
-/* =========================================
-   ALERT THRESHOLDS SECTION
-========================================= */
-.section-header {
+.alertsStatusSuccess {
+  color: #86efac;
+}
+
+.alertsStatusError {
+  color: #fca5a5;
+}
+
+.alertsBudgetCard,
+.alertsThresholdsCard {
+  background: #1b2759;
+  border: 1px solid rgba(106, 128, 205, 0.24);
+  border-radius: 20px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.alertsBudgetCard {
+  position: relative;
+  padding: 28px 26px 24px;
+  margin-bottom: 26px;
+}
+
+.alertsBudgetEditArea {
+  position: absolute;
+  top: 34px;
+  right: 24px;
+}
+
+.alertsBudgetEditActions {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
+  gap: 10px;
 }
 
-.section-header h3 {
-  font-size: 20px;
-  font-weight: 600;
-  margin: 0;
-  color: white;
-}
-
-.add-alert-trigger {
-  background: rgba(250, 204, 21, 0.1);
-  color: #facc15;
-  border: 1px solid rgba(250, 204, 21, 0.3);
-  padding: 10px 20px;
-  border-radius: 8px;
-  font-weight: 600;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  transition: all 0.2s;
-}
-
-.add-alert-trigger:hover {
-  background: rgba(250, 204, 21, 0.2);
-  box-shadow: 0 0 15px rgba(250, 204, 21, 0.2);
-}
-
-/* =========================================
-   ALERT ITEMS LIST
-========================================= */
-.alerts-list {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.alert-item {
-  background: rgba(17, 24, 39, 0.5);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 12px;
-  padding: 16px 24px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  transition: all 0.2s;
-}
-
-/* Base side border styles */
-.alert-item { border-left: 4px solid #3b82f6; } /* Default Blue */
-.alert-item:nth-child(1) { border-left: 4px solid #10b981; } /* Green */
-.alert-item:nth-child(2) { border-left: 4px solid #facc15; } /* Yellow */
-
-/* When an alert is triggered (Spent > Target) */
-.alert-item.triggered {
-  border-left: 4px solid #ef4444; /* Red */
-  background: rgba(239, 68, 68, 0.05);
-  border-right: 1px solid rgba(239, 68, 68, 0.1);
-  border-top: 1px solid rgba(239, 68, 68, 0.1);
-  border-bottom: 1px solid rgba(239, 68, 68, 0.1);
-}
-
-.alert-item-left {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-}
-
-.alert-icon-wrapper {
-  color: #94a3b8;
-  background: rgba(255, 255, 255, 0.05);
-  width: 40px;
-  height: 40px;
-  display: flex;
+.alertsSquareButton {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
+  width: 50px;
+  height: 50px;
+  border-radius: 14px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: transform 0.2s ease, filter 0.2s ease, background 0.2s ease;
+}
+
+.alertsSquareButton:hover:not(:disabled),
+.alertsAddButton:hover,
+.alertsDeleteButton:hover:not(:disabled),
+.alertsModalSave:hover:not(:disabled),
+.alertsModalCancel:hover:not(:disabled) {
+  transform: translateY(-1px);
+  filter: brightness(1.06);
+}
+
+.alertsSquareButton:disabled,
+.alertsAddButton:disabled,
+.alertsDeleteButton:disabled,
+.alertsModalSave:disabled,
+.alertsModalCancel:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.alertsSquareButtonEdit {
+  background: rgba(42, 95, 208, 0.18);
+  border-color: rgba(67, 121, 232, 0.44);
+  color: #4c92ff;
+}
+
+.alertsSquareButtonSave {
+  background: rgba(22, 163, 74, 0.16);
+  border-color: rgba(74, 222, 128, 0.34);
+  color: #4ade80;
+}
+
+.alertsSquareButtonCancel {
+  background: rgba(220, 38, 38, 0.14);
+  border-color: rgba(248, 113, 113, 0.34);
+  color: #f87171;
+}
+
+.alertsBudgetLabel {
+  margin: 0 0 8px;
+  color: #aab5d6;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.alertsBudgetValue {
+  margin: 0 0 20px;
+  font-size: 36px;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+.alertsBudgetInput {
+  width: 240px;
+  margin-bottom: 20px;
+  padding: 10px 14px;
+  border: 1px solid rgba(82, 132, 255, 0.45);
+  border-radius: 12px;
+  background: #13214d;
+  color: #ffffff;
+  font-size: 28px;
+  font-weight: 700;
+  outline: none;
+}
+
+.alertsBudgetStats {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 12px;
+  color: #cfd8f1;
+  font-size: 14px;
+}
+
+.alertsBudgetPercentage {
+  color: #22c55e;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.alertsProgressTrack {
+  width: 100%;
+  height: 12px;
+  border-radius: 999px;
+  background: rgba(146, 160, 210, 0.22);
+  overflow: hidden;
+}
+
+.alertsProgressFill {
+  height: 100%;
+  border-radius: 999px;
+  background: #22c55e;
+  transition: width 0.35s ease;
+}
+
+.alertsRemainingText {
+  margin: 14px 0 0;
+  color: #a7b5de;
+  font-size: 14px;
+}
+
+.alertsThresholdsCard {
+  padding: 24px 26px 26px;
+}
+
+.alertsThresholdsHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.alertsThresholdsHeader h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.alertsAddButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid rgba(234, 179, 8, 0.55);
+  border-radius: 14px;
+  background: rgba(234, 179, 8, 0.08);
+  color: #facc15;
+  padding: 11px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.alertsEmptyState {
+  margin: 0;
+  color: #b6c3e8;
+  font-size: 14px;
+}
+
+.alertsThresholdsList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.alertsThresholdItem {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 16px 16px 14px;
+  border-radius: 16px;
+}
+
+.alertsThresholdItem--safe {
+  background: rgba(16, 92, 87, 0.18);
+  border: 1px solid rgba(34, 197, 94, 0.24);
+}
+
+.alertsThresholdItem--warning {
+  background: rgba(84, 76, 44, 0.18);
+  border: 1px solid rgba(234, 179, 8, 0.24);
+}
+
+.alertsThresholdItem--danger {
+  background: rgba(109, 45, 77, 0.18);
+  border: 1px solid rgba(239, 68, 68, 0.22);
+}
+
+.alertsThresholdIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
 }
 
-.triggered .alert-icon-wrapper {
-  background: rgba(239, 68, 68, 0.15);
+.alertsThresholdIcon--safe {
+  background: rgba(34, 197, 94, 0.14);
+  color: #22c55e;
+}
+
+.alertsThresholdIcon--warning {
+  background: rgba(234, 179, 8, 0.14);
+  color: #facc15;
+}
+
+.alertsThresholdIcon--danger {
+  background: rgba(239, 68, 68, 0.14);
   color: #ef4444;
 }
 
-.alert-title-row {
+.alertsThresholdCopy {
+  min-width: 0;
+}
+
+.alertsThresholdTitleRow {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
+  margin-bottom: 4px;
 }
 
-.alert-title {
-  font-weight: 600;
+.alertsThresholdTitleRow h3 {
+  margin: 0;
   font-size: 16px;
-  color: white;
+  font-weight: 700;
 }
 
-.triggered-badge {
-  background: rgba(239, 68, 68, 0.2);
-  color: #ef4444;
-  padding: 4px 8px;
-  border-radius: 6px;
+.alertsThresholdCopy p {
+  margin: 0;
+  color: #acbbdf;
+  font-size: 13px;
+}
+
+.alertsTriggeredBadge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 10px;
+  background: rgba(34, 197, 94, 0.18);
+  color: #22c55e;
+  padding: 4px 10px;
   font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.5px;
 }
 
-.alert-subtitle {
-  color: #64748b;
-  font-size: 13px;
-  margin: 4px 0 0 0;
-}
-
-.delete-alert-btn {
-  background: none;
-  border: none;
-  color: #ef4444;
-  opacity: 0.4;
-  cursor: pointer;
-  transition: opacity 0.2s, transform 0.2s;
-  padding: 8px;
-}
-
-.delete-alert-btn:hover {
-  opacity: 1;
-  transform: scale(1.1);
-}
-
-/* =========================================
-   ADD ALERT MODAL
-========================================= */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(6px);
-  display: flex;
-  justify-content: center;
+.alertsDeleteButton {
+  display: inline-flex;
   align-items: center;
-  z-index: 9999; 
-}
-
-.modal-content {
-  background: #111827; 
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  width: 420px;
-  max-width: 90%;
-  border-radius: 16px;
-  padding: 32px;
-  position: relative;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
-  animation: modalFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.modal-close-icon {
-  position: absolute;
-  right: 20px;
-  top: 20px;
-  background: none;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
   border: none;
-  color: #9ca3af;
-  cursor: pointer;
-  transition: color 0.2s;
-}
-
-.modal-close-icon:hover { color: white; }
-
-.modal-title {
-  font-size: 20px;
-  font-weight: 600;
-  margin: 0 0 12px 0;
-  color: white;
-}
-
-.modal-description {
-  color: #9ca3af;
-  font-size: 14px;
-  line-height: 1.5;
-  margin: 0 0 24px 0;
-}
-
-.modal-input-group label {
-  display: block;
-  font-size: 13px;
-  font-weight: 500;
-  color: #e2e8f0;
-  margin-bottom: 8px;
-}
-
-.modal-input {
-  width: 100%;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: white;
-  padding: 12px 16px;
-  border-radius: 8px;
-  outline: none;
-  font-size: 15px;
-  box-sizing: border-box; 
-  transition: border 0.2s;
-}
-
-.modal-input:focus { border: 1px solid #facc15; }
-.input-error { border: 1px solid #ef4444 !important; }
-
-.error-text {
+  border-radius: 12px;
+  background: transparent;
   color: #ef4444;
-  font-size: 12px;
-  margin: 8px 0 0 0;
-  font-weight: 500;
+  cursor: pointer;
 }
 
-.modal-footer {
+.alertsModalOverlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(4, 9, 23, 0.72);
+  z-index: 9999;
+}
+
+.alertsModal {
+  width: 360px;
+  max-width: 100%;
+  background: #1b2759;
+  border: 1px solid rgba(106, 128, 205, 0.24);
+  border-radius: 18px;
+  padding: 24px;
+}
+
+.alertsModal h2 {
+  margin: 0 0 8px;
+  font-size: 21px;
+}
+
+.alertsModalHint {
+  margin: 0 0 16px;
+  color: #b7c3e6;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.alertsModalInput {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid rgba(106, 128, 205, 0.34);
+  border-radius: 12px;
+  background: #13214d;
+  color: #ffffff;
+  font-size: 14px;
+  outline: none;
+}
+
+.alertsModalInput:focus {
+  border-color: rgba(82, 132, 255, 0.65);
+}
+
+.alertsDialogError {
+  margin: 10px 0 0;
+  color: #fda4af;
+  font-size: 12px;
+}
+
+.alertsModalButtons {
   display: flex;
   gap: 12px;
-  margin-top: 28px;
+  margin-top: 20px;
 }
 
-.btn-secondary {
+.alertsModalCancel,
+.alertsModalSave {
   flex: 1;
-  background: transparent;
-  color: white;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  padding: 12px;
-  border-radius: 8px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.btn-secondary:hover { background: rgba(255, 255, 255, 0.1); }
-
-.btn-primary {
-  flex: 1;
-  background: #facc15; 
-  color: #000;
   border: none;
-  padding: 12px;
-  border-radius: 8px;
+  border-radius: 12px;
+  padding: 11px 14px;
+  font-size: 13px;
   font-weight: 700;
   cursor: pointer;
-  transition: transform 0.2s, background 0.2s;
 }
 
-.btn-primary:hover {
-  transform: translateY(-2px);
-  background: #fde047;
+.alertsModalCancel {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
 }
 
-@keyframes modalFadeIn {
-  from { opacity: 0; transform: translateY(15px); }
-  to { opacity: 1; transform: translateY(0); }
+.alertsModalSave {
+  background: #facc15;
+  color: #101828;
+}
+
+@media (max-width: 900px) {
+  .alertsContent {
+    padding: 24px 20px 40px;
+  }
+
+  .alertsThresholdsHeader,
+  .alertsBudgetStats {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .alertsThresholdItem {
+    grid-template-columns: 44px minmax(0, 1fr);
+  }
+
+  .alertsDeleteButton {
+    grid-column: 2;
+    justify-self: end;
+  }
+}
+
+@media (max-width: 640px) {
+  .alertsBudgetCard,
+  .alertsThresholdsCard {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+
+  .alertsBudgetEditArea {
+    position: static;
+    margin-bottom: 16px;
+  }
+
+  .alertsBudgetValue {
+    font-size: 32px;
+  }
+
+  .alertsBudgetInput {
+    width: 100%;
+  }
+
+  .alertsThresholdsHeader {
+    align-items: stretch;
+  }
+
+  .alertsAddButton {
+    justify-content: center;
+  }
+
+  .alertsThresholdItem {
+    grid-template-columns: 1fr;
+  }
+
+  .alertsThresholdIcon {
+    width: 42px;
+    height: 42px;
+  }
+
+  .alertsDeleteButton {
+    grid-column: auto;
+    justify-self: start;
+    padding: 0;
+  }
+
+  .alertsThresholdTitleRow {
+    flex-wrap: wrap;
+  }
 }

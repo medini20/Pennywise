@@ -11,6 +11,7 @@ import {
   Cell,
   Legend
 } from "recharts";
+import "./Analytics.css";
 
 const categoryColors = {
   "Food & Dining": "#22d3ee",
@@ -131,94 +132,164 @@ function Analytics() {
     categoryData.length ? Math.max(...categoryData.map(c => c.value)) : 0
   , [categoryData]);
 
-  if (loading) return <div className="p-10 text-white">Loading analytics...</div>;
+  if (loading) {
+    return <div className="analyticsPage analyticsLoading">Loading analytics...</div>;
+  }
 
   return (
-    <div className="w-full p-6 text-white bg-[#0a0f29] min-h-screen">
-      {/* Filters & Controls */}
-      <div className="flex flex-wrap justify-between items-center gap-4 mb-8 bg-[#111d40] p-4 rounded-xl border border-white/5">
-        <div className="flex gap-4 items-center">
-          <div className="flex bg-[#0a0f29] rounded-lg p-1">
-            <button onClick={() => setPeriod("monthly")} className={`px-4 py-1.5 rounded-lg text-sm ${period === "monthly" ? "bg-blue-600" : ""}`}>Monthly</button>
-            <button onClick={() => setPeriod("yearly")} className={`px-4 py-1.5 rounded-lg text-sm ${period === "yearly" ? "bg-blue-600" : ""}`}>Yearly</button>
+    <div className="analyticsPage">
+      <div className="analyticsToolbarCard">
+        <div className="analyticsToolbarGroup">
+          <div className="analyticsSegment">
+            <button
+              onClick={() => setPeriod("monthly")}
+              className={`analyticsToggleButton ${
+                period === "monthly" ? "analyticsToggleButton--active" : ""
+              }`}
+            >
+              Monthly
+            </button>
+            <button
+              onClick={() => setPeriod("yearly")}
+              className={`analyticsToggleButton ${
+                period === "yearly" ? "analyticsToggleButton--active" : ""
+              }`}
+            >
+              Yearly
+            </button>
           </div>
 
-          <div className="flex gap-2">
+          <div className="analyticsSelectGroup">
             {period === "monthly" && (
-              <select value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} className="bg-[#0a0f29] border border-white/10 rounded-md px-2 py-1 text-sm outline-none">
+              <select
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(e.target.value)}
+                className="analyticsSelect"
+              >
                 {months.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
               </select>
             )}
-            <select value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)} className="bg-[#0a0f29] border border-white/10 rounded-md px-2 py-1 text-sm outline-none">
+            <select
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(e.target.value)}
+              className="analyticsSelect"
+            >
               {years.map(y => <option key={y} value={y}>{y}</option>)}
             </select>
           </div>
         </div>
 
-        <div className="flex gap-4 items-center">
-          <button onClick={handleExport} className="bg-emerald-600 hover:bg-emerald-700 px-4 py-1.5 rounded-lg text-sm font-medium transition-all">Export CSV</button>
-          <div className="flex bg-[#0a0f29] rounded-lg p-1">
-            <button onClick={() => setChartType("graph")} className={`px-4 py-1.5 rounded-lg text-sm ${chartType === "graph" ? "bg-blue-600" : ""}`}>Graph</button>
-            <button onClick={() => setChartType("pie")} className={`px-4 py-1.5 rounded-lg text-sm ${chartType === "pie" ? "bg-blue-600" : ""}`}>Pie</button>
+        <div className="analyticsToolbarActions">
+          <button onClick={handleExport} className="analyticsExportButton">
+            Export CSV
+          </button>
+          <div className="analyticsSegment">
+            <button
+              onClick={() => setChartType("graph")}
+              className={`analyticsToggleButton ${
+                chartType === "graph" ? "analyticsToggleButton--active" : ""
+              }`}
+            >
+              Graph
+            </button>
+            <button
+              onClick={() => setChartType("pie")}
+              className={`analyticsToggleButton ${
+                chartType === "pie" ? "analyticsToggleButton--active" : ""
+              }`}
+            >
+              Pie
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Main Charts */}
-      <div className="bg-[#0f1b3d] rounded-xl p-6 mb-8 shadow-lg border border-white/5">
-        <h2 className="text-xl font-semibold mb-6">Expense Breakdown</h2>
-        <div className="w-full h-[350px]">
+      <div className="analyticsCard">
+        <h2 className="analyticsCardTitle">Expense Breakdown</h2>
+        <div className="analyticsChartWrap">
           <ResponsiveContainer width="100%" height="100%">
             {chartType === "graph" ? (
               <LineChart data={lineData}>
                 <XAxis dataKey="date" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
                 <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
-                <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px' }} />
-                <Line type="monotone" dataKey="expense" stroke="#3b82f6" strokeWidth={3} dot={{ r: 5, fill: '#3b82f6' }} activeDot={{ r: 8 }} />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "#1b2759",
+                    border: "1px solid rgba(106, 128, 205, 0.24)",
+                    borderRadius: "12px"
+                  }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="expense"
+                  stroke="#4c92ff"
+                  strokeWidth={3}
+                  dot={{ r: 5, fill: "#4c92ff" }}
+                  activeDot={{ r: 8 }}
+                />
               </LineChart>
             ) : (
               <PieChart>
                 <Pie data={categoryData} dataKey="value" nameKey="name" outerRadius={120} innerRadius={80} paddingAngle={5}>
                   {categoryData.map((entry, index) => <Cell key={index} fill={entry.color} />)}
                 </Pie>
-                <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px' }} />
-                <Legend />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "#1b2759",
+                    border: "1px solid rgba(106, 128, 205, 0.24)",
+                    borderRadius: "12px"
+                  }}
+                />
+                <Legend wrapperStyle={{ color: "#dbe5ff", paddingTop: "12px" }} />
               </PieChart>
             )}
           </ResponsiveContainer>
         </div>
       </div>
 
-      {/* Summary and Progress Bars */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-[#0f1b3d] p-6 rounded-xl border border-white/5">
-          <h3 className="text-lg font-medium mb-6">Spending by Category</h3>
+      <div className="analyticsBottomGrid">
+        <div className="analyticsCard analyticsCategoryCard">
+          <h3 className="analyticsCardTitle">Spending by Category</h3>
           {categoryData.length > 0 ? categoryData.map((cat, i) => (
-            <div key={i} className="mb-5">
-              <div className="flex justify-between text-sm mb-2">
-                <span>{cat.name}</span>
-                <span className="font-bold">₹{cat.value}</span>
+            <div key={i} className="analyticsCategoryRow">
+              <div className="analyticsCategoryLabelRow">
+                <span className="analyticsCategoryLabelName">{cat.name}</span>
+                <span className="analyticsCategoryLabelValue">₹{cat.value}</span>
               </div>
-              <div className="w-full bg-[#1e293b] h-2 rounded-full overflow-hidden">
-                <div className="h-full rounded-full transition-all duration-700" style={{ width: `${(cat.value / maxCategoryValue) * 100}%`, background: cat.color }} />
+              <div className="analyticsProgressTrack">
+                <div
+                  className="analyticsProgressFill"
+                  style={{
+                    width: `${maxCategoryValue ? (cat.value / maxCategoryValue) * 100 : 0}%`,
+                    background: cat.color
+                  }}
+                />
               </div>
             </div>
-          )) : <p className="text-slate-400">No data for this period.</p>}
+          )) : <p className="analyticsEmptyState">No data for this period.</p>}
         </div>
 
-        <div className="bg-[#0f1b3d] p-6 rounded-xl border border-white/5 space-y-4">
-          <h3 className="text-lg font-medium mb-2">Financial Summary</h3>
-          <div className="p-4 bg-[#111d40] rounded-lg border border-white/5 flex justify-between">
-            <span className="text-slate-400">Income</span>
-            <span className="text-green-400 font-bold text-lg">+₹{summary.income}</span>
-          </div>
-          <div className="p-4 bg-[#111d40] rounded-lg border border-white/5 flex justify-between">
-            <span className="text-slate-400">Expenses</span>
-            <span className="text-red-400 font-bold text-lg">-₹{summary.expenses}</span>
-          </div>
-          <div className="p-4 bg-[#111d40] rounded-lg border-t border-blue-500/30 flex justify-between">
-            <span className="text-slate-400">Savings</span>
-            <span className="text-yellow-400 font-bold text-xl">₹{summary.savings}</span>
+        <div className="analyticsCard analyticsSummaryCard">
+          <h3 className="analyticsCardTitle">Financial Summary</h3>
+          <div className="analyticsSummaryItems">
+            <div className="analyticsSummaryItem">
+              <span className="analyticsSummaryLabel">Income</span>
+              <span className="analyticsSummaryValue analyticsSummaryValue--income">
+                +₹{summary.income}
+              </span>
+            </div>
+            <div className="analyticsSummaryItem">
+              <span className="analyticsSummaryLabel">Expenses</span>
+              <span className="analyticsSummaryValue analyticsSummaryValue--expense">
+                -₹{summary.expenses}
+              </span>
+            </div>
+            <div className="analyticsSummaryItem analyticsSummaryItem--highlight">
+              <span className="analyticsSummaryLabel">Savings</span>
+              <span className="analyticsSummaryValue analyticsSummaryValue--savings">
+                ₹{summary.savings}
+              </span>
+            </div>
           </div>
         </div>
       </div>
