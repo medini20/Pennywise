@@ -3,7 +3,11 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
+<<<<<<< HEAD
 -- Generation Time: Mar 24, 2026 at 06:44 PM
+=======
+-- Generation Time: Mar 24, 2026 at 06:07 PM
+>>>>>>> 887d911 (Align backend auth and alerts with MySQL schema)
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -70,9 +74,17 @@ CREATE TABLE `budgets` (
 --
 
 INSERT INTO `budgets` (`budget_id`, `user_id`, `name`, `icon`, `amount`, `spent`, `month`, `color`) VALUES
+<<<<<<< HEAD
 (1, 1, 'General', NULL, 975933.00, 0.00, 3, '#ffcc00'),
 (2, 1, 'Transport', '🚗', 77.00, 0.00, 1, '#ffcc00'),
 (3, 1, 'Electronics', '📱', 77.00, 0.00, 1, '#ffcc00');
+=======
+(20, 1, 'Shopping ', '👕', 2500.00, 0.00, 1, '#ffcc00'),
+(25, 1, 'Home', '🏠', 25000.00, 0.00, 1, '#ffcc00'),
+(31, 1, 'Food', '🍽️', 34567.00, 0.00, 1, '#ffcc00'),
+(32, 1, 'Electronics', '📱', 4567.00, 0.00, 1, '#ffcc00'),
+(33, 1, 'Electronics', '📱', 90.00, 0.00, 1, '#ffcc00');
+>>>>>>> 887d911 (Align backend auth and alerts with MySQL schema)
 
 -- --------------------------------------------------------
 
@@ -94,7 +106,12 @@ CREATE TABLE `categories` (
 --
 
 INSERT INTO `categories` (`category_id`, `user_id`, `name`, `type`, `created_at`) VALUES
+<<<<<<< HEAD
 (1, 1, 'General', 'expense', '2026-03-23 17:17:03');
+=======
+(1, 1, 'Food ', 'expense', '2026-03-15 11:26:12'),
+(2, 2, 'food', 'expense', '2026-03-19 13:27:29');
+>>>>>>> 887d911 (Align backend auth and alerts with MySQL schema)
 
 -- --------------------------------------------------------
 
@@ -102,13 +119,17 @@ INSERT INTO `categories` (`category_id`, `user_id`, `name`, `type`, `created_at`
 -- Table structure for table `expenses`
 --
 
+<<<<<<< HEAD
 DROP TABLE IF EXISTS `expenses`;
+=======
+>>>>>>> 887d911 (Align backend auth and alerts with MySQL schema)
 CREATE TABLE `expenses` (
   `expense_id` int(11) NOT NULL,
   `budget_id` int(11) NOT NULL,
   `name` varchar(255) NOT NULL,
   `amount` decimal(10,2) NOT NULL,
   `date` date NOT NULL
+<<<<<<< HEAD
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
@@ -125,6 +146,8 @@ CREATE TABLE `otps` (
   `purpose` varchar(50) NOT NULL,
   `expires_at` datetime NOT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+=======
+>>>>>>> 887d911 (Align backend auth and alerts with MySQL schema)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
@@ -149,7 +172,11 @@ CREATE TABLE `transactions` (
 --
 
 INSERT INTO `transactions` (`transaction_id`, `user_id`, `category_id`, `amount`, `type`, `description`, `transaction_date`) VALUES
+<<<<<<< HEAD
 (1, 1, 1, 6000.00, 'expense', 'Test expense', '2026-03-23');
+=======
+(1, 2, 1, 4000.00, 'expense', 'school', '2026-03-03');
+>>>>>>> 887d911 (Align backend auth and alerts with MySQL schema)
 
 -- --------------------------------------------------------
 
@@ -165,6 +192,33 @@ CREATE TABLE `users` (
   `password_hash` varchar(255) NOT NULL,
   `is_verified` tinyint(1) NOT NULL DEFAULT 0,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+<<<<<<< HEAD
+=======
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `users`
+--
+
+INSERT INTO `users` (`user_id`, `name`, `email`, `password_hash`, `is_verified`, `created_at`) VALUES
+(1, 'test', 'test@test.com', '$2b$10$YUPhXWtNK1ivEjSkE.3CsuQvIsFXDoQS/x3jt/1WlxQPiGhkYHCQ2', 1, '2026-03-15 11:24:51'),
+(2, 'School', 'school@gmail.com', '$2b$10$YUPhXWtNK1ivEjSkE.3CsuQvIsFXDoQS/x3jt/1WlxQPiGhkYHCQ2', 1, '2026-03-16 15:08:07'),
+(3, 'user1', 'user1@gmail.com', '$2b$10$YUPhXWtNK1ivEjSkE.3CsuQvIsFXDoQS/x3jt/1WlxQPiGhkYHCQ2', 1, '2026-03-19 13:26:23');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `otps`
+--
+
+CREATE TABLE `otps` (
+  `otp_id` int(11) NOT NULL,
+  `email` varchar(100) NOT NULL,
+  `otp_code` varchar(10) NOT NULL,
+  `purpose` varchar(50) NOT NULL,
+  `expires_at` datetime NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+>>>>>>> 887d911 (Align backend auth and alerts with MySQL schema)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
@@ -191,7 +245,10 @@ ALTER TABLE `alerts`
 --
 ALTER TABLE `budgets`
   ADD PRIMARY KEY (`budget_id`),
+<<<<<<< HEAD
   ADD KEY `user_id` (`user_id`),
+=======
+>>>>>>> 887d911 (Align backend auth and alerts with MySQL schema)
   ADD KEY `user_id_month` (`user_id`,`month`);
 
 --
@@ -246,13 +303,21 @@ ALTER TABLE `alerts`
 -- AUTO_INCREMENT for table `budgets`
 --
 ALTER TABLE `budgets`
+<<<<<<< HEAD
   MODIFY `budget_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+=======
+  MODIFY `budget_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=34;
+>>>>>>> 887d911 (Align backend auth and alerts with MySQL schema)
 
 --
 -- AUTO_INCREMENT for table `categories`
 --
 ALTER TABLE `categories`
+<<<<<<< HEAD
   MODIFY `category_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+=======
+  MODIFY `category_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+>>>>>>> 887d911 (Align backend auth and alerts with MySQL schema)
 
 --
 -- AUTO_INCREMENT for table `expenses`
@@ -276,7 +341,11 @@ ALTER TABLE `transactions`
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
+<<<<<<< HEAD
   MODIFY `user_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+=======
+  MODIFY `user_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+>>>>>>> 887d911 (Align backend auth and alerts with MySQL schema)
 
 --
 -- Constraints for dumped tables

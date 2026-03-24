@@ -1,44 +1,65 @@
 const db = require("../../config/db");
 
-// GET PROFILE
-exports.getProfile = (req, res) => {
-  const userId = req.user.id;
+const runQuery = async (sql, params = []) => {
+  const [rows] = await db.promise().query(sql, params);
+  return rows;
+};
 
-  const query = `
-    SELECT name AS username, email
-    FROM users
-    WHERE user_id = ?
-  `;
+const normalizeText = (value) => (typeof value === "string" ? value.trim() : "");
 
-  db.query(query, [userId], (err, results) => {
-    if (err) {
-      return res.status(500).json(err);
-    }
+exports.getProfile = async (req, res) => {
+  const userId = Number(req.user?.id || req.user?.user_id);
+
+  try {
+    const results = await runQuery(
+      `
+        SELECT name AS username, email
+        FROM users
+        WHERE user_id = ?
+        LIMIT 1
+      `,
+      [userId]
+    );
 
     if (results.length === 0) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    res.json(results[0]);
-  });
+    return res.json(results[0]);
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
 };
 
-// UPDATE PROFILE
-exports.updateProfile = (req, res) => {
-  const userId = req.user.id;
-  const { username, email } = req.body;
+exports.updateProfile = async (req, res) => {
+  const userId = Number(req.user?.id || req.user?.user_id);
+  const username = normalizeText(req.body?.username);
+  const email = normalizeText(req.body?.email).toLowerCase();
 
-  const query = `
-    UPDATE users
-    SET name = ?, email = ?
-    WHERE user_id = ?
-  `;
+  if (!username || !email) {
+    return res.status(400).json({ message: "Username and email are required" });
+  }
 
-  db.query(query, [username, email, userId], (err, result) => {
-    if (err) {
-      return res.status(500).json(err);
+  try {
+    const result = await runQuery(
+      `
+        UPDATE users
+        SET name = ?, email = ?
+        WHERE user_id = ?
+      `,
+      [username, email, userId]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "User not found" });
     }
 
-    res.json({ message: "Profile updated successfully" });
-  });
+    return res.json({ message: "Profile updated successfully" });
+  } catch (error) {
+    if (error.code === "ER_DUP_ENTRY") {
+      return res.status(409).json({ message: "Username or email already in use" });
+    }
+
+    return res.status(500).json({ error: error.message });
+  }
 };

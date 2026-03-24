@@ -3,6 +3,8 @@ const emailService = require("../../utils/emailService");
 
 const DEFAULT_USER_ID = 1;
 const DEFAULT_BUDGET_AMOUNT = 5000;
+const DEFAULT_BUDGET_NAME = "Monthly Budget";
+const DEFAULT_BUDGET_COLOR = "#ffcc00";
 
 const runQuery = (sql, params = []) =>
   new Promise((resolve, reject) => {
@@ -53,6 +55,20 @@ const toNonNegativeNumber = (value) => {
   return Number.isFinite(parsedValue) && parsedValue >= 0 ? parsedValue : null;
 };
 
+const toOptionalText = (value) => {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const trimmedValue = value.trim();
+  return trimmedValue.length > 0 ? trimmedValue : null;
+};
+
+const toHexColor = (value) => {
+  const parsedValue = toOptionalText(value);
+  return parsedValue && /^#[0-9a-fA-F]{6}$/.test(parsedValue) ? parsedValue : null;
+};
+
 const createHttpError = (statusCode, message) => {
   const error = new Error(message);
   error.statusCode = statusCode;
@@ -61,38 +77,21 @@ const createHttpError = (statusCode, message) => {
 
 const getBudgetForMonth = async (userId, month) => {
   const rows = await runQuery(
-    "SELECT budget_id, user_id, category_id, amount, month FROM budgets WHERE user_id = ? AND month = ? ORDER BY budget_id DESC LIMIT 1",
+    "SELECT budget_id, user_id, name, icon, amount, spent, month, color FROM budgets WHERE user_id = ? AND month = ? ORDER BY budget_id DESC LIMIT 1",
     [userId, month]
   );
 
   return rows[0] || null;
 };
 
-const resolveCategoryId = async (userId, requestedCategoryId) => {
-  const parsedCategoryId = Number(requestedCategoryId);
-  if (Number.isInteger(parsedCategoryId) && parsedCategoryId > 0) {
-    return parsedCategoryId;
-  }
-
-  const userCategoryRows = await runQuery(
-    "SELECT category_id FROM categories WHERE user_id = ? ORDER BY category_id ASC LIMIT 1",
-    [userId]
-  );
-
-  if (userCategoryRows.length > 0) {
-    return userCategoryRows[0].category_id;
-  }
-
-  const fallbackCategoryRows = await runQuery(
-    "SELECT category_id FROM categories ORDER BY category_id ASC LIMIT 1"
-  );
-
-  if (fallbackCategoryRows.length > 0) {
-    return fallbackCategoryRows[0].category_id;
-  }
-
-  throw createHttpError(400, "Create at least one category before saving a budget.");
-};
+const getBudgetDraft = (body, existingBudget) => ({
+  name: toOptionalText(body.name) || existingBudget?.name || DEFAULT_BUDGET_NAME,
+  icon:
+    body.icon !== undefined
+      ? toOptionalText(body.icon)
+      : existingBudget?.icon ?? null,
+  color: toHexColor(body.color) || existingBudget?.color || DEFAULT_BUDGET_COLOR
+});
 
 const getCurrentSpending = async (userId, month, year) => {
   const rows = await runQuery(
@@ -188,31 +187,43 @@ exports.saveBudget = async (req, res) => {
 
     const userId = getUserId(req);
     const { month } = getCurrentPeriod();
-    const categoryId = await resolveCategoryId(userId, body.category_id);
     const existingBudget = await getBudgetForMonth(userId, month);
+    const budgetDraft = getBudgetDraft(body, existingBudget);
 
     if (existingBudget) {
       await runQuery(
-        "UPDATE budgets SET amount = ?, category_id = ? WHERE budget_id = ?",
-        [amount, categoryId, existingBudget.budget_id]
+        "UPDATE budgets SET amount = ?, name = ?, icon = ?, color = ? WHERE budget_id = ?",
+        [
+          amount,
+          budgetDraft.name,
+          budgetDraft.icon,
+          budgetDraft.color,
+          existingBudget.budget_id
+        ]
       );
 
       return res.json({
         message: "Budget updated successfully!",
         budget_id: existingBudget.budget_id,
-        amount
+        amount,
+        name: budgetDraft.name,
+        icon: budgetDraft.icon,
+        color: budgetDraft.color
       });
     }
 
     const result = await runQuery(
-      "INSERT INTO budgets (user_id, category_id, amount, month) VALUES (?, ?, ?, ?)",
-      [userId, categoryId, amount, month]
+      "INSERT INTO budgets (user_id, name, icon, amount, spent, month, color) VALUES (?, ?, ?, ?, 0, ?, ?)",
+      [userId, budgetDraft.name, budgetDraft.icon, amount, month, budgetDraft.color]
     );
 
     return res.status(201).json({
       message: "Budget saved successfully!",
       budget_id: result.insertId,
-      amount
+      amount,
+      name: budgetDraft.name,
+      icon: budgetDraft.icon,
+      color: budgetDraft.color
     });
   } catch (error) {
     return res.status(error.statusCode || 500).json({ error: error.message });
