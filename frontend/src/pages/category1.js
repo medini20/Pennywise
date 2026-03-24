@@ -6,8 +6,11 @@ export default function Category({ closeCategory, addNewCategory }) {
   const [name, setName] = useState("");
   const [selectedIcon, setSelectedIcon] = useState("");
 
-  const icons = ["🏠","🚗","☕","🏡","❤️","🎮","📱","🎵","🍽️","🏋️","🎒","💳","🎁","📺","📘","👕","✂️","💊","⛽","⚡"];
-
+  const icons = [
+    "🏠", "🚗", "✈️", "🍽️", "🛒", "☕", 
+    "🏥", "🎮", "📱", "👕", "⚡", "🌐", 
+    "📚", "🐶", "🏋️", "🎁", "✂️", "💰"
+  ];
   return (
     <div className="overlay">
 
