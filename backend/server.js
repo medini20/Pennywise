@@ -1,9 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
-
-// 1. Import the centralized database connection
-const db = require("./config/db"); 
+const db = require("./config/db");
 
 const app = express();
 
@@ -11,17 +9,19 @@ const app = express();
 app.use(express.json());
 app.use(cors()); // Allows React (port 3000) to talk to this server (port 5001)
 
-// 2. Import routes
+// Import routes
 const profileRoutes = require("./modules/profile/profileRoutes");
 const budgetRoutes = require("./modules/budget/budgetRoutes");
 const userRoutes = require("./modules/user/userRoutes");
-const analyticsRoute = require("./modules/analytics/analyticsRoutes"); // Added this
+const analyticsRoute = require("./modules/analytics/analyticsRoutes");
+const alertsRoutes = require("./modules/alerts/alertsRoutes");
 
-// 3. Use routes
+// Use routes
 app.use("/api/profile", profileRoutes);
-app.use("/budget", budgetRoutes); 
+app.use("/budget", budgetRoutes);
 app.use("/auth", userRoutes);
-app.use("/api/analytics", analyticsRoute); // Final endpoint: /api/analytics/summary
+app.use("/api/analytics", analyticsRoute);
+app.use("/alerts", alertsRoutes);
 
 // Test route
 app.get("/", (req, res) => {
@@ -31,8 +31,7 @@ app.get("/", (req, res) => {
 // Start server
 const PORT = process.env.PORT || 5001;
 app.listen(PORT, () => {
-    console.log(`✅ Server running on port ${PORT}`);
+    console.log(`Server running on port ${PORT}`);
 });
 
-// Export the app instance (standard practice for Express)
 module.exports = app;
