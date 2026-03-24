@@ -15,6 +15,8 @@ const budgetRoutes = require("./modules/budget/budgetRoutes");
 const userRoutes = require("./modules/user/userRoutes");
 const analyticsRoute = require("./modules/analytics/analyticsRoutes");
 const alertsRoutes = require("./modules/alerts/alertsRoutes");
+const transactionRoutes = require("./modules/transactions/transactionRoutes");
+
 
 // Use routes
 app.use("/api/profile", profileRoutes);
@@ -22,7 +24,7 @@ app.use("/budget", budgetRoutes);
 app.use("/auth", userRoutes);
 app.use("/api/analytics", analyticsRoute);
 app.use("/alerts", alertsRoutes);
-
+app.use("/api/transactions", transactionRoutes);
 // Test route
 app.get("/", (req, res) => {
     res.send("Pennywise API running");

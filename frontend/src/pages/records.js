@@ -1,85 +1,38 @@
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 import Transactions from "./Transactions";
-import Notifications from "../components/Notifications";
-import { MdWarning } from "react-icons/md";
 import "./records.css";
 
-const API_BASE_URL = "http://localhost:5001";
-
 export default function Records() {
+
   const [showTransaction, setShowTransaction] = useState(false);
   const [transactions, setTransactions] = useState([]);
   const [filter, setFilter] = useState("all");
-  const [notifications, setNotifications] = useState([]);
 
+  //  FETCH FROM BACKEND
+  useEffect(() => {
+    fetch("http://localhost:5001/api/transactions?user_id=1")
+      .then(res => res.json())
+      .then(data => setTransactions(data));
+  }, []);
+
+  // totals
   const totalExpense = transactions
-    .filter((transaction) => transaction.type === "expense")
-    .reduce((sum, transaction) => sum + Number(transaction.amount), 0);
+    .filter(t => t.type === "expense")
+    .reduce((sum, t) => sum + Number(t.amount), 0);
 
   const totalIncome = transactions
-    .filter((transaction) => transaction.type === "income")
-    .reduce((sum, transaction) => sum + Number(transaction.amount), 0);
+    .filter(t => t.type === "income")
+    .reduce((sum, t) => sum + Number(t.amount), 0);
 
   const balance = totalIncome - totalExpense;
 
-  useEffect(() => {
-    localStorage.setItem("currentSpending", totalExpense.toString());
-  }, [totalExpense]);
-
-  useEffect(() => {
-    const checkTriggeredAlerts = async () => {
-      try {
-        const response = await fetch(`${API_BASE_URL}/alerts/check`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            current_spending: totalExpense
-          })
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-          throw new Error(data.error || "Unable to check alerts right now.");
-        }
-
-        const triggeredAlerts = Array.isArray(data.triggered_alerts)
-          ? data.triggered_alerts
-          : [];
-
-        setNotifications(
-          triggeredAlerts.map((alert) => ({
-            id: alert.id,
-            percentage: alert.percentage,
-            message: `Spending reached ${alert.percentage}% of your budget`,
-            icon: <MdWarning />
-          }))
-        );
-      } catch (error) {
-        console.error(error.message);
-      }
-    };
-
-    checkTriggeredAlerts();
-  }, [totalExpense]);
-
-  const removeNotification = (id) => {
-    setNotifications((prevNotifications) =>
-      prevNotifications.filter((notification) => notification.id !== id)
-    );
-  };
-
   return (
     <div className="records-page">
-      <Notifications
-        notifications={notifications}
-        removeNotification={removeNotification}
-      />
 
+      {/* CARDS */}
       <div className="cards">
-        <div
+
+        <div 
           className="card expenseCard"
           onClick={() => setFilter("expense")}
         >
@@ -90,7 +43,7 @@ export default function Records() {
           <h2>₹{totalExpense}</h2>
         </div>
 
-        <div
+        <div 
           className="card incomeCard"
           onClick={() => setFilter("income")}
         >
@@ -101,7 +54,7 @@ export default function Records() {
           <h2>₹{totalIncome}</h2>
         </div>
 
-        <div
+        <div 
           className="card balanceCard"
           onClick={() => setFilter("all")}
         >
@@ -111,51 +64,74 @@ export default function Records() {
           </div>
           <h2>₹{balance}</h2>
         </div>
+
       </div>
 
+      {/* MONTH */}
       <select className="monthDropdown">
         {[
-          "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-          "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
-        ].map((month, index) => (
-          <option key={index}>
+          "Jan","Feb","Mar","Apr","May","Jun",
+          "Jul","Aug","Sep","Oct","Nov","Dec"
+        ].map((month, i) => (
+          <option key={i}>
             {month} 2026
           </option>
         ))}
       </select>
 
+      {/* HEADER */}
       <div className="tableHeader">
         <span>Date</span>
         <span>Description</span>
         <span></span>
       </div>
 
+      {/* TRANSACTIONS */}
       <div className="transactions">
+
+        {transactions.length === 0 && (
+          <div style={{textAlign:"center", marginTop:"20px", color:"#9ca3af"}}>
+            No transactions yet
+          </div>
+        )}
+
         {[...transactions]
           .reverse()
-          .filter((transaction) => {
-            if (filter === "all") {
-              return true;
-            }
-
-            return transaction.type === filter;
+          .filter(t => {
+            if (filter === "all") return true;
+            return t.type === filter;
           })
-          .map((transaction, index) => (
-            <div className="transaction" key={index}>
+          .map((t, i) => (
+            <div className="transaction" key={i}>
+
               <div className="left">
-                <div className="date">{transaction.date}</div>
-                <div className="day">{transaction.day}</div>
+               <div className="date">
+  {new Date(t.transaction_date).toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short"
+  })}
+</div>
+             <div className="day">
+  {new Date(t.transaction_date).toLocaleDateString("en-IN", {
+    weekday: "long"
+  })}
+</div>
               </div>
+
               <div className="middle">
-                {transaction.note}
+                {t.note || t.description}
               </div>
-              <div className={`right ${transaction.type === "expense" ? "expenseText" : "incomeText"}`}>
-                ₹{transaction.type === "expense" ? "-" : "+"}{transaction.amount}
+
+              <div className={`right ${t.type === "expense" ? "expenseText" : "incomeText"}`}>
+                ₹{t.type === "expense" ? "-" : "+"}{t.amount}
               </div>
+
             </div>
           ))}
+
       </div>
 
+      {/* ADD BUTTON */}
       <button
         className="addTransaction"
         onClick={() => setShowTransaction(true)}
@@ -163,14 +139,37 @@ export default function Records() {
         + ADD TRANSACTION
       </button>
 
+      {/* MODAL */}
       {showTransaction && (
         <Transactions
           closeModal={() => setShowTransaction(false)}
-          addTransaction={(data) => {
-            setTransactions((prevTransactions) => [...prevTransactions, data]);
+          addTransaction={async (data) => {
+
+            await fetch("http://localhost:5001/api/transactions/add", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify({
+  user_id: 1,
+  amount: data.amount,
+  type: data.type,
+  description: data.note   // 🔥 IMPORTANT FIX
+})
+            });
+
+            // update UI instantly
+            setTransactions([
+  ...transactions,
+  {
+    ...data,
+    transaction_date: new Date()
+  }
+]);
           }}
         />
       )}
+
     </div>
   );
 }
