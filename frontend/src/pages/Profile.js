@@ -3,6 +3,11 @@ import "./Profile.css";
 import Webcam from "react-webcam";
 import { useNavigate } from "react-router-dom";
 import { FaCheck, FaPen } from "react-icons/fa";
+import {
+  clearStoredSession,
+  getStoredToken,
+  updateStoredUser as syncStoredUser
+} from "../services/authStorage";
 
 const API_BASE_URL = "http://localhost:5001";
 
@@ -23,15 +28,15 @@ function Profile() {
   );
 
   const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
+    clearStoredSession();
     navigate("/login");
   };
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
+    const token = getStoredToken();
 
     if (!token) {
+      clearStoredSession();
       navigate("/login");
       return;
     }
@@ -63,23 +68,11 @@ function Profile() {
     }
   }, [editUser]);
 
-  const updateStoredUser = (nextUsername) => {
-    const savedUser = localStorage.getItem("user");
-    if (!savedUser) return;
-
-    try {
-      const parsedUser = JSON.parse(savedUser);
-      localStorage.setItem(
-        "user",
-        JSON.stringify({
-          ...parsedUser,
-          username: nextUsername,
-          email
-        })
-      );
-    } catch (error) {
-      console.error("Unable to update saved user:", error.message);
-    }
+  const updateSavedUser = (nextUsername) => {
+    syncStoredUser({
+      username: nextUsername,
+      email
+    });
   };
 
   const resetUsernameEdit = () => {
@@ -88,7 +81,7 @@ function Profile() {
   };
 
   const saveUser = async () => {
-    const token = localStorage.getItem("token");
+    const token = getStoredToken();
     const trimmedUsername = tempUser.trim();
 
     if (!trimmedUsername) {
@@ -120,7 +113,7 @@ function Profile() {
     setUsername(trimmedUsername);
     setTempUser(trimmedUsername);
     setEditUser(false);
-    updateStoredUser(trimmedUsername);
+    updateSavedUser(trimmedUsername);
     setStatusMessage(data.message || "Profile updated successfully");
   };
 

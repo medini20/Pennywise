@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { BrowserRouter, Routes, Route, useLocation, Navigate } from "react-router-dom";
+import { hasValidSession } from "./services/authStorage";
 
 // Components
 import Sidebar from "./components/Sidebar";
@@ -25,9 +26,9 @@ import Signup from "./pages/Signup";
 import ForgotPassword from "./pages/ForgotPassword";
 
 const PrivateRoute = ({ children }) => {
-  const user = localStorage.getItem("user");
+  const isLoggedIn = hasValidSession();
 
-  return user ? children : <Navigate to="/login" />;
+  return isLoggedIn ? children : <Navigate to="/login" />;
 };
 
 function AppLayout() {

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { hasValidSession, saveStoredSession } from "../services/authStorage";
 
 function Login() {
   const [username, setUsername] = useState("");
@@ -8,8 +9,7 @@ function Login() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const user = localStorage.getItem("user");
-    if (user) navigate("/");
+    if (hasValidSession()) navigate("/");
   }, [navigate]);
 
   const handleLogin = async (e) => {
@@ -23,8 +23,7 @@ function Login() {
       });
       const data = await response.json();
       if (response.ok) {
-        localStorage.setItem("user", JSON.stringify(data.user));
-        localStorage.setItem("token", data.token);
+        saveStoredSession({ user: data.user, token: data.token });
         navigate("/");
       } else {
         setError(data.error || "Login failed");
