@@ -1,80 +1,61 @@
-const sqlite3 = require("sqlite3").verbose();
-const path = require("path");
+const mysql = require("mysql2");
 require("dotenv").config();
 
-const dbPath = path.join(__dirname, "..", "pennywise.sqlite");
+const pool = mysql.createPool({
+    host: process.env.DB_HOST || "localhost",
+    user: process.env.DB_USER || "root",
+    password: process.env.DB_PASSWORD || "",
+    database: process.env.DB_NAME || "pennywise",
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0,
+});
 
-const db = new sqlite3.Database(dbPath, (err) => {
+// Test connection
+pool.getConnection((err, connection) => {
     if (err) {
-        console.error("Database connection failed:", err.message);
+        console.error("MySQL connection failed:", err.message);
         return;
     }
-    console.log("Connected to SQLite database");
+    console.log("Connected to MySQL database");
+    connection.release();
 });
 
-// Enable foreign keys
-db.run("PRAGMA foreign_keys = ON");
+// Provide SQLite-compatible wrapper methods so existing controllers work
+// db.query() — native MySQL (used by budget controller)
+// db.all()  — SQLite compat: returns rows array
+// db.run()  — SQLite compat: callback with this.lastID / this.changes
+// db.get()  — SQLite compat: returns single row
 
-// Create tables if they don't exist
-db.serialize(() => {
-    db.run(`
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE NOT NULL,
-            email TEXT UNIQUE NOT NULL,
-            password_hash TEXT NOT NULL,
-            is_verified INTEGER DEFAULT 0,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    `);
+const db = {
+    query: pool.query.bind(pool),
 
-    db.run(`
-        CREATE TABLE IF NOT EXISTS otps (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            email TEXT NOT NULL,
-            otp_code TEXT NOT NULL,
-            purpose TEXT NOT NULL,
-            expires_at DATETIME NOT NULL,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (email) REFERENCES users(email) ON DELETE CASCADE
-        )
-    `);
+    all: (sql, params, callback) => {
+        pool.query(sql, params, (err, rows) => {
+            callback(err, rows || []);
+        });
+    },
 
-    db.run(`
-        CREATE TABLE IF NOT EXISTS categories (
-            category_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            user_id INTEGER,
-            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-        )
-    `);
+    run: (sql, params, callback) => {
+        pool.query(sql, params, function (err, result) {
+            if (callback) {
+                // Mimic SQLite's this.lastID and this.changes
+                callback.call(
+                    {
+                        lastID: result ? result.insertId : null,
+                        changes: result ? result.affectedRows : 0,
+                    },
+                    err
+                );
+            }
+        });
+    },
 
-    db.run(`
-        CREATE TABLE IF NOT EXISTS budgets (
-            budget_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            category_id INTEGER NOT NULL,
-            amount REAL NOT NULL,
-            month TEXT NOT NULL,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-            FOREIGN KEY (category_id) REFERENCES categories(category_id) ON DELETE CASCADE
-        )
-    `);
-
-    db.run(`
-        CREATE TABLE IF NOT EXISTS transactions (
-            transaction_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            category_id INTEGER,
-            amount REAL NOT NULL,
-            type TEXT NOT NULL CHECK(type IN ('income', 'expense')),
-            description TEXT,
-            date DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-            FOREIGN KEY (category_id) REFERENCES categories(category_id) ON DELETE SET NULL
-        )
-    `);
-});
+    get: (sql, params, callback) => {
+        pool.query(sql, params, (err, rows) => {
+            callback(err, rows ? rows[0] : undefined);
+        });
+    },
+};
 
 module.exports = db;

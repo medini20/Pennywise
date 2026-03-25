@@ -7,6 +7,11 @@ require("dotenv").config();
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
+// MySQL datetime format helper (YYYY-MM-DD HH:MM:SS)
+const toMySQLDatetime = (date) => {
+    return date.toISOString().slice(0, 19).replace('T', ' ');
+};
+
 // generate 6-digit OTP
 const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
 
@@ -58,7 +63,7 @@ exports.signup = async (req, res) => {
                                 if (err) { console.error("Signup INSERT user error:", err.message); return res.status(500).json({ error: "Failed to create user" }); }
 
                                 const otp = generateOTP();
-                                const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+                                const expiresAt = toMySQLDatetime(new Date(Date.now() + 15 * 60 * 1000));
 
                                 db.run(
                                     "INSERT INTO otps (email, otp_code, purpose, expires_at) VALUES (?, ?, 'SIGNUP', ?)",
@@ -87,13 +92,14 @@ exports.signup = async (req, res) => {
             });
         });
     } catch (error) {
+        console.error("Signup uncaught error:", error);
         res.status(500).json({ error: "Server error" });
     }
 };
 
 exports.verifyOtp = (req, res) => {
     const { email, otpCode } = req.body;
-    const now = new Date().toISOString();
+    const now = toMySQLDatetime(new Date());
     db.all(
         "SELECT * FROM otps WHERE email = ? AND otp_code = ? AND expires_at > ? ORDER BY created_at DESC LIMIT 1",
         [email, otpCode, now],
@@ -120,6 +126,9 @@ exports.verifyOtp = (req, res) => {
 
 exports.login = (req, res) => {
     const { username, password } = req.body;
+    if (!username || !password) {
+        return res.status(400).json({ error: "Username and password are required" });
+    }
     // Support login with either username or email
     const isEmail = username && username.includes('@');
     const query = isEmail
@@ -127,17 +136,25 @@ exports.login = (req, res) => {
         : "SELECT * FROM users WHERE username = ?";
 
     db.all(query, [username], async (err, rows) => {
-        if (err) return res.status(500).json({ error: "Database error" });
+        if (err) {
+            console.error("Login DB error:", err.message);
+            return res.status(500).json({ error: "Database error" });
+        }
         if (rows.length === 0) return res.status(400).json({ error: "Invalid username or password" });
 
         const user = rows[0];
         if (!user.is_verified) return res.status(403).json({ error: "Account not verified. Please verify your OTP." });
 
-        const validPassword = await bcrypt.compare(password, user.password_hash);
-        if (!validPassword) return res.status(400).json({ error: "Invalid username or password" });
+        try {
+            const validPassword = await bcrypt.compare(password, user.password_hash);
+            if (!validPassword) return res.status(400).json({ error: "Invalid username or password" });
 
-        const token = jwt.sign({ id: user.id, username: user.username }, process.env.JWT_SECRET || 'secret', { expiresIn: "1d" });
-        res.json({ message: "Login successful", token, user: { id: user.id, username: user.username, email: user.email } });
+            const token = jwt.sign({ id: user.id, username: user.username }, process.env.JWT_SECRET || 'secret', { expiresIn: "1d" });
+            res.json({ message: "Login successful", token, user: { id: user.id, username: user.username, email: user.email } });
+        } catch (bcryptErr) {
+            console.error("Login bcrypt error:", bcryptErr.message);
+            return res.status(500).json({ error: "Server error" });
+        }
     });
 };
 
@@ -148,7 +165,7 @@ exports.forgotPassword = (req, res) => {
         if (rows.length === 0) return res.status(400).json({ error: "User not found" });
 
         const otp = generateOTP();
-        const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+        const expiresAt = toMySQLDatetime(new Date(Date.now() + 15 * 60 * 1000));
 
         db.run(
             "INSERT INTO otps (email, otp_code, purpose, expires_at) VALUES (?, ?, 'PASSWORD_RESET', ?)",
@@ -165,7 +182,7 @@ exports.forgotPassword = (req, res) => {
 
 exports.resetPassword = async (req, res) => {
     const { email, otpCode, newPassword } = req.body;
-    const now = new Date().toISOString();
+    const now = toMySQLDatetime(new Date());
     db.all(
         "SELECT * FROM otps WHERE email = ? AND otp_code = ? AND purpose = 'PASSWORD_RESET' AND expires_at > ? ORDER BY created_at DESC LIMIT 1",
         [email, otpCode, now],
