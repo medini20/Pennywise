@@ -20,7 +20,7 @@ exports.checkUsername = (req, res) => {
     const { username } = req.body;
     if (!username) return res.status(400).json({ error: "Username is required" });
 
-    db.all("SELECT id, is_verified FROM users WHERE username = ?", [username], (err, rows) => {
+    db.all("SELECT user_id, is_verified FROM users WHERE name = ?", [username], (err, rows) => {
         if (err) return res.status(500).json({ error: "Database error" });
         // Only consider verified users as "taken"
         const verifiedUser = rows.find(r => r.is_verified === 1);
@@ -40,7 +40,7 @@ exports.signup = async (req, res) => {
             }
 
             // Check if username is used by a VERIFIED user
-            db.all("SELECT * FROM users WHERE username = ?", [username], async (err, userRows) => {
+            db.all("SELECT * FROM users WHERE name = ?", [username], async (err, userRows) => {
                 if (err) { console.error("Signup username check error:", err.message); return res.status(500).json({ error: "Database error" }); }
                 if (userRows.length > 0 && userRows[0].is_verified === 1) {
                     return res.status(400).json({ error: "Username already taken" });
@@ -50,14 +50,14 @@ exports.signup = async (req, res) => {
                 db.run("DELETE FROM otps WHERE email = ?", [email], (err) => {
                     if (err) console.error("Cleanup OTPs error:", err.message);
 
-                    db.run("DELETE FROM users WHERE (email = ? OR username = ?) AND is_verified = 0", [email, username], async (err) => {
+                    db.run("DELETE FROM users WHERE (email = ? OR name = ?) AND is_verified = 0", [email, username], async (err) => {
                         if (err) console.error("Cleanup unverified users error:", err.message);
 
                         const salt = await bcrypt.genSalt(10);
                         const password_hash = await bcrypt.hash(password, salt);
 
                         db.run(
-                            "INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)",
+                            "INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)",
                             [username, email, password_hash],
                             function (err) {
                                 if (err) { console.error("Signup INSERT user error:", err.message); return res.status(500).json({ error: "Failed to create user" }); }
@@ -133,7 +133,7 @@ exports.login = (req, res) => {
     const isEmail = username && username.includes('@');
     const query = isEmail
         ? "SELECT * FROM users WHERE email = ?"
-        : "SELECT * FROM users WHERE username = ?";
+        : "SELECT * FROM users WHERE name = ?";
 
     db.all(query, [username], async (err, rows) => {
         if (err) {
@@ -149,8 +149,16 @@ exports.login = (req, res) => {
             const validPassword = await bcrypt.compare(password, user.password_hash);
             if (!validPassword) return res.status(400).json({ error: "Invalid username or password" });
 
-            const token = jwt.sign({ id: user.id, username: user.username }, process.env.JWT_SECRET || 'secret', { expiresIn: "1d" });
-            res.json({ message: "Login successful", token, user: { id: user.id, username: user.username, email: user.email } });
+            const token = jwt.sign(
+                { id: user.user_id, user_id: user.user_id, username: user.name },
+                process.env.JWT_SECRET || "secret",
+                { expiresIn: "1d" }
+            );
+            res.json({
+                message: "Login successful",
+                token,
+                user: { id: user.user_id, user_id: user.user_id, username: user.name, email: user.email }
+            });
         } catch (bcryptErr) {
             console.error("Login bcrypt error:", bcryptErr.message);
             return res.status(500).json({ error: "Server error" });
@@ -230,8 +238,16 @@ exports.googleLogin = async (req, res) => {
             if (rows.length > 0) {
                 // Existing user — issue token
                 const user = rows[0];
-                const token = jwt.sign({ id: user.id, username: user.username }, process.env.JWT_SECRET || 'secret', { expiresIn: "1d" });
-                return res.json({ message: "Login successful", token, user: { id: user.id, username: user.username, email: user.email } });
+                const token = jwt.sign(
+                    { id: user.user_id, user_id: user.user_id, username: user.name },
+                    process.env.JWT_SECRET || "secret",
+                    { expiresIn: "1d" }
+                );
+                return res.json({
+                    message: "Login successful",
+                    token,
+                    user: { id: user.user_id, user_id: user.user_id, username: user.name, email: user.email }
+                });
             }
 
             // New user — auto-create with Google info
@@ -242,13 +258,21 @@ exports.googleLogin = async (req, res) => {
                 if (err) return res.status(500).json({ error: "Server error" });
 
                 db.run(
-                    "INSERT INTO users (username, email, password_hash, is_verified) VALUES (?, ?, ?, 1)",
+                    "INSERT INTO users (name, email, password_hash, is_verified) VALUES (?, ?, ?, 1)",
                     [username, email, password_hash],
                     function (err) {
                         if (err) return res.status(500).json({ error: "Failed to create user" });
 
-                        const token = jwt.sign({ id: this.lastID, username }, process.env.JWT_SECRET || 'secret', { expiresIn: "1d" });
-                        res.json({ message: "Login successful", token, user: { id: this.lastID, username, email } });
+                        const token = jwt.sign(
+                            { id: this.lastID, user_id: this.lastID, username },
+                            process.env.JWT_SECRET || "secret",
+                            { expiresIn: "1d" }
+                        );
+                        res.json({
+                            message: "Login successful",
+                            token,
+                            user: { id: this.lastID, user_id: this.lastID, username, email }
+                        });
                     }
                 );
             });

@@ -2,9 +2,16 @@
 .budget-container {
   padding: 40px;
   color: white;
-  max-width: 800px; /* Reduced width to exactly match Figma proportion */
-  margin: 0 auto;
+  max-width: 920px;
+  margin: 0;
   font-family: 'Inter', -apple-system, sans-serif;
+  background: transparent;
+}
+
+.budget-detail-container {
+  max-width: none;
+  width: calc(100vw - 390px);
+  margin: 0 22px 0 18px;
 }
 
 .budget-title {
@@ -13,6 +20,7 @@
   margin-bottom: 24px;
   margin-top: 0;
   color: white;
+  text-align: left;
 }
 
 .budget-list {
@@ -21,25 +29,209 @@
   gap: 16px;
 }
 
+.budget-detail-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 28px;
+  width: 100%;
+  max-width: none;
+  margin: 0 0 28px;
+}
+
+.budget-detail-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.detail-icon-btn {
+  width: 46px;
+  height: 46px;
+  border: 1px solid rgba(82, 123, 244, 0.32);
+  border-radius: 14px;
+  background: #15265e;
+  color: #71a0ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 18px;
+}
+
+.detail-icon-btn.danger {
+  background: rgba(89, 29, 47, 0.72);
+  border-color: rgba(239, 68, 68, 0.34);
+  color: #ff6675;
+}
+
+.detail-category-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.detail-budget-meta h2 {
+  margin: 0 0 4px;
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.detail-budget-meta span {
+  color: #98a5c3;
+  font-size: 16px;
+}
+
+.budget-detail-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.budget-summary-card,
+.budget-history-card {
+  background: #101b43;
+  border: 1px solid rgba(88, 108, 177, 0.18);
+  border-radius: 18px;
+  padding: 22px 24px;
+  width: 100%;
+  max-width: none;
+  margin-left: 0;
+  margin-right: 0;
+}
+
+.budget-summary-card {
+  margin-bottom: 24px;
+}
+
+.budget-summary-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 22px;
+}
+
+.summary-label {
+  color: #98a5c3;
+  font-size: 15px;
+}
+
+.budget-summary-head h3 {
+  margin: 8px 0 0;
+  font-size: 40px;
+  font-weight: 800;
+}
+
+.detail-progress-track {
+  width: 100%;
+  height: 14px;
+  background: #2a345e;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.detail-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+}
+
+.detail-progress-meta {
+  margin-top: 12px;
+  display: flex;
+  justify-content: space-between;
+  color: #98a5c3;
+  font-size: 14px;
+}
+
+.budget-history-card h3 {
+  margin: 0 0 28px;
+  font-size: 24px;
+  font-weight: 800;
+}
+
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.history-item {
+  display: grid;
+  grid-template-columns: 90px 74px 1fr 110px;
+  gap: 18px;
+  align-items: center;
+  padding: 4px 0;
+}
+
+.history-date-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.history-date {
+  font-size: 18px;
+  font-weight: 800;
+  margin-bottom: 0;
+}
+
+.history-day {
+  color: #98a5c3;
+  font-size: 13px;
+}
+
+.history-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.history-description {
+  font-size: 17px;
+  font-weight: 700;
+  color: #f3f5fb;
+  line-height: 1.25;
+}
+
+.history-amount {
+  font-size: 18px;
+  font-weight: 800;
+  color: #ff5d67;
+  text-align: right;
+}
+
+.history-empty {
+  color: #98a5c3;
+  font-size: 15px;
+}
+
 /* Budget Cards */
 .budget-card {
-  background: #1b2759 !important;
-  border: 1px solid rgba(106, 128, 205, 0.24) !important;
+  background: #101b43 !important;
+  border: 1px solid rgba(88, 108, 177, 0.18) !important;
   border-radius: 12px !important;
   padding: 24px !important;
   display: flex !important;
   flex-direction: row !important; /* STRICTLY ENFORCED horizontal row */
   gap: 24px !important;
   align-items: center !important; /* Centers icon vertically with content block */
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
   transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease, border-color 0.2s ease;
   cursor: pointer;
 }
 
 .budget-card:hover {
   transform: translateY(-2px);
-  background: #1f2d66 !important;
-  border-color: rgba(126, 149, 226, 0.32) !important;
+  background: #14204d !important;
+  border-color: rgba(107, 130, 203, 0.24) !important;
 }
 
 /* Card Left - Icon Wrapper */
@@ -84,7 +276,7 @@
 .progress-track {
   flex: 1; /* Pushes action buttons to the right */
   height: 8px;
-  background: #1f293f;
+  background: #2a345e;
   border-radius: 4px;
   overflow: hidden;
 }
@@ -135,12 +327,12 @@
   gap: 24px;
   align-items: center;
   font-size: 13px;
-  color: #8c9bba;
+  color: #98a5c3;
   line-height: 1;
 }
 
 .val {
-  color: #E5E7EB;
+  color: #f2f4f8;
 }
 
 .remaining-val {
@@ -149,8 +341,8 @@
 
 /* Add Category State */
 .add-card-dashed {
-  border: 1px dashed rgba(106, 128, 205, 0.34);
-  background: rgba(27, 39, 89, 0.45);
+  border: 1px dashed rgba(88, 108, 177, 0.28);
+  background: rgba(16, 27, 67, 0.68);
   padding: 24px;
   text-align: center;
   border-radius: 12px;
@@ -165,8 +357,8 @@
 }
 
 .add-card-dashed:hover {
-  background: rgba(31, 45, 102, 0.72);
-  border-color: rgba(126, 149, 226, 0.38);
+  background: rgba(20, 32, 77, 0.88);
+  border-color: rgba(107, 130, 203, 0.32);
 }
 
 .plus-icon-container {
@@ -176,7 +368,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #13214d;
+  background: #0d173b;
   font-size: 18px;
   color: #20c4d8;
 }
@@ -210,13 +402,13 @@
 }
 
 .modal {
-  width: 400px;
+  width: 430px;
   max-width: 90%;
-  background: #1b2759;
-  border: 1px solid rgba(106, 128, 205, 0.24);
+  background: #232325;
+  border: 1px solid rgba(255, 255, 255, 0.08);
   padding: 30px;
   border-radius: 16px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.56), inset 0 1px 0 rgba(255, 255, 255, 0.03);
   color: white;
 }
 
@@ -236,7 +428,7 @@
 .close-icon {
   font-size: 20px;
   cursor: pointer;
-  color: #8c9bba;
+  color: #f3f4f6;
   transition: 0.2s ease;
 }
 
@@ -249,8 +441,8 @@
   display: flex;
   align-items: center;
   gap: 16px;
-  background: #13214d;
-  border: 1px solid rgba(106, 128, 205, 0.24);
+  background: #2f2f31;
+  border: 1px solid rgba(255, 255, 255, 0.04);
   padding: 16px;
   border-radius: 12px;
   margin-bottom: 24px;
@@ -274,7 +466,7 @@
 
 .ch-details span {
   font-size: 13px;
-  color: #8c9bba;
+  color: #a7acb8;
 }
 
 /* Modal Inputs */
@@ -285,16 +477,16 @@
 .input-group label {
   display: block;
   font-size: 13px;
-  color: #8c9bba;
+  color: #a7acb8;
   margin-bottom: 8px;
 }
 
 .styled-input {
   width: 100%;
   padding: 14px 16px;
-  border: 1px solid rgba(106, 128, 205, 0.24);
+  border: 1px solid rgba(98, 100, 108, 0.85);
   border-radius: 10px;
-  background: #13214d;
+  background: #343436;
   color: white;
   font-size: 15px;
   box-sizing: border-box;
@@ -303,7 +495,7 @@
 }
 
 .styled-input:focus {
-  border-color: #20c4d8;
+  border-color: #5b8ef4;
 }
 
 /* Modal Buttons */
@@ -325,21 +517,21 @@
 }
 
 .btn-cancel {
-  background: #2b354c;
+  background: #2f2f31;
   color: white;
 }
 
 .btn-cancel:hover {
-  background: #35415c;
+  background: #38383b;
 }
 
 .btn-save {
-  background: #20c4d8;
-  color: #0b1121;
+  background: #4a83ec;
+  color: #ffffff;
 }
 
 .btn-save:hover {
-  opacity: 0.9;
+  background: #5a91f4;
 }
 
 .btn-confirm {

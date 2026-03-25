@@ -224,11 +224,11 @@ exports.saveBudget = async (req, res) => {
     if (existingBudget) {
       await runQuery(
         `UPDATE budgets
-         SET amount = ?, name = ?, icon = ?, color = ?, is_system_generated = 0
+         SET amount = ?, name = ?, icon = ?, color = ?, is_system_generated = 1
          WHERE budget_id = ?`,
         [
           amount,
-          budgetDraft.name,
+          DEFAULT_BUDGET_NAME,
           budgetDraft.icon,
           budgetDraft.color,
           existingBudget.budget_id
@@ -239,22 +239,22 @@ exports.saveBudget = async (req, res) => {
         message: "Budget updated successfully!",
         budget_id: existingBudget.budget_id,
         amount,
-        name: budgetDraft.name,
+        name: DEFAULT_BUDGET_NAME,
         icon: budgetDraft.icon,
         color: budgetDraft.color
       });
     }
 
     const result = await runQuery(
-      "INSERT INTO budgets (user_id, name, icon, amount, spent, month, color, is_system_generated) VALUES (?, ?, ?, ?, 0, ?, ?, 0)",
-      [userId, budgetDraft.name, budgetDraft.icon, amount, month, budgetDraft.color]
+      "INSERT INTO budgets (user_id, name, icon, amount, spent, month, color, is_system_generated) VALUES (?, ?, ?, ?, 0, ?, ?, 1)",
+      [userId, DEFAULT_BUDGET_NAME, budgetDraft.icon, amount, month, budgetDraft.color]
     );
 
     return res.status(201).json({
       message: "Budget saved successfully!",
       budget_id: result.insertId,
       amount,
-      name: budgetDraft.name,
+      name: DEFAULT_BUDGET_NAME,
       icon: budgetDraft.icon,
       color: budgetDraft.color
     });

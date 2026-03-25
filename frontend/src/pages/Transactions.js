@@ -1,9 +1,23 @@
-import React, { useMemo, useState } from "react";
-import { FaChevronLeft, FaChevronRight, FaRegCalendarAlt } from "react-icons/fa";
+import React, { useEffect, useRef, useState } from "react";
+import { FaRegCalendarAlt } from "react-icons/fa";
 import "./transactions.css";
 import Category from "./category1";
 
-const WEEK_DAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+const API_BASE_URL = "http://localhost:5001";
+const DEFAULT_EXPENSE_CATEGORIES = [
+  { icon: "\uD83D\uDED2", name: "Shopping" },
+  { icon: "\uD83C\uDF7D\uFE0F", name: "Food" },
+  { icon: "\uD83C\uDFE0", name: "Home" },
+  { icon: "\u2764\uFE0F", name: "Health" },
+  { icon: "\uD83D\uDCB0", name: "Finance" }
+];
+const DEFAULT_INCOME_CATEGORIES = [
+  { icon: "\uD83D\uDCB5", name: "Salary" },
+  { icon: "\uD83D\uDCC8", name: "Bonus" },
+  { icon: "\uD83D\uDCBC", name: "Freelance" },
+  { icon: "\uD83D\uDC37", name: "Investment" }
+];
+const RECURRING_OPTIONS = ["Weekly", "Monthly", "Custom"];
 
 const formatDateValue = (date) => {
   const year = date.getFullYear();
@@ -12,34 +26,9 @@ const formatDateValue = (date) => {
   return `${year}-${month}-${day}`;
 };
 
-const buildCalendarDays = (monthDate) => {
-  const year = monthDate.getFullYear();
-  const month = monthDate.getMonth();
-  const firstDayIndex = new Date(year, month, 1).getDay();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const daysInPreviousMonth = new Date(year, month, 0).getDate();
-  const days = [];
-
-  for (let i = firstDayIndex - 1; i >= 0; i -= 1) {
-    const date = new Date(year, month - 1, daysInPreviousMonth - i);
-    days.push({ date, outside: true });
-  }
-
-  for (let day = 1; day <= daysInMonth; day += 1) {
-    days.push({ date: new Date(year, month, day), outside: false });
-  }
-
-  while (days.length < 42) {
-    const nextDay = days.length - (firstDayIndex + daysInMonth) + 1;
-    const date = new Date(year, month + 1, nextDay);
-    days.push({ date, outside: true });
-  }
-
-  return days;
-};
-
 export default function Transactions({ closeModal, addTransaction }) {
   const today = new Date();
+  const dateInputRef = useRef(null);
 
   const [showCategory, setShowCategory] = useState(false);
   const [type, setType] = useState("expense");
@@ -47,62 +36,77 @@ export default function Transactions({ closeModal, addTransaction }) {
   const [note, setNote] = useState("");
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [selectedDate, setSelectedDate] = useState(formatDateValue(today));
-  const [calendarMonth, setCalendarMonth] = useState(
-    new Date(today.getFullYear(), today.getMonth(), 1)
-  );
-  const [showCalendar, setShowCalendar] = useState(false);
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [recurringFrequency, setRecurringFrequency] = useState("Monthly");
+  const [expenseCategories, setExpenseCategories] = useState(DEFAULT_EXPENSE_CATEGORIES);
+  const [incomeCategories, setIncomeCategories] = useState(DEFAULT_INCOME_CATEGORIES);
 
-  const [categories, setCategories] = useState([
-    { icon: "\uD83D\uDC55", name: "Clothing" },
-    { icon: "\uD83D\uDE97", name: "Car" },
-    { icon: "\uD83C\uDF77", name: "Alcohol" },
-    { icon: "\uD83D\uDEAC", name: "Cigarettes" },
-    { icon: "\uD83D\uDCF1", name: "Electronics" },
-    { icon: "\u2708\uFE0F", name: "Travel" },
-    { icon: "\u2764\uFE0F", name: "Health" },
-    { icon: "\uD83D\uDC36", name: "Pets" }
-  ]);
+  useEffect(() => {
+    fetch(`${API_BASE_URL}/budget/list`)
+      .then((res) => res.json())
+      .then((data) => {
+        const list = Array.isArray(data) ? data : [];
+
+        if (list.length === 0) {
+          return;
+        }
+
+        const budgetCategories = list.map((budget) => ({
+          name: budget.name,
+          icon: budget.icon || "\uD83D\uDCB0"
+        }));
+
+        const mergedCategories = [...budgetCategories];
+
+        DEFAULT_EXPENSE_CATEGORIES.forEach((category) => {
+          const alreadyIncluded = mergedCategories.some(
+            (existingCategory) =>
+              existingCategory.name.trim().toLowerCase() === category.name.trim().toLowerCase()
+          );
+
+          if (!alreadyIncluded) {
+            mergedCategories.push(category);
+          }
+        });
+
+        setExpenseCategories(mergedCategories);
+      })
+      .catch(() => {
+        // Keep the local fallback categories if the backend is unavailable.
+      });
+  }, []);
+
+  const categories = type === "income" ? incomeCategories : expenseCategories;
+
+  useEffect(() => {
+    setSelectedCategory(null);
+  }, [type]);
 
   const selectedCategoryDetails = categories.find(
     (category) => category.name === selectedCategory
   );
 
-  const selectedDateObject = useMemo(
-    () => new Date(`${selectedDate}T00:00:00`),
-    [selectedDate]
-  );
+  const openDatePicker = () => {
+    if (!dateInputRef.current) {
+      return;
+    }
 
-  const formattedSelectedDate = selectedDateObject.toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: "numeric"
-  });
+    if (typeof dateInputRef.current.showPicker === "function") {
+      dateInputRef.current.showPicker();
+      return;
+    }
 
-  const monthLabel = calendarMonth.toLocaleDateString("en-GB", {
-    month: "long",
-    year: "numeric"
-  });
-
-  const calendarDays = useMemo(() => buildCalendarDays(calendarMonth), [calendarMonth]);
-
-  const isSameDate = (left, right) =>
-    left.getFullYear() === right.getFullYear() &&
-    left.getMonth() === right.getMonth() &&
-    left.getDate() === right.getDate();
-
-  const pickDate = (date) => {
-    setSelectedDate(formatDateValue(date));
-    setCalendarMonth(new Date(date.getFullYear(), date.getMonth(), 1));
-    setShowCalendar(false);
+    dateInputRef.current.focus();
+    dateInputRef.current.click();
   };
 
   return (
     <div className="overlay">
-      <div className="modal">
+      <div className="modal transactionModal">
         <div className="modalHeader">
           <span onClick={closeModal}>Cancel</span>
           <h3>Add</h3>
-          <span>
+          <span className="headerIcon" onClick={openDatePicker}>
             <FaRegCalendarAlt />
           </span>
         </div>
@@ -124,122 +128,81 @@ export default function Transactions({ closeModal, addTransaction }) {
         </div>
 
         <div className="categories">
-          {categories.map((c, i) => (
+          {categories.map((category) => (
             <div
-              className={`category ${selectedCategory === c.name ? "selected" : ""}`}
-              key={i}
-              onClick={() => setSelectedCategory(c.name)}
+              className={`category ${selectedCategory === category.name ? "selected" : ""}`}
+              key={category.name}
+              onClick={() => setSelectedCategory(category.name)}
             >
-              <div className="circle">{c.icon}</div>
-              <p>{c.name}</p>
+              <div className="circle">{category.icon}</div>
+              <p>{category.name}</p>
             </div>
           ))}
         </div>
 
-        <div
-          className="addCategory"
-          onClick={() => setShowCategory(true)}
-        >
+        <div className="addCategory" onClick={() => setShowCategory(true)}>
           + Add Categories
         </div>
 
         <div className="amount">{amount || 0}</div>
 
+        <div className="recurringCard">
+          <div className="recurringHeader">
+            <span>Recurring Payment</span>
+            <button
+              type="button"
+              className={`toggleSwitch ${isRecurring ? "toggleOn" : ""}`}
+              onClick={() => setIsRecurring((value) => !value)}
+            >
+              <span className="toggleThumb" />
+            </button>
+          </div>
+
+          {isRecurring && (
+            <div className="recurringBody">
+              <div className="recurringLabel">Frequency</div>
+
+              <div className="frequencyRow">
+                {RECURRING_OPTIONS.map((option) => (
+                  <button
+                    type="button"
+                    key={option}
+                    className={`frequencyButton ${recurringFrequency === option ? "frequencyActive" : ""}`}
+                    onClick={() => setRecurringFrequency(option)}
+                  >
+                    {option}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <label className="inputLabel" htmlFor="transaction-date">
+          Date
+        </label>
+        <div className="dateInputWrap">
+          <input
+            id="transaction-date"
+            ref={dateInputRef}
+            className="dateInput"
+            type="date"
+            value={selectedDate}
+            onChange={(e) => setSelectedDate(e.target.value)}
+          />
+          <FaRegCalendarAlt className="dateInputIcon" onClick={openDatePicker} />
+        </div>
+
+        <label className="inputLabel" htmlFor="transaction-note">
+          Note
+        </label>
         <input
+          id="transaction-note"
           className="note"
           value={note}
           onChange={(e) => setNote(e.target.value)}
           placeholder="Enter a note..."
         />
-
-        <div className="datePickerWrap">
-          <button
-            className="today datePickerButton"
-            onClick={() => setShowCalendar((open) => !open)}
-            type="button"
-          >
-            <FaRegCalendarAlt />
-            <span>{formattedSelectedDate}</span>
-          </button>
-
-          {showCalendar && (
-            <div className="calendarPopover">
-              <div className="calendarHeader">
-                <button
-                  type="button"
-                  className="calendarNav"
-                  onClick={() =>
-                    setCalendarMonth(
-                      new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1)
-                    )
-                  }
-                >
-                  <FaChevronLeft />
-                </button>
-
-                <div className="calendarTitle">{monthLabel}</div>
-
-                <button
-                  type="button"
-                  className="calendarNav"
-                  onClick={() =>
-                    setCalendarMonth(
-                      new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1)
-                    )
-                  }
-                >
-                  <FaChevronRight />
-                </button>
-              </div>
-
-              <div className="calendarWeekdays">
-                {WEEK_DAYS.map((day) => (
-                  <span key={day}>{day}</span>
-                ))}
-              </div>
-
-              <div className="calendarGrid">
-                {calendarDays.map(({ date, outside }) => {
-                  const selected = isSameDate(date, selectedDateObject);
-                  const currentDay = isSameDate(date, today);
-
-                  return (
-                    <button
-                      key={date.toISOString()}
-                      type="button"
-                      className={[
-                        "calendarDay",
-                        outside ? "outsideMonth" : "",
-                        selected ? "selectedDay" : "",
-                        currentDay ? "todayMarker" : ""
-                      ].join(" ").trim()}
-                      onClick={() => pickDate(date)}
-                    >
-                      {date.getDate()}
-                    </button>
-                  );
-                })}
-              </div>
-
-              <div className="calendarFooter">
-                <button
-                  type="button"
-                  className="calendarFooterBtn"
-                  onClick={() => pickDate(today)}
-                >
-                  Jump to today
-                </button>
-                <button
-                  type="button"
-                  className="calendarFooterBtn"
-                  onClick={() => setShowCalendar(false)}
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
 
         <div className="keypad">
           <button onClick={() => setAmount(amount + "7")}>7</button>
@@ -268,23 +231,16 @@ export default function Transactions({ closeModal, addTransaction }) {
                 return;
               }
 
-              const newTransaction = {
+              addTransaction({
                 amount: Number(amount),
                 note: note || selectedCategory,
                 type,
                 category: selectedCategory,
                 categoryIcon: selectedCategoryDetails?.icon || "",
                 transactionDate: selectedDate,
-                date: selectedDateObject.toLocaleDateString("en-GB", {
-                  day: "numeric",
-                  month: "short"
-                }),
-                day: selectedDateObject.toLocaleDateString("en-GB", {
-                  weekday: "long"
-                })
-              };
-
-              addTransaction(newTransaction);
+                recurring: isRecurring,
+                recurringFrequency
+              });
               closeModal();
             }}
           >
@@ -296,8 +252,13 @@ export default function Transactions({ closeModal, addTransaction }) {
       {showCategory && (
         <Category
           closeCategory={() => setShowCategory(false)}
-          addNewCategory={(newCat) => {
-            setCategories([...categories, newCat]);
+          addNewCategory={(newCategory) => {
+            if (type === "income") {
+              setIncomeCategories((currentCategories) => [...currentCategories, newCategory]);
+              return;
+            }
+
+            setExpenseCategories((currentCategories) => [...currentCategories, newCategory]);
           }}
         />
       )}

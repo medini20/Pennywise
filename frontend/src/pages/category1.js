@@ -2,24 +2,23 @@
 import React, { useState } from "react";
 
 export default function Category({ closeCategory, addNewCategory }) {
-
   const [name, setName] = useState("");
   const [selectedIcon, setSelectedIcon] = useState("");
 
   const icons = [
-    "🏠", "🚗", "✈️", "🍽️", "🛒", "☕", 
-    "🏥", "🎮", "📱", "👕", "⚡", "🌐", 
-    "📚", "🐶", "🏋️", "🎁", "✂️", "💰"
+    "\uD83D\uDED2", "\uD83D\uDE97", "\u2615", "\uD83C\uDFE0", "\u2764\uFE0F",
+    "\uD83C\uDFAE", "\uD83D\uDCF1", "\uD83C\uDFB5", "\uD83C\uDF7D\uFE0F", "\uD83C\uDFCB\uFE0F",
+    "\uD83D\uDC55", "\u2708\uFE0F", "\uD83D\uDC36", "\uD83D\uDCB0", "\u26A1",
+    "\uD83C\uDF81", "\u2702\uFE0F", "\uD83D\uDCDA"
   ];
+
   return (
     <div className="overlay">
-
       <div className="modal small">
-
         <div className="modalHeader">
           <span onClick={closeCategory}>Cancel</span>
           <h3>Add Category</h3>
-          <span onClick={closeCategory}>✖</span>
+          <span onClick={closeCategory}>X</span>
         </div>
 
         <input
@@ -29,10 +28,10 @@ export default function Category({ closeCategory, addNewCategory }) {
           onChange={(e) => setName(e.target.value)}
         />
 
-        <p style={{marginTop:"15px"}}>Choose Icon</p>
+        <p style={{ marginTop: "15px" }}>Choose Icon</p>
 
         <div className="iconGrid">
-          {icons.map((icon,i)=>(
+          {icons.map((icon, i) => (
             <div
               key={i}
               className={`iconBox ${selectedIcon === icon ? "selected" : ""}`}
@@ -64,9 +63,7 @@ export default function Category({ closeCategory, addNewCategory }) {
             Add Category
           </button>
         </div>
-
       </div>
-
     </div>
   );
 }

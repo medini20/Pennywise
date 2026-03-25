@@ -119,6 +119,12 @@
   color: #9ca3af;
 }
 
+.time {
+  font-size: 12px;
+  color: #4aa8ff;
+  margin-top: 6px;
+}
+
 .middle {
   flex: 1;
   margin-left: 20px;

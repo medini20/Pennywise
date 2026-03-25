@@ -23,6 +23,7 @@ export default function Records() {
   const [transactions, setTransactions] = useState([]);
   const [filter, setFilter] = useState("all");
   const [notifications, setNotifications] = useState([]);
+  const [requestError, setRequestError] = useState("");
 
   useEffect(() => {
     fetch(`${API_BASE_URL}/api/transactions?user_id=1`)
@@ -96,6 +97,19 @@ export default function Records() {
         notifications={notifications}
         removeNotification={removeNotification}
       />
+
+      {requestError && (
+        <div style={{
+          marginBottom: "16px",
+          padding: "12px 14px",
+          borderRadius: "10px",
+          background: "rgba(239, 68, 68, 0.12)",
+          border: "1px solid rgba(239, 68, 68, 0.35)",
+          color: "#fecaca"
+        }}>
+          {requestError}
+        </div>
+      )}
 
       <div className="cards">
         <div
@@ -177,6 +191,13 @@ export default function Records() {
                       weekday: "long"
                     })}
                   </div>
+                  <div className="time">
+                    {transactionDate.toLocaleTimeString("en-IN", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      hour12: true
+                    })}
+                  </div>
                 </div>
 
                 <div className="middle">
@@ -207,28 +228,46 @@ export default function Records() {
         <Transactions
           closeModal={() => setShowTransaction(false)}
           addTransaction={async (data) => {
-            await fetch(`${API_BASE_URL}/api/transactions/add`, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json"
-              },
-              body: JSON.stringify({
-                user_id: 1,
-                amount: data.amount,
-                type: data.type,
-                description: data.note,
-                transaction_date: data.transactionDate
-              })
-            });
+            try {
+              setRequestError("");
 
-            setTransactions((prevTransactions) => [
-              ...prevTransactions,
-              {
-                ...data,
-                description: data.note,
-                transaction_date: data.transactionDate
+              const response = await fetch(`${API_BASE_URL}/api/transactions/add`, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                  user_id: 1,
+                  amount: data.amount,
+                  type: data.type,
+                  category: data.category,
+                  categoryIcon: data.categoryIcon,
+                  description: data.note,
+                  transaction_date: data.transactionDate
+                })
+              });
+
+              const result = await response.json().catch(() => ({}));
+
+              if (!response.ok) {
+                throw new Error(result.message || "Unable to save transaction.");
               }
-            ]);
+
+              setTransactions((prevTransactions) => [
+                ...prevTransactions,
+                {
+                  ...data,
+                  description: data.note,
+                  transaction_date: data.transactionDate
+                }
+              ]);
+            } catch (error) {
+              setRequestError(
+                error.message === "Failed to fetch"
+                  ? "Backend is offline. Start the server on port 5001 and try again."
+                  : error.message
+              );
+            }
           }}
         />
       )}

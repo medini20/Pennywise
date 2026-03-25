@@ -10,7 +10,8 @@
 }
 
 .category-modal {
-  width: 360px;
+  width: 410px;
+  max-width: calc(100vw - 28px);
   background: #161c2d;
   border-radius: 16px;
   padding: 24px;
@@ -74,7 +75,7 @@
 /* Dashed Add Button */
 .add-custom-btn {
   width: 100%;
-  padding: 16px;
+  padding: 18px 16px;
   background: transparent;
   border: 1.5px dashed #4b5563;
   color: white;
@@ -110,7 +111,7 @@
   border: none;
   border-bottom: 1px solid #3d465d;
   color: white;
-  padding: 8px 0;
+  padding: 12px 0;
   font-size: 16px;
   outline: none;
 }
