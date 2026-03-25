@@ -1,260 +1,387 @@
 const db = require("../../config/db");
 const bcrypt = require("bcrypt");
+const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const emailService = require("../../utils/emailService");
 const { OAuth2Client } = require("google-auth-library");
 require("dotenv").config();
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+const OTP_EXPIRY_MINUTES = 15;
 
-// MySQL datetime format helper (YYYY-MM-DD HH:MM:SS)
-const toMySQLDatetime = (date) => {
-    return date.toISOString().slice(0, 19).replace('T', ' ');
-};
-
-// generate 6-digit OTP
 const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
 
-// Check if username is already taken
-exports.checkUsername = (req, res) => {
-    const { username } = req.body;
-    if (!username) return res.status(400).json({ error: "Username is required" });
+const runQuery = async (sql, params = []) => {
+  const [rows] = await db.promise().query(sql, params);
+  return rows;
+};
 
-    db.all("SELECT id, is_verified FROM users WHERE username = ?", [username], (err, rows) => {
-        if (err) return res.status(500).json({ error: "Database error" });
-        // Only consider verified users as "taken"
-        const verifiedUser = rows.find(r => r.is_verified === 1);
-        if (verifiedUser) return res.json({ available: false, message: "Username already taken" });
-        res.json({ available: true, message: "Username is available" });
-    });
+const normalizeUsername = (value) =>
+  typeof value === "string" ? value.trim() : "";
+
+const normalizeEmail = (value) =>
+  typeof value === "string" ? value.trim().toLowerCase() : "";
+
+const createExpiryDate = () =>
+  new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
+
+const isBcryptHash = (value) =>
+  typeof value === "string" && /^\$2[aby]\$\d{2}\$/.test(value);
+
+const createToken = (user) =>
+  jwt.sign(
+    { id: user.user_id, username: user.name },
+    process.env.JWT_SECRET || "secret",
+    { expiresIn: "1d" }
+  );
+
+const toPublicUser = (user) => ({
+  id: user.user_id,
+  username: user.name,
+  email: user.email
+});
+
+const getUserByEmail = async (email) => {
+  const rows = await runQuery("SELECT * FROM users WHERE email = ? LIMIT 1", [email]);
+  return rows[0] || null;
+};
+
+const buildUsernameBase = (value) => {
+  const sanitizedValue = value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+
+  return (sanitizedValue || "user").slice(0, 80);
+};
+
+const buildUniqueUsername = async (seed, suffixSeed = "") => {
+  const base = buildUsernameBase(seed);
+  const stableSuffix = (suffixSeed.slice(-4).toLowerCase() || "user").replace(
+    /[^a-z0-9]+/g,
+    ""
+  );
+
+  let counter = 0;
+  while (true) {
+    const suffix =
+      counter === 0 ? "" : counter === 1 ? `_${stableSuffix}` : `_${stableSuffix}_${counter}`;
+    const candidate = `${base}${suffix}`.slice(0, 100);
+    const rows = await runQuery("SELECT user_id FROM users WHERE name = ? LIMIT 1", [candidate]);
+
+    if (rows.length === 0) {
+      return candidate;
+    }
+
+    counter += 1;
+  }
+};
+
+exports.checkUsername = async (req, res) => {
+  const username = normalizeUsername(req.body?.username);
+  if (!username) {
+    return res.status(400).json({ error: "Username is required" });
+  }
+
+  try {
+    const rows = await runQuery(
+      "SELECT user_id FROM users WHERE name = ? AND is_verified = 1 LIMIT 1",
+      [username]
+    );
+
+    if (rows.length > 0) {
+      return res.json({ available: false, message: "Username already taken" });
+    }
+
+    return res.json({ available: true, message: "Username is available" });
+  } catch (error) {
+    console.error("checkUsername error:", error.message);
+    return res.status(500).json({ error: "Database error" });
+  }
 };
 
 exports.signup = async (req, res) => {
-    const { username, email, password } = req.body;
-    try {
-        // Check if email is used by a VERIFIED user
-        db.all("SELECT * FROM users WHERE email = ?", [email], async (err, emailRows) => {
-            if (err) { console.error("Signup email check error:", err.message); return res.status(500).json({ error: "Database error" }); }
-            if (emailRows.length > 0 && emailRows[0].is_verified === 1) {
-                return res.status(400).json({ error: "Email already exists" });
-            }
+  const username = normalizeUsername(req.body?.username);
+  const email = normalizeEmail(req.body?.email);
+  const password = req.body?.password;
 
-            // Check if username is used by a VERIFIED user
-            db.all("SELECT * FROM users WHERE username = ?", [username], async (err, userRows) => {
-                if (err) { console.error("Signup username check error:", err.message); return res.status(500).json({ error: "Database error" }); }
-                if (userRows.length > 0 && userRows[0].is_verified === 1) {
-                    return res.status(400).json({ error: "Username already taken" });
-                }
+  if (!username || !email || !password) {
+    return res
+      .status(400)
+      .json({ error: "Username, email, and password are required" });
+  }
 
-                // Delete any existing unverified users with this email or username, and their OTPs
-                db.run("DELETE FROM otps WHERE email = ?", [email], (err) => {
-                    if (err) console.error("Cleanup OTPs error:", err.message);
-
-                    db.run("DELETE FROM users WHERE (email = ? OR username = ?) AND is_verified = 0", [email, username], async (err) => {
-                        if (err) console.error("Cleanup unverified users error:", err.message);
-
-                        const salt = await bcrypt.genSalt(10);
-                        const password_hash = await bcrypt.hash(password, salt);
-
-                        db.run(
-                            "INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)",
-                            [username, email, password_hash],
-                            function (err) {
-                                if (err) { console.error("Signup INSERT user error:", err.message); return res.status(500).json({ error: "Failed to create user" }); }
-
-                                const otp = generateOTP();
-                                const expiresAt = toMySQLDatetime(new Date(Date.now() + 15 * 60 * 1000));
-
-                                db.run(
-                                    "INSERT INTO otps (email, otp_code, purpose, expires_at) VALUES (?, ?, 'SIGNUP', ?)",
-                                    [email, otp, expiresAt],
-                                    async function (err) {
-                                        if (err) { console.error("Signup INSERT OTP error:", err.message); return res.status(500).json({ error: "Failed to generate OTP" }); }
-
-                                        try {
-                                            const sent = await emailService.sendOTP(email, otp);
-                                            if (sent) {
-                                                res.status(201).json({ message: "User registered. Please check email for OTP." });
-                                            } else {
-                                                console.error("OTP email send failed for:", email);
-                                                res.status(201).json({ message: "User registered but email failed. Contact support." });
-                                            }
-                                        } catch (emailErr) {
-                                            console.error("OTP email exception:", emailErr.message);
-                                            res.status(201).json({ message: "User registered but email failed. Contact support." });
-                                        }
-                                    }
-                                );
-                            }
-                        );
-                    });
-                });
-            });
-        });
-    } catch (error) {
-        console.error("Signup uncaught error:", error);
-        res.status(500).json({ error: "Server error" });
-    }
-};
-
-exports.verifyOtp = (req, res) => {
-    const { email, otpCode } = req.body;
-    const now = toMySQLDatetime(new Date());
-    db.all(
-        "SELECT * FROM otps WHERE email = ? AND otp_code = ? AND expires_at > ? ORDER BY created_at DESC LIMIT 1",
-        [email, otpCode, now],
-        (err, rows) => {
-            if (err) return res.status(500).json({ error: "Database error" });
-            if (rows.length === 0) return res.status(400).json({ error: "Invalid or expired OTP" });
-
-            const purpose = rows[0].purpose;
-
-            // Delete used OTP to prevent reuse
-            db.run("DELETE FROM otps WHERE email = ? AND otp_code = ?", [email, otpCode]);
-
-            if (purpose === 'SIGNUP') {
-                db.run("UPDATE users SET is_verified = 1 WHERE email = ?", [email], (err) => {
-                    if (err) return res.status(500).json({ error: "Failed to verify user" });
-                    res.json({ message: "User verified successfully. You can now login." });
-                });
-            } else {
-                res.json({ message: "OTP verified. Proceed to next step." });
-            }
-        }
+  try {
+    const verifiedEmailRows = await runQuery(
+      "SELECT user_id FROM users WHERE email = ? AND is_verified = 1 LIMIT 1",
+      [email]
     );
-};
-
-exports.login = (req, res) => {
-    const { username, password } = req.body;
-    if (!username || !password) {
-        return res.status(400).json({ error: "Username and password are required" });
+    if (verifiedEmailRows.length > 0) {
+      return res.status(400).json({ error: "Email already exists" });
     }
-    // Support login with either username or email
-    const isEmail = username && username.includes('@');
-    const query = isEmail
-        ? "SELECT * FROM users WHERE email = ?"
-        : "SELECT * FROM users WHERE username = ?";
 
-    db.all(query, [username], async (err, rows) => {
-        if (err) {
-            console.error("Login DB error:", err.message);
-            return res.status(500).json({ error: "Database error" });
-        }
-        if (rows.length === 0) return res.status(400).json({ error: "Invalid username or password" });
+    const verifiedUserRows = await runQuery(
+      "SELECT user_id FROM users WHERE name = ? AND is_verified = 1 LIMIT 1",
+      [username]
+    );
+    if (verifiedUserRows.length > 0) {
+      return res.status(400).json({ error: "Username already taken" });
+    }
 
-        const user = rows[0];
-        if (!user.is_verified) return res.status(403).json({ error: "Account not verified. Please verify your OTP." });
+    await runQuery("DELETE FROM otps WHERE email = ?", [email]);
+    await runQuery(
+      "DELETE FROM users WHERE (email = ? OR name = ?) AND is_verified = 0",
+      [email, username]
+    );
 
-        try {
-            const validPassword = await bcrypt.compare(password, user.password_hash);
-            if (!validPassword) return res.status(400).json({ error: "Invalid username or password" });
+    const passwordHash = await bcrypt.hash(password, 10);
+    await runQuery(
+      "INSERT INTO users (name, email, password_hash, is_verified) VALUES (?, ?, ?, 0)",
+      [username, email, passwordHash]
+    );
 
-            const token = jwt.sign({ id: user.id, username: user.username }, process.env.JWT_SECRET || 'secret', { expiresIn: "1d" });
-            res.json({ message: "Login successful", token, user: { id: user.id, username: user.username, email: user.email } });
-        } catch (bcryptErr) {
-            console.error("Login bcrypt error:", bcryptErr.message);
-            return res.status(500).json({ error: "Server error" });
-        }
-    });
+    const otp = generateOTP();
+    await runQuery(
+      "INSERT INTO otps (email, otp_code, purpose, expires_at) VALUES (?, ?, 'SIGNUP', ?)",
+      [email, otp, createExpiryDate()]
+    );
+
+    try {
+      const sent = await emailService.sendOTP(email, otp);
+      if (sent) {
+        return res
+          .status(201)
+          .json({ message: "User registered. Please check email for OTP." });
+      }
+
+      console.error("OTP email send failed for:", email);
+      return res
+        .status(201)
+        .json({ message: "User registered but email failed. Contact support." });
+    } catch (emailError) {
+      console.error("OTP email exception:", emailError.message);
+      return res
+        .status(201)
+        .json({ message: "User registered but email failed. Contact support." });
+    }
+  } catch (error) {
+    console.error("signup error:", error.message);
+    return res.status(500).json({ error: "Server error" });
+  }
 };
 
-exports.forgotPassword = (req, res) => {
-    const { email } = req.body;
-    db.all("SELECT * FROM users WHERE email = ?", [email], (err, rows) => {
-        if (err) return res.status(500).json({ error: "Database error" });
-        if (rows.length === 0) return res.status(400).json({ error: "User not found" });
+exports.verifyOtp = async (req, res) => {
+  const email = normalizeEmail(req.body?.email);
+  const otpCode = normalizeUsername(req.body?.otpCode);
 
-        const otp = generateOTP();
-        const expiresAt = toMySQLDatetime(new Date(Date.now() + 15 * 60 * 1000));
+  if (!email || !otpCode) {
+    return res.status(400).json({ error: "Email and OTP code are required" });
+  }
 
-        db.run(
-            "INSERT INTO otps (email, otp_code, purpose, expires_at) VALUES (?, ?, 'PASSWORD_RESET', ?)",
-            [email, otp, expiresAt],
-            async function (err) {
-                if (err) return res.status(500).json({ error: "Failed to generate OTP" });
+  try {
+    const rows = await runQuery(
+      "SELECT otp_id, purpose FROM otps WHERE email = ? AND otp_code = ? AND expires_at > ? ORDER BY created_at DESC LIMIT 1",
+      [email, otpCode, new Date()]
+    );
 
-                await emailService.sendOTP(email, otp);
-                res.json({ message: "OTP sent to email for password reset." });
-            }
-        );
+    if (rows.length === 0) {
+      return res.status(400).json({ error: "Invalid or expired OTP" });
+    }
+
+    await runQuery("DELETE FROM otps WHERE otp_id = ?", [rows[0].otp_id]);
+
+    if (rows[0].purpose === "SIGNUP") {
+      await runQuery("UPDATE users SET is_verified = 1 WHERE email = ?", [email]);
+      return res.json({ message: "User verified successfully. You can now login." });
+    }
+
+    return res.json({ message: "OTP verified. Proceed to next step." });
+  } catch (error) {
+    console.error("verifyOtp error:", error.message);
+    return res.status(500).json({ error: "Database error" });
+  }
+};
+
+exports.login = async (req, res) => {
+  const username = normalizeUsername(req.body?.username);
+  const password = req.body?.password;
+
+  if (!username || !password) {
+    return res.status(400).json({ error: "Username and password are required" });
+  }
+
+  try {
+    const isEmail = username.includes("@");
+    const rows = await runQuery(
+      isEmail
+        ? "SELECT * FROM users WHERE email = ? LIMIT 1"
+        : "SELECT * FROM users WHERE name = ? LIMIT 1",
+      [isEmail ? normalizeEmail(username) : username]
+    );
+
+    if (rows.length === 0) {
+      return res.status(400).json({ error: "Invalid username or password" });
+    }
+
+    const user = rows[0];
+    if (!user.is_verified) {
+      return res
+        .status(403)
+        .json({ error: "Account not verified. Please verify your OTP." });
+    }
+
+    const validPassword = isBcryptHash(user.password_hash)
+      ? await bcrypt.compare(password, user.password_hash)
+      : password === user.password_hash;
+    if (!validPassword) {
+      return res.status(400).json({ error: "Invalid username or password" });
+    }
+
+    if (!isBcryptHash(user.password_hash)) {
+      const upgradedHash = await bcrypt.hash(password, 10);
+      await runQuery("UPDATE users SET password_hash = ? WHERE user_id = ?", [
+        upgradedHash,
+        user.user_id
+      ]);
+      user.password_hash = upgradedHash;
+    }
+
+    const token = createToken(user);
+    return res.json({
+      message: "Login successful",
+      token,
+      user: toPublicUser(user)
     });
+  } catch (error) {
+    console.error("login error:", error.message);
+    return res.status(500).json({ error: "Database error" });
+  }
+};
+
+exports.forgotPassword = async (req, res) => {
+  const email = normalizeEmail(req.body?.email);
+  if (!email) {
+    return res.status(400).json({ error: "Email is required" });
+  }
+
+  try {
+    const user = await getUserByEmail(email);
+    if (!user) {
+      return res.status(400).json({ error: "User not found" });
+    }
+
+    const otp = generateOTP();
+    await runQuery(
+      "INSERT INTO otps (email, otp_code, purpose, expires_at) VALUES (?, ?, 'PASSWORD_RESET', ?)",
+      [email, otp, createExpiryDate()]
+    );
+
+    await emailService.sendOTP(email, otp);
+    return res.json({ message: "OTP sent to email for password reset." });
+  } catch (error) {
+    console.error("forgotPassword error:", error.message);
+    return res.status(500).json({ error: "Failed to generate OTP" });
+  }
 };
 
 exports.resetPassword = async (req, res) => {
-    const { email, otpCode, newPassword } = req.body;
-    const now = toMySQLDatetime(new Date());
-    db.all(
-        "SELECT * FROM otps WHERE email = ? AND otp_code = ? AND purpose = 'PASSWORD_RESET' AND expires_at > ? ORDER BY created_at DESC LIMIT 1",
-        [email, otpCode, now],
-        async (err, rows) => {
-            if (err) return res.status(500).json({ error: "Database error" });
-            if (rows.length === 0) return res.status(400).json({ error: "Invalid or expired OTP" });
+  const email = normalizeEmail(req.body?.email);
+  const otpCode = normalizeUsername(req.body?.otpCode);
+  const newPassword = req.body?.newPassword;
 
-            try {
-                const salt = await bcrypt.genSalt(10);
-                const password_hash = await bcrypt.hash(newPassword, salt);
+  if (!email || !otpCode || !newPassword) {
+    return res
+      .status(400)
+      .json({ error: "Email, OTP code, and new password are required" });
+  }
 
-                // Delete used OTPs for this email
-                db.run("DELETE FROM otps WHERE email = ? AND purpose = 'PASSWORD_RESET'", [email]);
-
-                db.run("UPDATE users SET password_hash = ? WHERE email = ?", [password_hash, email], (err) => {
-                    if (err) return res.status(500).json({ error: "Failed to reset password" });
-                    res.json({ message: "Password reset successful. You can now login." });
-                });
-            } catch (error) {
-                res.status(500).json({ error: "Server error" });
-            }
-        }
+  try {
+    const rows = await runQuery(
+      "SELECT otp_id FROM otps WHERE email = ? AND otp_code = ? AND purpose = 'PASSWORD_RESET' AND expires_at > ? ORDER BY created_at DESC LIMIT 1",
+      [email, otpCode, new Date()]
     );
+
+    if (rows.length === 0) {
+      return res.status(400).json({ error: "Invalid or expired OTP" });
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await runQuery("DELETE FROM otps WHERE email = ? AND purpose = 'PASSWORD_RESET'", [email]);
+    await runQuery("UPDATE users SET password_hash = ? WHERE email = ?", [
+      passwordHash,
+      email
+    ]);
+
+    return res.json({ message: "Password reset successful. You can now login." });
+  } catch (error) {
+    console.error("resetPassword error:", error.message);
+    return res.status(500).json({ error: "Server error" });
+  }
 };
 
 exports.logout = (req, res) => {
-    res.json({ message: "Logged out successfully" });
+  res.json({ message: "Logged out successfully" });
 };
 
-// Google Sign-In
 exports.googleLogin = async (req, res) => {
-    const { credential } = req.body;
-    try {
-        const ticket = await googleClient.verifyIdToken({
-            idToken: credential,
-            audience: process.env.GOOGLE_CLIENT_ID,
-        });
-        const payload = ticket.getPayload();
-        const { email, name, sub: googleId } = payload;
+  const credential = req.body?.credential;
+  if (!credential) {
+    return res.status(400).json({ error: "Google credential is required" });
+  }
 
-        // Check if user exists
-        db.all("SELECT * FROM users WHERE email = ?", [email], (err, rows) => {
-            if (err) return res.status(500).json({ error: "Database error" });
+  try {
+    const ticket = await googleClient.verifyIdToken({
+      idToken: credential,
+      audience: process.env.GOOGLE_CLIENT_ID
+    });
+    const payload = ticket.getPayload();
+    const email = normalizeEmail(payload?.email);
+    const displayName = normalizeUsername(payload?.name) || email.split("@")[0];
+    const googleId = payload?.sub || "user";
 
-            if (rows.length > 0) {
-                // Existing user — issue token
-                const user = rows[0];
-                const token = jwt.sign({ id: user.id, username: user.username }, process.env.JWT_SECRET || 'secret', { expiresIn: "1d" });
-                return res.json({ message: "Login successful", token, user: { id: user.id, username: user.username, email: user.email } });
-            }
-
-            // New user — auto-create with Google info
-            const username = name.replace(/\s+/g, '_').toLowerCase() + '_' + googleId.slice(-4);
-            const randomPass = require('crypto').randomBytes(32).toString('hex');
-
-            bcrypt.hash(randomPass, 10, (err, password_hash) => {
-                if (err) return res.status(500).json({ error: "Server error" });
-
-                db.run(
-                    "INSERT INTO users (username, email, password_hash, is_verified) VALUES (?, ?, ?, 1)",
-                    [username, email, password_hash],
-                    function (err) {
-                        if (err) return res.status(500).json({ error: "Failed to create user" });
-
-                        const token = jwt.sign({ id: this.lastID, username }, process.env.JWT_SECRET || 'secret', { expiresIn: "1d" });
-                        res.json({ message: "Login successful", token, user: { id: this.lastID, username, email } });
-                    }
-                );
-            });
-        });
-    } catch (error) {
-        console.error("Google auth error:", error);
-        res.status(401).json({ error: "Invalid Google token" });
+    if (!email) {
+      return res.status(400).json({ error: "Google account email is required" });
     }
+
+    const existingUser = await getUserByEmail(email);
+    if (existingUser) {
+      if (!existingUser.is_verified) {
+        await runQuery("UPDATE users SET is_verified = 1 WHERE user_id = ?", [
+          existingUser.user_id
+        ]);
+        existingUser.is_verified = 1;
+      }
+
+      const token = createToken(existingUser);
+      return res.json({
+        message: "Login successful",
+        token,
+        user: toPublicUser(existingUser)
+      });
+    }
+
+    const username = await buildUniqueUsername(displayName, googleId);
+    const randomPassword = crypto.randomBytes(32).toString("hex");
+    const passwordHash = await bcrypt.hash(randomPassword, 10);
+    const result = await runQuery(
+      "INSERT INTO users (name, email, password_hash, is_verified) VALUES (?, ?, ?, 1)",
+      [username, email, passwordHash]
+    );
+
+    const user = {
+      user_id: result.insertId,
+      name: username,
+      email
+    };
+    const token = createToken(user);
+
+    return res.json({
+      message: "Login successful",
+      token,
+      user: toPublicUser(user)
+    });
+  } catch (error) {
+    console.error("Google auth error:", error.message);
+    return res.status(401).json({ error: "Invalid Google token" });
+  }
 };

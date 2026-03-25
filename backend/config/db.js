@@ -5,7 +5,7 @@ const pool = mysql.createPool({
     host: process.env.DB_HOST || "localhost",
     user: process.env.DB_USER || "root",
     password: process.env.DB_PASSWORD || "",
-    database: process.env.DB_NAME || "pennywise",
+    database: process.env.DB_NAME || "expense_tracker",
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0,
@@ -29,6 +29,7 @@ pool.getConnection((err, connection) => {
 
 const db = {
     query: pool.query.bind(pool),
+    promise: () => pool.promise(),
 
     all: (sql, params, callback) => {
         pool.query(sql, params, (err, rows) => {
