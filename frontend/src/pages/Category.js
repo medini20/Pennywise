@@ -1,78 +1,160 @@
 import React, { useState } from "react";
-import "../styles/Category.css";
+import "./Category.css"; 
 
 export default function Category({ closeCategory, addNewCategory }) {
+  const [view, setView] = useState("select");
+
   const [name, setName] = useState("");
-  const [amount, setAmount] = useState(""); // Added amount state
+  const [amount, setAmount] = useState("");
   const [selectedIcon, setSelectedIcon] = useState("");
 
-  const icons = ["🏠","🚗","☕","🏡","❤️","🎮","📱","🎵","🍽️","🏋️","🎒","💳","🎁","📺","📘","👕","✂️","💊","⛽","⚡"];
+ const predefinedCategories = [
+    { name: "Food", icon: "🍽️" },
+    { name: "Transport", icon: "🚗" },
+    { name: "Finance", icon: "💰" },
+    { name: "Health", icon: "🏥" },
+    { name: "Electronics", icon: "📱" },
+    { name: "Travel", icon: "✈️" },
+    { name: "Clothing", icon: "👕" },
+    { name: "Pets", icon: "🐶" }
+  ];
+
+  // Distinct icons covering 99% of expenses without redundancies
+  const icons = [
+    "🏠", "🚗", "✈️", "🍽️", "🛒", "☕", 
+    "🏥", "🎮", "📱", "👕", "⚡", "🌐", 
+    "📚", "🐶", "🏋️", "🎁", "✂️", "💰"
+  ];
+
+  const handleSelectPredefined = (category) => {
+    setName(category.name);
+    setSelectedIcon(category.icon);
+    setView("create");
+  };
+
+  const handleAddNewCustom = () => {
+    setName("");
+    setSelectedIcon("");
+    setView("create");
+  };
 
   const handleSave = () => {
-    if (!name || !selectedIcon || !amount) {
-      alert("Please fill in all fields and select an icon.");
+    if (!name || !amount || !selectedIcon) {
+      alert("Please enter Name, Amount, and choose an Icon!");
       return;
     }
 
-    // Sends all 3 pieces of data back to Budget.js
-    addNewCategory({
+    const budgetData = {
       name: name,
+      amount: Number(amount),
       icon: selectedIcon,
-      amount: amount
-    });
+      user_id: 1,
+      month: 1
+    };
+
+    fetch("http://localhost:5001/budget/add", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(budgetData),
+    })
+      .then((res) => {
+        if (res.ok) {
+          addNewCategory();
+          closeCategory();
+        }
+      })
+      .catch((err) => console.error("Server Error:", err));
   };
 
   return (
-    <div className="overlay">
-      <div className="modal small">
-        <div className="modalHeader">
-          <h3 style={{ margin: 0 }}>Add Category</h3>
-          <span className="close-x" onClick={closeCategory}>✖</span>
-        </div>
-
-        <div className="input-group">
-          <label>Category Name</label>
-          <input
-            className="note"
-            placeholder="e.g. Groceries"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
-        </div>
-
-        <div className="input-group" style={{ marginTop: "15px" }}>
-          <label>Monthly Budget (₹)</label>
-          <input
-            className="note"
-            type="number"
-            placeholder="e.g. 5000"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-          />
-        </div>
-
-        <p style={{ marginTop: "20px", marginBottom: "10px", fontWeight: "bold" }}>Choose Icon</p>
-
-        <div className="iconGrid">
-          {icons.map((icon, i) => (
-            <div
-              key={i}
-              className={`iconBox ${selectedIcon === icon ? "selected" : ""}`}
-              onClick={() => setSelectedIcon(icon)}
-            >
-              {icon}
+    <div className="category-overlay">
+      <div className="category-modal">
+        
+        {view === "select" && (
+          <>
+            <div className="category-modal-header">
+              <span className="nav-text" onClick={closeCategory}>Cancel</span>
+              <h3 style={{ margin: 0, fontSize: "16px", fontWeight: "600" }}>Add Category</h3>
+              <span className="nav-text" style={{ fontSize: "16px" }}>📅</span>
             </div>
-          ))}
-        </div>
 
-        <div className="buttons">
-          <button className="cancel-btn-modal" onClick={closeCategory}>
-            Cancel
-          </button>
-          <button className="add-btn-modal" onClick={handleSave}>
-            Add Category
-          </button>
-        </div>
+            <div className="predefined-grid">
+              {predefinedCategories.map((cat, i) => (
+                <button 
+                  key={i} 
+                  className="predefined-item"
+                  onClick={() => handleSelectPredefined(cat)}
+                >
+                  <span className="p-icon">{cat.icon}</span>
+                  <span className="p-name">{cat.name}</span>
+                </button>
+              ))}
+            </div>
+
+            <button className="add-custom-btn" onClick={handleAddNewCustom}>
+              + Add Categories
+            </button>
+          </>
+        )}
+
+        {view === "create" && (
+          <>
+            <div className="category-modal-header">
+              <span className="nav-text" onClick={() => setView("select")}>Back</span>
+              <h3 style={{ margin: 0, fontSize: "16px", fontWeight: "600" }}>Add Category</h3>
+              <span className="close-x" onClick={closeCategory}>✖</span>
+            </div>
+
+            <div className="category-body">
+              <div className="input-group">
+                <label>CATEGORY NAME</label>
+                <input
+                  className="category-input"
+                  placeholder="e.g. Entertainment"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                />
+              </div>
+
+              <div className="input-group">
+                <label>MONTHLY BUDGET (₹)</label>
+                <input
+                  className="category-input"
+                  type="number"
+                  placeholder="e.g. 5000"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <p className="section-label">Choose Icon</p>
+                <div className="icon-grid">
+                  {icons.map((icon, i) => (
+                    <div
+                      key={i}
+                      className={`icon-item ${selectedIcon === icon ? "active" : ""}`}
+                      onClick={() => setSelectedIcon(icon)}
+                    >
+                      {icon}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="category-footer">
+              <button className="btn-cancel-modal" onClick={() => setView("select")}>
+                Cancel
+              </button>
+              <button className="btn-add-modal" onClick={handleSave}>
+                Save Category
+              </button>
+            </div>
+          </>
+        )}
+
       </div>
     </div>
   );

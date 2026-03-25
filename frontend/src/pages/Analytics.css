@@ -1,0 +1,276 @@
+.analyticsPage {
+  min-height: 100vh;
+  width: 100%;
+  padding: 28px 28px 40px;
+  background: #081744;
+  color: #ffffff;
+}
+
+.analyticsLoading {
+  display: flex;
+  align-items: flex-start;
+  font-size: 14px;
+}
+
+.analyticsToolbarCard,
+.analyticsCard,
+.analyticsSummaryItem {
+  background: #1b2759;
+  border: 1px solid rgba(106, 128, 205, 0.24);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.analyticsToolbarCard,
+.analyticsCard {
+  border-radius: 20px;
+}
+
+.analyticsToolbarCard {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 28px;
+  padding: 18px 20px;
+}
+
+.analyticsToolbarGroup,
+.analyticsToolbarActions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.analyticsSegment {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px;
+  border-radius: 14px;
+  background: #13214d;
+  border: 1px solid rgba(106, 128, 205, 0.24);
+}
+
+.analyticsToggleButton {
+  border: none;
+  border-radius: 10px;
+  padding: 10px 16px;
+  background: transparent;
+  color: #aebce0;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.analyticsToggleButton:hover,
+.analyticsExportButton:hover {
+  transform: translateY(-1px);
+}
+
+.analyticsToggleButton--active {
+  background: #3b82f6;
+  color: #ffffff;
+}
+
+.analyticsSelectGroup {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.analyticsSelect {
+  min-width: 92px;
+  padding: 10px 12px;
+  border: 1px solid rgba(106, 128, 205, 0.24);
+  border-radius: 12px;
+  background: #13214d;
+  color: #ffffff;
+  font-size: 13px;
+  outline: none;
+}
+
+.analyticsExportButton {
+  border: none;
+  border-radius: 12px;
+  padding: 10px 16px;
+  background: #0f9f6e;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.analyticsExportButton:hover {
+  background: #0c865d;
+}
+
+.analyticsCard {
+  margin-bottom: 28px;
+  padding: 24px;
+}
+
+.analyticsCardTitle {
+  margin: 0 0 20px;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.analyticsChartWrap {
+  width: 100%;
+  height: 350px;
+}
+
+.analyticsBottomGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(320px, 1fr);
+  gap: 24px;
+}
+
+.analyticsCategoryCard,
+.analyticsSummaryCard {
+  margin-bottom: 0;
+}
+
+.analyticsCategoryRow {
+  margin-bottom: 18px;
+}
+
+.analyticsCategoryRow:last-child {
+  margin-bottom: 0;
+}
+
+.analyticsCategoryLabelRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.analyticsCategoryLabelName,
+.analyticsSummaryLabel {
+  color: #c4d0ee;
+  font-size: 14px;
+}
+
+.analyticsCategoryLabelValue {
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.analyticsProgressTrack {
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(137, 155, 210, 0.18);
+  overflow: hidden;
+}
+
+.analyticsProgressFill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.7s ease;
+}
+
+.analyticsEmptyState {
+  margin: 0;
+  color: #97a7d1;
+  font-size: 14px;
+}
+
+.analyticsSummaryItems {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.analyticsSummaryItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  border-radius: 16px;
+  padding: 16px;
+}
+
+.analyticsSummaryItem--highlight {
+  border-color: rgba(106, 128, 205, 0.24);
+}
+
+.analyticsSummaryValue {
+  font-weight: 700;
+}
+
+.analyticsSummaryValue--income {
+  color: #4ade80;
+  font-size: 18px;
+}
+
+.analyticsSummaryValue--expense {
+  color: #f87171;
+  font-size: 18px;
+}
+
+.analyticsSummaryValue--savings {
+  color: #facc15;
+  font-size: 20px;
+}
+
+@media (max-width: 900px) {
+  .analyticsPage {
+    padding: 24px 20px 36px;
+  }
+
+  .analyticsBottomGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .analyticsToolbarCard,
+  .analyticsCard {
+    padding: 18px;
+    border-radius: 18px;
+  }
+
+  .analyticsToolbarGroup,
+  .analyticsToolbarActions,
+  .analyticsSelectGroup {
+    width: 100%;
+  }
+
+  .analyticsSegment,
+  .analyticsSelect,
+  .analyticsExportButton {
+    width: 100%;
+  }
+
+  .analyticsSegment {
+    justify-content: stretch;
+  }
+
+  .analyticsToggleButton {
+    flex: 1;
+  }
+
+  .analyticsChartWrap {
+    height: 300px;
+  }
+
+  .analyticsSummaryItem {
+    padding: 14px;
+  }
+
+  .analyticsSummaryValue--income,
+  .analyticsSummaryValue--expense,
+  .analyticsSummaryValue--savings {
+    font-size: 17px;
+  }
+}
