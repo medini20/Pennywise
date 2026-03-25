@@ -1,9 +1,8 @@
 const db = require("../../config/db");
 
 // 1. GET ALL BUDGETS
-// Fixed: Removed the JOIN to 'categories' since you store name/icon in 'budgets'
 exports.getBudgets = (req, res) => {
-  const query = "SELECT * FROM budgets";
+  const query = "SELECT * FROM budgets WHERE COALESCE(is_system_generated, 0) = 0 ORDER BY budget_id DESC";
 
   db.query(query, (err, result) => {
     if (err) {
@@ -16,19 +15,20 @@ exports.getBudgets = (req, res) => {
 };
 
 // 2. ADD NEW BUDGET
-// ADD NEW BUDGET
 exports.addBudget = (req, res) => {
-  const { name, amount, icon, user_id, month } = req.body;
-
-  // REMOVED 'color' from the SQL query below
-  const query = "INSERT INTO budgets (name, amount, icon, user_id, month, spent) VALUES (?, ?, ?, ?, ?, 0)";
+  const { name, amount, icon, user_id, month, color } = req.body;
+  const query = `
+    INSERT INTO budgets (name, amount, icon, user_id, month, spent, color, is_system_generated)
+    VALUES (?, ?, ?, ?, ?, 0, ?, 0)
+  `;
   
   const values = [
     name, 
     amount, 
     icon, 
     user_id || 1, 
-    month || 1
+    month || 1,
+    color || "#ffcc00"
   ];
 
   db.query(query, values, (err, result) => {
@@ -42,7 +42,8 @@ exports.addBudget = (req, res) => {
       name,
       amount,
       icon,
-      spent: 0
+      spent: 0,
+      color: color || "#ffcc00"
     });
   });
 };

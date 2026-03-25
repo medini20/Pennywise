@@ -126,6 +126,11 @@
   color:white;
 }
 
+.datePickerWrap{
+  position:relative;
+  margin-top:16px;
+}
+
 /* KEYPAD */
 
 .keypad{
@@ -149,8 +154,146 @@
   background:#4b5563;
 }
 
+.datePickerButton{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  width:100%;
+  min-height:54px;
+  font-size:13px !important;
+  line-height:1.2;
+  padding:12px 10px !important;
+  background:linear-gradient(135deg,#34558a,#426aa4);
+  box-shadow:0 10px 24px rgba(31,72,133,0.28);
+}
+
+.datePickerButton svg{
+  flex-shrink:0;
+  color:#cfe3ff;
+}
+
+.datePickerButton span{
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
 .ok{
   background:#22c55e;
+  grid-column:span 2;
+}
+
+.mathKey{
+  background:#3f5f90 !important;
+}
+
+.backKey{
+  background:#3b4a69 !important;
+}
+
+.calendarPopover{
+  position:absolute;
+  top:calc(100% + 12px);
+  right:0;
+  width:100%;
+  background:linear-gradient(180deg,#18284b 0%,#111e3d 100%);
+  border:1px solid rgba(88,140,228,0.35);
+  border-radius:18px;
+  box-shadow:0 22px 50px rgba(0,0,0,0.42);
+  padding:16px;
+  z-index:20;
+}
+
+.calendarHeader{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  margin-bottom:14px;
+}
+
+.calendarTitle{
+  font-size:16px;
+  font-weight:600;
+  color:#f5f9ff;
+}
+
+.calendarNav{
+  width:36px;
+  height:36px;
+  border:none;
+  border-radius:10px;
+  background:#22365f;
+  color:#dbeafe;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+}
+
+.calendarWeekdays{
+  display:grid;
+  grid-template-columns:repeat(7,1fr);
+  gap:8px;
+  margin-bottom:10px;
+  color:#93a9d7;
+  font-size:12px;
+  text-align:center;
+}
+
+.calendarGrid{
+  display:grid;
+  grid-template-columns:repeat(7,1fr);
+  gap:8px;
+}
+
+.calendarDay{
+  width:100%;
+  aspect-ratio:1;
+  border:none;
+  border-radius:12px;
+  background:#1b2d52;
+  color:#f8fbff;
+  font-size:14px;
+  cursor:pointer;
+  transition:background 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+}
+
+.calendarDay:hover{
+  background:#29457a;
+  transform:translateY(-1px);
+}
+
+.calendarDay.outsideMonth{
+  color:#7284aa;
+  background:#142443;
+}
+
+.calendarDay.todayMarker{
+  border:1px solid rgba(56,189,248,0.6);
+}
+
+.calendarDay.selectedDay{
+  background:linear-gradient(135deg,#4f8df7,#6ea8ff);
+  color:white;
+  box-shadow:0 8px 20px rgba(78,134,238,0.35);
+}
+
+.calendarFooter{
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+  margin-top:14px;
+}
+
+.calendarFooterBtn{
+  flex:1;
+  border:none;
+  border-radius:12px;
+  background:#21365f;
+  color:#dbeafe;
+  padding:10px 12px;
+  cursor:pointer;
 }
 
 /* CATEGORY MODAL */

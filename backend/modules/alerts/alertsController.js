@@ -77,11 +77,42 @@ const createHttpError = (statusCode, message) => {
 
 const getBudgetForMonth = async (userId, month) => {
   const rows = await runQuery(
-    "SELECT budget_id, user_id, name, icon, amount, spent, month, color FROM budgets WHERE user_id = ? AND month = ? ORDER BY budget_id DESC LIMIT 1",
+    `SELECT budget_id, user_id, name, icon, amount, spent, month, color,
+            COALESCE(is_system_generated, 0) AS is_system_generated
+     FROM budgets
+     WHERE user_id = ? AND month = ?
+     ORDER BY COALESCE(is_system_generated, 0) ASC, budget_id DESC
+     LIMIT 1`,
     [userId, month]
   );
 
   return rows[0] || null;
+};
+
+const ensureBudgetForMonth = async (userId, month) => {
+  const existingBudget = await getBudgetForMonth(userId, month);
+  if (existingBudget) {
+    return existingBudget;
+  }
+
+  const result = await runQuery(
+    `INSERT INTO budgets
+      (user_id, name, icon, amount, spent, month, color, is_system_generated)
+     VALUES (?, ?, ?, ?, 0, ?, ?, 1)`,
+    [userId, DEFAULT_BUDGET_NAME, null, DEFAULT_BUDGET_AMOUNT, month, DEFAULT_BUDGET_COLOR]
+  );
+
+  return {
+    budget_id: result.insertId,
+    user_id: userId,
+    name: DEFAULT_BUDGET_NAME,
+    icon: null,
+    amount: DEFAULT_BUDGET_AMOUNT,
+    spent: 0,
+    month,
+    color: DEFAULT_BUDGET_COLOR,
+    is_system_generated: 1
+  };
 };
 
 const getBudgetDraft = (body, existingBudget) => ({
@@ -192,7 +223,9 @@ exports.saveBudget = async (req, res) => {
 
     if (existingBudget) {
       await runQuery(
-        "UPDATE budgets SET amount = ?, name = ?, icon = ?, color = ? WHERE budget_id = ?",
+        `UPDATE budgets
+         SET amount = ?, name = ?, icon = ?, color = ?, is_system_generated = 0
+         WHERE budget_id = ?`,
         [
           amount,
           budgetDraft.name,
@@ -213,7 +246,7 @@ exports.saveBudget = async (req, res) => {
     }
 
     const result = await runQuery(
-      "INSERT INTO budgets (user_id, name, icon, amount, spent, month, color) VALUES (?, ?, ?, ?, 0, ?, ?)",
+      "INSERT INTO budgets (user_id, name, icon, amount, spent, month, color, is_system_generated) VALUES (?, ?, ?, ?, 0, ?, ?, 0)",
       [userId, budgetDraft.name, budgetDraft.icon, amount, month, budgetDraft.color]
     );
 
@@ -242,16 +275,12 @@ exports.createAlert = async (req, res) => {
 
     const userId = getUserId(req);
     const { month } = getCurrentPeriod();
-    const currentBudget = await getBudgetForMonth(userId, month);
+    const currentBudget = await ensureBudgetForMonth(userId, month);
     const requestedBudgetId = Number(body.budget_id);
     const budgetId =
       Number.isInteger(requestedBudgetId) && requestedBudgetId > 0
         ? requestedBudgetId
         : currentBudget?.budget_id;
-
-    if (!budgetId) {
-      return res.status(400).json({ error: "Save a budget before creating alerts." });
-    }
 
     const matchingBudgets = await runQuery(
       "SELECT budget_id FROM budgets WHERE budget_id = ? AND user_id = ? LIMIT 1",

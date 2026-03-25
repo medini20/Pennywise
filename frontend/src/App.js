@@ -1,8 +1,14 @@
 import React, { useState } from "react";
-import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation, Navigate } from "react-router-dom";
 
 // Components
 import Sidebar from "./components/Sidebar";
+
+
+
+
+
+
 
 // Pages
 import Records from "./pages/records";
@@ -17,6 +23,12 @@ import Alerts from "./pages/Alerts";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import ForgotPassword from "./pages/ForgotPassword";
+
+const PrivateRoute = ({ children }) => {
+  const user = localStorage.getItem("user");
+
+  return user ? children : <Navigate to="/login" />;
+};
 
 function AppLayout() {
   const location = useLocation();
@@ -49,15 +61,15 @@ function AppLayout() {
       >
         <Routes>
           <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<Signup />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/" element={<Records />} />
-          <Route path="/transactions" element={<Transactions />} />
-          <Route path="/category" element={<Category />} />
-          <Route path="/budget" element={<Budget />} />
-          <Route path="/analytics" element={<Analytics />} />
-          <Route path="/alerts" element={<Alerts />} />
-          <Route path="/profile" element={<Profile />} />
+<Route path="/signup" element={<Signup />} />
+<Route path="/forgot-password" element={<ForgotPassword />} />
+         <Route path="/" element={<PrivateRoute><Records /></PrivateRoute>} />
+<Route path="/transactions" element={<PrivateRoute><Transactions /></PrivateRoute>} />
+<Route path="/category" element={<PrivateRoute><Category /></PrivateRoute>} />
+<Route path="/budget" element={<PrivateRoute><Budget /></PrivateRoute>} />
+<Route path="/analytics" element={<PrivateRoute><Analytics /></PrivateRoute>} />
+<Route path="/alerts" element={<PrivateRoute><Alerts /></PrivateRoute>} />
+<Route path="/profile" element={<PrivateRoute><Profile /></PrivateRoute>} />
         </Routes>
       </div>
     </div>
