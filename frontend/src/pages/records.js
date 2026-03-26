@@ -123,11 +123,20 @@ export default function Records({ notifications = [], dismissNotification, onSpe
       .catch(() => setTransactions([]));
   }, []);
 
-  const totalExpense = transactions
+  const monthTransactions = transactions.filter((transaction) => {
+    const transactionDate = formatTransactionDate(transaction);
+
+    return (
+      transactionDate.getMonth() === selectedMonthIndex &&
+      transactionDate.getFullYear() === currentYear
+    );
+  });
+
+  const totalExpense = monthTransactions
     .filter((transaction) => transaction.type === "expense")
     .reduce((sum, transaction) => sum + Number(transaction.amount), 0);
 
-  const totalIncome = transactions
+  const totalIncome = monthTransactions
     .filter((transaction) => transaction.type === "income")
     .reduce((sum, transaction) => sum + Number(transaction.amount), 0);
 
@@ -138,15 +147,9 @@ export default function Records({ notifications = [], dismissNotification, onSpe
     onSpendingChange?.(totalExpense);
   }, [onSpendingChange, totalExpense]);
 
-  const visibleTransactions = transactions.filter((transaction) => {
-    const transactionDate = formatTransactionDate(transaction);
-    const matchesMonth =
-      transactionDate.getMonth() === selectedMonthIndex &&
-      transactionDate.getFullYear() === currentYear;
-    const matchesType = filter === "all" ? true : transaction.type === filter;
-
-    return matchesMonth && matchesType;
-  });
+  const visibleTransactions = monthTransactions.filter((transaction) =>
+    filter === "all" ? true : transaction.type === filter
+  );
 
   const closeTransactionModal = () => {
     setShowTransaction(false);
