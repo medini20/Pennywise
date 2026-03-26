@@ -60,8 +60,8 @@ exports.addTransaction = async (req, res) => {
     }
 
     const query = `
-      INSERT INTO transactions (user_id, category_id, amount, type, description, transaction_date)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO transactions (user_id, category_id, amount, type, description, transaction_date, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, NOW())
     `;
 
     db.query(
@@ -75,7 +75,8 @@ exports.addTransaction = async (req, res) => {
 
         res.json({
           message: "Transaction added successfully",
-          category_id: categoryId
+          category_id: categoryId,
+          created_at: new Date().toISOString()
         });
       }
     );

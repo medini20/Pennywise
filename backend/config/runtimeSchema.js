@@ -102,12 +102,28 @@ const ensureCategorySchema = async () => {
   console.log("Added missing categories.icon column");
 };
 
+const ensureTransactionSchema = async () => {
+  if (await hasColumn("transactions", "created_at")) {
+    return;
+  }
+
+  await db.promise().query(
+    `
+      ALTER TABLE transactions
+      ADD COLUMN created_at DATETIME NULL
+    `
+  );
+
+  console.log("Added missing transactions.created_at column");
+};
+
 const ensureRuntimeSchema = async () => {
   try {
     await ensureBudgetSchema();
     await ensureUsersSchema();
     await ensureOtpSchema();
     await ensureCategorySchema();
+    await ensureTransactionSchema();
   } catch (error) {
     console.error("Runtime schema check failed:", error.message);
     throw error;

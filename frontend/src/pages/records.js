@@ -5,6 +5,29 @@ import { MdWarning } from "react-icons/md";
 import "./records.css";
 
 const API_BASE_URL = "http://localhost:5001";
+const INR = "\u20B9";
+
+const CATEGORY_ICON_MAP = {
+  food: "\uD83C\uDF7D\uFE0F",
+  "food & dining": "\uD83C\uDF7D\uFE0F",
+  home: "\uD83C\uDFE0",
+  electronics: "\uD83D\uDCF1",
+  pet: "\uD83D\uDC36",
+  pets: "\uD83D\uDC36",
+  shopping: "\uD83D\uDED2",
+  clothing: "\uD83D\uDED2",
+  car: "\uD83D\uDE97",
+  transport: "\uD83D\uDE97",
+  health: "\u2764\uFE0F",
+  fitness: "\uD83C\uDFCB\uFE0F",
+  games: "\uD83C\uDFAE",
+  music: "\uD83C\uDFB5",
+  finance: "\uD83D\uDCB0",
+  bonus: "\uD83D\uDCC8",
+  salary: "\uD83D\uDCB5",
+  freelance: "\uD83D\uDCBC",
+  investment: "\uD83D\uDC37"
+};
 
 const formatTransactionDate = (transaction) => {
   if (transaction.transaction_date) {
@@ -16,6 +39,57 @@ const formatTransactionDate = (transaction) => {
   }
 
   return new Date();
+};
+
+const getTransactionTime = (transaction) => {
+  const rawValue = transaction.created_at || transaction.createdAt || "";
+
+  if (typeof rawValue !== "string") {
+    return "";
+  }
+
+  const timeMatch = rawValue.match(/(\d{2}):(\d{2})(?::(\d{2}))?/);
+
+  if (!timeMatch) {
+    return "";
+  }
+
+  const hour = Number(timeMatch[1]);
+  const minute = Number(timeMatch[2]);
+  const second = Number(timeMatch[3] || 0);
+
+  if (hour === 0 && minute === 0 && second === 0) {
+    return "";
+  }
+
+  const transactionDate = new Date(rawValue);
+
+  return transactionDate.toLocaleTimeString("en-IN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true
+  });
+};
+
+const getTransactionIcon = (transaction) => {
+  if (typeof transaction.categoryIcon === "string" && transaction.categoryIcon.trim()) {
+    return transaction.categoryIcon.trim();
+  }
+
+  if (typeof transaction.category_icon === "string" && transaction.category_icon.trim()) {
+    return transaction.category_icon.trim();
+  }
+
+  const fallbackKey = (
+    transaction.category_name ||
+    transaction.category ||
+    transaction.description ||
+    ""
+  )
+    .trim()
+    .toLowerCase();
+
+  return CATEGORY_ICON_MAP[fallbackKey] || "\uD83D\uDCB0";
 };
 
 export default function Records() {
@@ -99,50 +173,43 @@ export default function Records() {
       />
 
       {requestError && (
-        <div style={{
-          marginBottom: "16px",
-          padding: "12px 14px",
-          borderRadius: "10px",
-          background: "rgba(239, 68, 68, 0.12)",
-          border: "1px solid rgba(239, 68, 68, 0.35)",
-          color: "#fecaca"
-        }}>
+        <div
+          style={{
+            marginBottom: "16px",
+            padding: "12px 14px",
+            borderRadius: "10px",
+            background: "rgba(239, 68, 68, 0.12)",
+            border: "1px solid rgba(239, 68, 68, 0.35)",
+            color: "#fecaca"
+          }}
+        >
           {requestError}
         </div>
       )}
 
       <div className="cards">
-        <div
-          className="card expenseCard"
-          onClick={() => setFilter("expense")}
-        >
+        <div className="card expenseCard" onClick={() => setFilter("expense")}>
           <div className="cardTitle">
             <span className="icon expenseIcon">↘</span>
             <span>Expenses</span>
           </div>
-          <h2>₹{totalExpense}</h2>
+          <h2>{INR}{totalExpense}</h2>
         </div>
 
-        <div
-          className="card incomeCard"
-          onClick={() => setFilter("income")}
-        >
+        <div className="card incomeCard" onClick={() => setFilter("income")}>
           <div className="cardTitle">
             <span className="icon incomeIcon">↗</span>
             <span>Income</span>
           </div>
-          <h2>₹{totalIncome}</h2>
+          <h2>{INR}{totalIncome}</h2>
         </div>
 
-        <div
-          className="card balanceCard"
-          onClick={() => setFilter("all")}
-        >
+        <div className="card balanceCard" onClick={() => setFilter("all")}>
           <div className="cardTitle">
             <span className="icon balanceIcon">◎</span>
             <span>Balance</span>
           </div>
-          <h2>₹{balance}</h2>
+          <h2>{INR}{balance}</h2>
         </div>
       </div>
 
@@ -170,15 +237,16 @@ export default function Records() {
           </div>
         )}
 
-        {[...transactions]
-          .reverse()
+        {transactions
           .filter((transaction) => (filter === "all" ? true : transaction.type === filter))
           .map((transaction, index) => {
             const transactionDate = formatTransactionDate(transaction);
+            const transactionTime = getTransactionTime(transaction);
+            const transactionIcon = getTransactionIcon(transaction);
             const description = transaction.note || transaction.description || "No description";
 
             return (
-              <div className="transaction" key={index}>
+              <div className="transaction" key={transaction.transaction_id || index}>
                 <div className="left">
                   <div className="date">
                     {transactionDate.toLocaleDateString("en-IN", {
@@ -191,36 +259,27 @@ export default function Records() {
                       weekday: "long"
                     })}
                   </div>
-                  <div className="time">
-                    {transactionDate.toLocaleTimeString("en-IN", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                      hour12: true
-                    })}
-                  </div>
+                  {transactionTime && <div className="time">{transactionTime}</div>}
                 </div>
 
                 <div className="middle">
                   <div className="transactionNote">
-                    {transaction.categoryIcon && (
-                      <span className="transactionEmoji">{transaction.categoryIcon}</span>
-                    )}
+                    <span className="transactionEmoji">{transactionIcon}</span>
                     <span>{description}</span>
                   </div>
                 </div>
 
-                <div className={`right ${transaction.type === "expense" ? "expenseText" : "incomeText"}`}>
-                  ₹{transaction.type === "expense" ? "-" : "+"}{transaction.amount}
+                <div
+                  className={`right ${transaction.type === "expense" ? "expenseText" : "incomeText"}`}
+                >
+                  {INR}{transaction.type === "expense" ? "-" : "+"}{transaction.amount}
                 </div>
               </div>
             );
           })}
       </div>
 
-      <button
-        className="addTransaction"
-        onClick={() => setShowTransaction(true)}
-      >
+      <button className="addTransaction" onClick={() => setShowTransaction(true)}>
         + ADD TRANSACTION
       </button>
 
@@ -254,12 +313,17 @@ export default function Records() {
               }
 
               setTransactions((prevTransactions) => [
-                ...prevTransactions,
                 {
-                  ...data,
-                  description: data.note,
-                  transaction_date: data.transactionDate
-                }
+                  transaction_id: result.transaction_id || `local-${Date.now()}`,
+                  transaction_date: data.transactionDate,
+                  created_at: result.created_at || new Date().toISOString(),
+                  category_name: data.category,
+                  category_icon: data.categoryIcon,
+                  description: data.note || data.category,
+                  amount: data.amount,
+                  type: data.type
+                },
+                ...prevTransactions
               ]);
             } catch (error) {
               setRequestError(
