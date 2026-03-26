@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import "./Profile.css";
 import Webcam from "react-webcam";
 import { useNavigate } from "react-router-dom";
-import { FaCheck, FaPen } from "react-icons/fa";
+import { FaCheck, FaLock, FaPen } from "react-icons/fa";
 import {
   clearStoredSession,
   getStoredUser,
@@ -70,6 +70,12 @@ function Profile() {
   const [showOptions, setShowOptions] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
   const [profileImage, setProfileImage] = useState(DEFAULT_PROFILE_IMAGE);
+  const [showPasswordReset, setShowPasswordReset] = useState(false);
+  const [oldPassword, setOldPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordMessage, setPasswordMessage] = useState("");
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
 
   const updateSavedUser = (nextUsername, nextEmail) => {
     syncStoredUser({
@@ -189,6 +195,28 @@ function Profile() {
     setEditUser(false);
   };
 
+  const resetPasswordForm = () => {
+    setOldPassword("");
+    setNewPassword("");
+    setConfirmPassword("");
+    setPasswordMessage("");
+  };
+
+  const openPasswordReset = () => {
+    resetPasswordForm();
+    setShowPasswordReset(true);
+    setStatusMessage("");
+  };
+
+  const closePasswordReset = (forceClose = false) => {
+    if (isUpdatingPassword && !forceClose) {
+      return;
+    }
+
+    setShowPasswordReset(false);
+    resetPasswordForm();
+  };
+
   const saveProfile = async () => {
     const token = getStoredToken();
     const trimmedUsername = tempUser.trim();
@@ -267,6 +295,91 @@ function Profile() {
       setStatusMessage(
         sanitizeProfileMessage(error.message, "Unable to update profile right now.")
       );
+    }
+  };
+
+  const savePassword = async (event) => {
+    event.preventDefault();
+    setPasswordMessage("");
+
+    const token = getStoredToken();
+    if (!token) {
+      clearStoredSession();
+      navigate("/login");
+      return;
+    }
+
+    if (!oldPassword || !newPassword || !confirmPassword) {
+      setPasswordMessage("All password fields are required.");
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordMessage("New password and confirmation do not match.");
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      setPasswordMessage("New password must be at least 8 characters long.");
+      return;
+    }
+
+    try {
+      setIsUpdatingPassword(true);
+      const res = await fetch(`${API_BASE_URL}/auth/change-password`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          oldPassword,
+          newPassword
+        })
+      });
+
+      const responseText = await res.text();
+      let data = {};
+      try {
+        data = responseText ? JSON.parse(responseText) : {};
+      } catch (parseError) {
+        data = {};
+      }
+
+      if (res.status === 401) {
+        clearStoredSession();
+        navigate("/login");
+        return;
+      }
+
+      if (!res.ok) {
+        if (res.status === 404 && /Cannot POST \/auth\/change-password/i.test(responseText)) {
+          setPasswordMessage("Password API is not loaded. Restart backend server and try again.");
+          return;
+        }
+
+        setPasswordMessage(
+          sanitizeProfileMessage(
+            data.message || data.error || responseText,
+            "Unable to update password right now."
+          )
+        );
+        return;
+      }
+
+      closePasswordReset(true);
+      setStatusMessage(data.message || "Password updated successfully.");
+    } catch (error) {
+      if (error?.name === "TypeError") {
+        setPasswordMessage(API_DOWN_MESSAGE);
+        return;
+      }
+
+      setPasswordMessage(
+        sanitizeProfileMessage(error.message, "Unable to update password right now.")
+      );
+    } finally {
+      setIsUpdatingPassword(false);
     }
   };
 
@@ -392,6 +505,92 @@ function Profile() {
         </div>
       )}
 
+      {showPasswordReset && (
+        <div className="profile-popup" onMouseDown={() => closePasswordReset()}>
+          <div
+            className="profile-password-modal"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className="profile-password-header">
+              <div className="profile-password-heading">
+                <span className="profile-password-icon">
+                  <FaLock />
+                </span>
+                <div>
+                  <h3>Reset Password</h3>
+                  <p>Update your account security</p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                className="profile-password-close"
+                onClick={() => closePasswordReset()}
+                aria-label="Close reset password dialog"
+              >
+                ×
+              </button>
+            </div>
+
+            <form className="profile-password-form" onSubmit={savePassword}>
+              <label className="profile-password-label" htmlFor="oldPasswordInput">
+                Old Password
+              </label>
+              <input
+                id="oldPasswordInput"
+                type="password"
+                className="profile-password-input"
+                value={oldPassword}
+                onChange={(event) => setOldPassword(event.target.value)}
+                placeholder="Enter your current password"
+                autoComplete="current-password"
+                required
+              />
+
+              <label className="profile-password-label" htmlFor="newPasswordInput">
+                New Password
+              </label>
+              <input
+                id="newPasswordInput"
+                type="password"
+                className="profile-password-input"
+                value={newPassword}
+                onChange={(event) => setNewPassword(event.target.value)}
+                placeholder="Enter your new password"
+                autoComplete="new-password"
+                required
+              />
+
+              <label className="profile-password-label" htmlFor="confirmPasswordInput">
+                Confirm New Password
+              </label>
+              <input
+                id="confirmPasswordInput"
+                type="password"
+                className="profile-password-input"
+                value={confirmPassword}
+                onChange={(event) => setConfirmPassword(event.target.value)}
+                placeholder="Confirm your new password"
+                autoComplete="new-password"
+                required
+              />
+
+              {passwordMessage && (
+                <div className="profile-password-status">{passwordMessage}</div>
+              )}
+
+              <button
+                type="submit"
+                className="change-btn profile-password-submit"
+                disabled={isUpdatingPassword}
+              >
+                {isUpdatingPassword ? "Saving..." : "Save New Password"}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
       {statusMessage && <div className="profile-status">{statusMessage}</div>}
 
       <div className="profile-card">
@@ -451,6 +650,22 @@ function Profile() {
           <div className="label">Email</div>
           <div className="profile-field-row">
             <span className="value profile-inline-value">{email || "Not set"}</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="profile-card">
+        <div className="profile-card-content">
+          <div className="label">Security</div>
+          <div className="profile-field-row">
+            <span className="value profile-inline-value">Reset Password</span>
+            <button
+              type="button"
+              className="profile-action-btn"
+              onClick={openPasswordReset}
+            >
+              Reset
+            </button>
           </div>
         </div>
       </div>
