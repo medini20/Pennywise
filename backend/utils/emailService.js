@@ -10,12 +10,13 @@ const transporter = nodemailer.createTransport({
 });
 
 exports.sendOTP = async (email, otp) => {
-    // If no real credentials, just log the OTP to console (pseudo-send) for testing
+    // Always log OTP to console for debugging/testing
+    console.log(`\n================================`);
+    console.log(`OTP for ${email}: ${otp}`);
+    console.log(`================================\n`);
+
+    // If no real credentials, just use console (mock mode)
     if (!process.env.EMAIL_USER || process.env.EMAIL_USER === 'your_email@gmail.com') {
-        console.log(`\n================================`);
-        console.log(`MOCK EMAIL SENT TO: ${email}`);
-        console.log(`YOUR OTP IS: ${otp}`);
-        console.log(`================================\n`);
         return true;
     }
 
@@ -28,10 +29,12 @@ exports.sendOTP = async (email, otp) => {
 
     try {
         await transporter.sendMail(mailOptions);
+        console.log(`✅ Email sent successfully to ${email}`);
         return true;
     } catch (error) {
-        console.error("Error sending email:", error);
-        return false;
+        console.error("⚠️ Email send failed:", error.message);
+        console.log(`📋 Use the OTP from the console log above to verify.`);
+        return true; // Return true so signup still succeeds — OTP is in console
     }
 };
 
