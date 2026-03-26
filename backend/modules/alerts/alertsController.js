@@ -4,7 +4,6 @@ const emailService = require("../../utils/emailService");
 const DEFAULT_USER_ID = 1;
 const DEFAULT_BUDGET_AMOUNT = 5000;
 const DEFAULT_BUDGET_NAME = "Monthly Budget";
-const DEFAULT_BUDGET_COLOR = "#ffcc00";
 
 const runQuery = (sql, params = []) =>
   new Promise((resolve, reject) => {
@@ -55,38 +54,61 @@ const toNonNegativeNumber = (value) => {
   return Number.isFinite(parsedValue) && parsedValue >= 0 ? parsedValue : null;
 };
 
-const toOptionalText = (value) => {
-  if (typeof value !== "string") {
-    return null;
-  }
-
-  const trimmedValue = value.trim();
-  return trimmedValue.length > 0 ? trimmedValue : null;
-};
-
-const toHexColor = (value) => {
-  const parsedValue = toOptionalText(value);
-  return parsedValue && /^#[0-9a-fA-F]{6}$/.test(parsedValue) ? parsedValue : null;
-};
-
-const createHttpError = (statusCode, message) => {
-  const error = new Error(message);
-  error.statusCode = statusCode;
-  return error;
-};
-
 const getBudgetForMonth = async (userId, month) => {
   const rows = await runQuery(
-    `SELECT budget_id, user_id, name, icon, amount, spent, month, color,
-            COALESCE(is_system_generated, 0) AS is_system_generated
-     FROM budgets
-     WHERE user_id = ? AND month = ?
-     ORDER BY COALESCE(is_system_generated, 0) ASC, budget_id DESC
+    `SELECT
+        b.budget_id,
+        b.user_id,
+        b.category_id,
+        c.name,
+        c.icon,
+        b.amount,
+        COALESCE((
+          SELECT SUM(t.amount)
+          FROM transactions t
+          WHERE t.user_id = b.user_id
+            AND t.type = 'expense'
+            AND t.category_id = b.category_id
+        ), 0) AS spent,
+        b.month,
+        COALESCE(b.is_system_generated, 0) AS is_system_generated
+     FROM budgets b
+     LEFT JOIN categories c
+       ON c.category_id = b.category_id
+     WHERE b.user_id = ? AND b.month = ?
+     ORDER BY COALESCE(b.is_system_generated, 0) ASC, b.budget_id DESC
      LIMIT 1`,
     [userId, month]
   );
 
   return rows[0] || null;
+};
+
+const ensureMonthlyBudgetCategory = async (userId) => {
+  const existingCategories = await runQuery(
+    `SELECT category_id, name, icon
+     FROM categories
+     WHERE user_id = ?
+       AND LOWER(TRIM(name)) = LOWER(TRIM(?))
+     LIMIT 1`,
+    [userId, DEFAULT_BUDGET_NAME]
+  );
+
+  if (existingCategories.length > 0) {
+    return existingCategories[0];
+  }
+
+  const result = await runQuery(
+    `INSERT INTO categories (user_id, name, type, icon)
+     VALUES (?, ?, 'expense', NULL)`,
+    [userId, DEFAULT_BUDGET_NAME]
+  );
+
+  return {
+    category_id: result.insertId,
+    name: DEFAULT_BUDGET_NAME,
+    icon: null
+  };
 };
 
 const ensureBudgetForMonth = async (userId, month) => {
@@ -95,34 +117,27 @@ const ensureBudgetForMonth = async (userId, month) => {
     return existingBudget;
   }
 
+  const category = await ensureMonthlyBudgetCategory(userId);
+
   const result = await runQuery(
     `INSERT INTO budgets
-      (user_id, name, icon, amount, spent, month, color, is_system_generated)
-     VALUES (?, ?, ?, ?, 0, ?, ?, 1)`,
-    [userId, DEFAULT_BUDGET_NAME, null, DEFAULT_BUDGET_AMOUNT, month, DEFAULT_BUDGET_COLOR]
+      (user_id, category_id, amount, month, is_system_generated)
+     VALUES (?, ?, ?, ?, 1)`,
+    [userId, category.category_id, DEFAULT_BUDGET_AMOUNT, month]
   );
 
   return {
     budget_id: result.insertId,
     user_id: userId,
+    category_id: category.category_id,
     name: DEFAULT_BUDGET_NAME,
     icon: null,
     amount: DEFAULT_BUDGET_AMOUNT,
     spent: 0,
     month,
-    color: DEFAULT_BUDGET_COLOR,
     is_system_generated: 1
   };
 };
-
-const getBudgetDraft = (body, existingBudget) => ({
-  name: toOptionalText(body.name) || existingBudget?.name || DEFAULT_BUDGET_NAME,
-  icon:
-    body.icon !== undefined
-      ? toOptionalText(body.icon)
-      : existingBudget?.icon ?? null,
-  color: toHexColor(body.color) || existingBudget?.color || DEFAULT_BUDGET_COLOR
-});
 
 const getCurrentSpending = async (userId, month, year) => {
   const rows = await runQuery(
@@ -219,18 +234,15 @@ exports.saveBudget = async (req, res) => {
     const userId = getUserId(req);
     const { month } = getCurrentPeriod();
     const existingBudget = await getBudgetForMonth(userId, month);
-    const budgetDraft = getBudgetDraft(body, existingBudget);
+    const category = existingBudget || (await ensureMonthlyBudgetCategory(userId));
 
     if (existingBudget) {
       await runQuery(
         `UPDATE budgets
-         SET amount = ?, name = ?, icon = ?, color = ?, is_system_generated = 1
+         SET amount = ?, is_system_generated = 1
          WHERE budget_id = ?`,
         [
           amount,
-          DEFAULT_BUDGET_NAME,
-          budgetDraft.icon,
-          budgetDraft.color,
           existingBudget.budget_id
         ]
       );
@@ -240,14 +252,14 @@ exports.saveBudget = async (req, res) => {
         budget_id: existingBudget.budget_id,
         amount,
         name: DEFAULT_BUDGET_NAME,
-        icon: budgetDraft.icon,
-        color: budgetDraft.color
+        icon: existingBudget.icon
       });
     }
 
     const result = await runQuery(
-      "INSERT INTO budgets (user_id, name, icon, amount, spent, month, color, is_system_generated) VALUES (?, ?, ?, ?, 0, ?, ?, 1)",
-      [userId, DEFAULT_BUDGET_NAME, budgetDraft.icon, amount, month, budgetDraft.color]
+      `INSERT INTO budgets (user_id, category_id, amount, month, is_system_generated)
+       VALUES (?, ?, ?, ?, 1)`,
+      [userId, category.category_id, amount, month]
     );
 
     return res.status(201).json({
@@ -255,11 +267,10 @@ exports.saveBudget = async (req, res) => {
       budget_id: result.insertId,
       amount,
       name: DEFAULT_BUDGET_NAME,
-      icon: budgetDraft.icon,
-      color: budgetDraft.color
+      icon: category.icon || null
     });
   } catch (error) {
-    return res.status(error.statusCode || 500).json({ error: error.message });
+    return res.status(500).json({ error: error.message });
   }
 };
 

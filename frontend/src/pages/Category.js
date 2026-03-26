@@ -1,7 +1,10 @@
 import React, { useState } from "react";
+import { getStoredUser } from "../services/authStorage";
 import "./Category.css";
 
 export default function Category({ closeCategory, addNewCategory }) {
+  const storedUser = getStoredUser();
+  const userId = storedUser?.id ?? storedUser?.user_id ?? null;
   const [view, setView] = useState("select");
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
@@ -41,13 +44,18 @@ export default function Category({ closeCategory, addNewCategory }) {
       return;
     }
 
+    if (!userId) {
+      setErrorMessage("Please log in again before creating a budget category.");
+      return;
+    }
+
     setErrorMessage("");
 
     const budgetData = {
       name,
       amount: Number(amount),
       icon: selectedIcon,
-      user_id: 1,
+      user_id: userId,
       month: 1
     };
 

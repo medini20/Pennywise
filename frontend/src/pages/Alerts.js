@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   AlertTriangle,
   Check,
@@ -8,6 +8,7 @@ import {
   Trash2,
   X
 } from "lucide-react";
+import { getStoredUser } from "../services/authStorage";
 import "./Alerts.css";
 
 const API_BASE_URL = "http://localhost:5001";
@@ -27,6 +28,8 @@ const getAlertTone = (percentage) => {
 };
 
 export default function AlertsView() {
+  const storedUser = getStoredUser();
+  const userId = storedUser?.id ?? storedUser?.user_id ?? null;
   const [budget, setBudget] = useState(5000);
   const [tempBudget, setTempBudget] = useState(5000);
   const [isEditingBudget, setIsEditingBudget] = useState(false);
@@ -42,13 +45,13 @@ export default function AlertsView() {
   const [isSavingAlert, setIsSavingAlert] = useState(false);
   const [deletingAlertId, setDeletingAlertId] = useState(null);
 
-  const loadAlertData = async () => {
+  const loadAlertData = useCallback(async () => {
     setIsLoading(true);
     setStatusMessage("");
     setStatusTone("");
 
     try {
-      const response = await fetch(`${API_BASE_URL}/alerts/data`);
+      const response = await fetch(`${API_BASE_URL}/alerts/data?user_id=${userId}`);
       const data = await response.json();
 
       if (!response.ok) {
@@ -73,11 +76,18 @@ export default function AlertsView() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [userId]);
 
   useEffect(() => {
+    if (!userId) {
+      setIsLoading(false);
+      setStatusMessage("Please log in again to load alerts.");
+      setStatusTone("error");
+      return;
+    }
+
     loadAlertData();
-  }, []);
+  }, [userId, loadAlertData]);
 
   const spentPercentage = budget > 0 ? (currentSpending / budget) * 100 : 0;
   const remainingAmount = Math.max(budget - currentSpending, 0);
@@ -110,7 +120,7 @@ export default function AlertsView() {
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({ amount })
+        body: JSON.stringify({ amount, user_id: userId })
       });
 
       const data = await response.json();
@@ -160,7 +170,7 @@ export default function AlertsView() {
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({ threshold_percent: percentage })
+        body: JSON.stringify({ threshold_percent: percentage, user_id: userId })
       });
 
       const data = await response.json();
@@ -190,7 +200,7 @@ export default function AlertsView() {
     setStatusTone("");
 
     try {
-      const response = await fetch(`${API_BASE_URL}/alerts/${alertId}`, {
+      const response = await fetch(`${API_BASE_URL}/alerts/${alertId}?user_id=${userId}`, {
         method: "DELETE"
       });
 

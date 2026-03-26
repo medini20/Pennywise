@@ -300,6 +300,8 @@ function TopBar({ notifications, refreshNotifications }) {
 
 function AppLayout() {
   const location = useLocation();
+  const storedUser = getStoredUser();
+  const userId = storedUser?.id ?? storedUser?.user_id ?? null;
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [notifications, setNotifications] = useState(readStoredNotifications);
   const [dismissedNotificationIds, setDismissedNotificationIds] = useState(
@@ -314,6 +316,11 @@ function AppLayout() {
   const sidebarWidth = isCollapsed ? "70px" : "260px";
 
   const refreshNotifications = useCallback(async (currentSpendingOverride) => {
+    if (!userId) {
+      setNotifications([]);
+      return [];
+    }
+
     const parsedSpending = Number(
       currentSpendingOverride ?? window.localStorage.getItem(CURRENT_SPENDING_KEY) ?? 0
     );
@@ -325,6 +332,7 @@ function AppLayout() {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
+          user_id: userId,
           current_spending: Number.isFinite(parsedSpending) ? parsedSpending : 0
         })
       });
@@ -350,7 +358,7 @@ function AppLayout() {
       console.error(error.message);
       return [];
     }
-  }, []);
+  }, [userId]);
 
   const handleSpendingChange = useCallback(
     (currentSpending) => {

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   FaArrowLeft,
   FaTimes,
@@ -9,6 +9,7 @@ import {
   FaHeartbeat
 } from "react-icons/fa";
 import { LuPencil, LuTrash2 } from "react-icons/lu";
+import { getStoredUser } from "../services/authStorage";
 import "./Budget.css";
 import Category from "./Category";
 
@@ -113,6 +114,8 @@ const formatTransactionDate = (value) => {
 };
 
 function Budget() {
+  const storedUser = getStoredUser();
+  const userId = storedUser?.id ?? storedUser?.user_id ?? null;
   const [budgets, setBudgets] = useState([]);
   const [selectedBudget, setSelectedBudget] = useState(null);
   const [transactions, setTransactions] = useState([]);
@@ -123,16 +126,45 @@ function Budget() {
   const [editName, setEditName] = useState("");
   const [amount, setAmount] = useState("");
 
+  const loadBudgets = useCallback(() => {
+    if (!userId) {
+      setBudgets([]);
+      return;
+    }
+
+    fetch(`${API_BASE_URL}/budget/list?user_id=${userId}`)
+      .then((res) => res.json())
+      .then((data) => {
+        const list = Array.isArray(data) ? data : data.budgets || [];
+        setBudgets(list);
+      })
+      .catch(() => console.log("Database offline"));
+  }, [userId]);
+
+  const loadTransactions = useCallback(() => {
+    if (!userId) {
+      setTransactions([]);
+      return;
+    }
+
+    fetch(`${API_BASE_URL}/api/transactions?user_id=${userId}`)
+      .then((res) => res.json())
+      .then((data) => {
+        setTransactions(Array.isArray(data) ? data : []);
+      })
+      .catch(() => setTransactions([]));
+  }, [userId]);
+
   useEffect(() => {
     loadBudgets();
     loadTransactions();
-  }, []);
+  }, [loadBudgets, loadTransactions]);
 
   useEffect(() => {
     if (isDetailOpen && selectedBudget) {
       loadTransactions();
     }
-  }, [isDetailOpen, selectedBudget]);
+  }, [isDetailOpen, selectedBudget, loadTransactions]);
 
   const computedBudgets = useMemo(() => {
     return budgets.map((budget) => {
@@ -188,25 +220,6 @@ function Budget() {
       setSelectedBudget(refreshedBudget);
     }
   }, [computedBudgets, selectedBudget]);
-
-  const loadBudgets = () => {
-    fetch(`${API_BASE_URL}/budget/list`)
-      .then((res) => res.json())
-      .then((data) => {
-        const list = Array.isArray(data) ? data : data.budgets || [];
-        setBudgets(list);
-      })
-      .catch(() => console.log("Database offline"));
-  };
-
-  const loadTransactions = () => {
-    fetch(`${API_BASE_URL}/api/transactions?user_id=1`)
-      .then((res) => res.json())
-      .then((data) => {
-        setTransactions(Array.isArray(data) ? data : []);
-      })
-      .catch(() => setTransactions([]));
-  };
 
   const renderIcon = (iconValue, color) => {
     const style = { color: color || "#20c4d8", fontSize: "20px" };

@@ -2,42 +2,34 @@ const db = require("../../config/db");
 
 // 1. GET ALL BUDGETS
 exports.getBudgets = (req, res) => {
+  const { user_id } = req.query;
   const query = `
     SELECT
       b.budget_id,
       b.user_id,
-      b.name,
-      b.icon,
+      b.category_id,
+      c.name,
+      c.icon,
       b.amount,
       COALESCE((
         SELECT SUM(t.amount)
         FROM transactions t
-        LEFT JOIN categories c
-          ON c.category_id = t.category_id
         WHERE t.user_id = b.user_id
           AND t.type = 'expense'
-          AND (
-            (
-              b.icon IS NOT NULL
-              AND TRIM(b.icon) <> ''
-              AND c.icon IS NOT NULL
-              AND TRIM(c.icon) <> ''
-              AND TRIM(c.icon) = TRIM(b.icon)
-            )
-            OR LOWER(TRIM(COALESCE(c.name, ''))) = LOWER(TRIM(b.name))
-            OR LOWER(TRIM(COALESCE(t.description, ''))) = LOWER(TRIM(b.name))
-          )
+          AND t.category_id = b.category_id
       ), 0) AS spent,
       b.month,
-      b.color,
       b.is_system_generated
     FROM budgets b
+    LEFT JOIN categories c
+      ON c.category_id = b.category_id
     WHERE COALESCE(b.is_system_generated, 0) = 0
-      AND LOWER(TRIM(b.name)) <> 'monthly budget'
+      ${user_id ? "AND b.user_id = ?" : ""}
+      AND LOWER(TRIM(COALESCE(c.name, ''))) <> 'monthly budget'
     ORDER BY b.budget_id DESC
   `;
 
-  db.query(query, (err, result) => {
+  db.query(query, user_id ? [user_id] : [], (err, result) => {
     if (err) {
       console.error("SQL Error in getBudgets:", err.message);
       return res.status(500).json(err);
@@ -49,26 +41,13 @@ exports.getBudgets = (req, res) => {
 
 // 2. ADD NEW BUDGET
 exports.addBudget = async (req, res) => {
-  const { name, amount, icon, user_id, month, color } = req.body;
+  const { name, amount, icon, user_id, month } = req.body;
 
   if (!name || !amount) {
     return res.status(400).json({ error: "Name and amount are required" });
   }
 
   const resolvedUserId = user_id || 1;
-  const query = `
-    INSERT INTO budgets (name, amount, icon, user_id, month, spent, color, is_system_generated)
-    VALUES (?, ?, ?, ?, ?, 0, ?, 0)
-  `;
-
-  const values = [
-    name,
-    amount,
-    icon,
-    resolvedUserId,
-    month || 1,
-    color || "#ffcc00"
-  ];
 
   try {
     const [existingCategories] = await db.promise().query(
@@ -82,17 +61,25 @@ exports.addBudget = async (req, res) => {
       [resolvedUserId, name]
     );
 
-    if (existingCategories.length === 0) {
-      await db.promise().query(
+    let categoryId = existingCategories[0]?.category_id;
+
+    if (!categoryId) {
+      const [insertCategoryResult] = await db.promise().query(
         `
           INSERT INTO categories (user_id, name, type, icon)
           VALUES (?, ?, 'expense', ?)
         `,
         [resolvedUserId, name, icon || null]
       );
+      categoryId = insertCategoryResult.insertId;
     }
 
-    db.query(query, values, (err, result) => {
+    const query = `
+      INSERT INTO budgets (user_id, category_id, amount, month, is_system_generated)
+      VALUES (?, ?, ?, ?, 0)
+    `;
+
+    db.query(query, [resolvedUserId, categoryId, amount, month || 1], (err, result) => {
       if (err) {
         console.error("SQL Error in addBudget:", err.message);
         return res.status(500).json({ error: err.message });
@@ -100,11 +87,14 @@ exports.addBudget = async (req, res) => {
 
       res.status(201).json({
         budget_id: result.insertId,
+        user_id: resolvedUserId,
+        category_id: categoryId,
         name,
         amount,
         icon,
         spent: 0,
-        color: color || "#ffcc00"
+        month: month || 1,
+        is_system_generated: 0
       });
     });
   } catch (err) {
