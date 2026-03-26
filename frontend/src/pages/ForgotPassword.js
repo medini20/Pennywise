@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:5001";
+
 function ForgotPassword() {
   const [email, setEmail] = useState("");
   const [otpCode, setOtpCode] = useState("");
@@ -17,7 +19,7 @@ function ForgotPassword() {
     setError(""); setMessage(""); setLoading(true);
 
     try {
-      const response = await fetch("http://localhost:5001/auth/forgot-password", {
+      const response = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
@@ -26,6 +28,9 @@ function ForgotPassword() {
 
       if (response.ok) {
         setMessage(data.message);
+        if (data.otp) {
+          setOtpCode(data.otp);
+        }
         setStep(2);
       } else {
         setError(data.error || "Request failed");
@@ -51,7 +56,7 @@ function ForgotPassword() {
     }
 
     try {
-      const response = await fetch("http://localhost:5001/auth/reset-password", {
+      const response = await fetch(`${API_BASE_URL}/auth/reset-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, otpCode, newPassword }),
