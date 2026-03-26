@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import Transactions from "./Transactions";
 import Notifications from "../components/Notifications";
-import { MdWarning } from "react-icons/md";
 import "./records.css";
 
 const API_BASE_URL = "http://localhost:5001";
@@ -92,11 +91,10 @@ const getTransactionIcon = (transaction) => {
   return CATEGORY_ICON_MAP[fallbackKey] || "\uD83D\uDCB0";
 };
 
-export default function Records() {
+export default function Records({ notifications = [], dismissNotification, onSpendingChange }) {
   const [showTransaction, setShowTransaction] = useState(false);
   const [transactions, setTransactions] = useState([]);
   const [filter, setFilter] = useState("all");
-  const [notifications, setNotifications] = useState([]);
   const [requestError, setRequestError] = useState("");
 
   useEffect(() => {
@@ -118,58 +116,14 @@ export default function Records() {
 
   useEffect(() => {
     localStorage.setItem("currentSpending", totalExpense.toString());
-  }, [totalExpense]);
-
-  useEffect(() => {
-    const checkTriggeredAlerts = async () => {
-      try {
-        const response = await fetch(`${API_BASE_URL}/alerts/check`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            current_spending: totalExpense
-          })
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-          throw new Error(data.error || "Unable to check alerts right now.");
-        }
-
-        const triggeredAlerts = Array.isArray(data.triggered_alerts)
-          ? data.triggered_alerts
-          : [];
-
-        setNotifications(
-          triggeredAlerts.map((alert) => ({
-            id: alert.id,
-            percentage: alert.percentage,
-            message: `Spending reached ${alert.percentage}% of your budget`,
-            icon: <MdWarning />
-          }))
-        );
-      } catch (error) {
-        console.error(error.message);
-      }
-    };
-
-    checkTriggeredAlerts();
-  }, [totalExpense]);
-
-  const removeNotification = (id) => {
-    setNotifications((prevNotifications) =>
-      prevNotifications.filter((notification) => notification.id !== id)
-    );
-  };
+    onSpendingChange?.(totalExpense);
+  }, [onSpendingChange, totalExpense]);
 
   return (
     <div className="records-page">
       <Notifications
         notifications={notifications}
-        removeNotification={removeNotification}
+        removeNotification={dismissNotification || (() => {})}
       />
 
       {requestError && (

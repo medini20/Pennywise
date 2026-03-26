@@ -1,4 +1,5 @@
 import React from "react";
+import { MdWarning } from "react-icons/md";
 import "./Notifications.css";
 
 export default function Notifications({ notifications, removeNotification }) {
@@ -13,7 +14,7 @@ export default function Notifications({ notifications, removeNotification }) {
         <div key={n.id} className="notification">
 
           <span className="notificationIcon">
-            {n.icon}
+            {n.icon || <MdWarning />}
           </span>
 
           <span className="notificationText">

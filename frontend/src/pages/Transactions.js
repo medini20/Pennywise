@@ -26,9 +26,14 @@ const formatDateValue = (date) => {
   return `${year}-${month}-${day}`;
 };
 
-export default function Transactions({ closeModal, addTransaction }) {
+export default function Transactions({
+  closeModal = () => {},
+  addTransaction = () => {}
+}) {
   const today = new Date();
   const dateInputRef = useRef(null);
+  const recurringStartDateRef = useRef(null);
+  const recurringEndDateRef = useRef(null);
 
   const [showCategory, setShowCategory] = useState(false);
   const [type, setType] = useState("expense");
@@ -38,6 +43,9 @@ export default function Transactions({ closeModal, addTransaction }) {
   const [selectedDate, setSelectedDate] = useState(formatDateValue(today));
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurringFrequency, setRecurringFrequency] = useState("Monthly");
+  const [recurringStartDate, setRecurringStartDate] = useState(formatDateValue(today));
+  const [recurringEndDate, setRecurringEndDate] = useState("");
+  const [recurringMessage, setRecurringMessage] = useState("");
   const [expenseCategories, setExpenseCategories] = useState(DEFAULT_EXPENSE_CATEGORIES);
   const [incomeCategories, setIncomeCategories] = useState(DEFAULT_INCOME_CATEGORIES);
 
@@ -86,6 +94,12 @@ export default function Transactions({ closeModal, addTransaction }) {
     (category) => category.name === selectedCategory
   );
 
+  const dismissActiveElement = () => {
+    if (document.activeElement && typeof document.activeElement.blur === "function") {
+      document.activeElement.blur();
+    }
+  };
+
   const openDatePicker = () => {
     if (!dateInputRef.current) {
       return;
@@ -98,6 +112,71 @@ export default function Transactions({ closeModal, addTransaction }) {
 
     dateInputRef.current.focus();
     dateInputRef.current.click();
+  };
+
+  const openRecurringDatePicker = (dateInputRefValue) => {
+    if (!dateInputRefValue?.current) {
+      return;
+    }
+
+    if (typeof dateInputRefValue.current.showPicker === "function") {
+      dateInputRefValue.current.showPicker();
+      return;
+    }
+
+    dateInputRefValue.current.focus();
+    dateInputRefValue.current.click();
+  };
+
+  const handleRecurringToggle = () => {
+    dismissActiveElement();
+    setIsRecurring((currentValue) => {
+      const nextValue = !currentValue;
+
+      if (nextValue) {
+        setRecurringStartDate(selectedDate);
+      } else {
+        setRecurringMessage("");
+      }
+
+      return nextValue;
+    });
+  };
+
+  const handleSaveRecurring = () => {
+    if (!amount) {
+      setRecurringMessage("Enter an amount before saving the recurring payment.");
+      return;
+    }
+
+    if (!selectedCategory) {
+      alert("Select a category");
+      return;
+    }
+
+    if (!recurringStartDate) {
+      setRecurringMessage("Select a recurring payment start date.");
+      return;
+    }
+
+    if (recurringEndDate && recurringEndDate < recurringStartDate) {
+      setRecurringMessage("End date must be the same as or after the start date.");
+      return;
+    }
+
+    addTransaction({
+      amount: Number(amount),
+      note: selectedCategory,
+      type,
+      category: selectedCategory,
+      categoryIcon: selectedCategoryDetails?.icon || "",
+      transactionDate: recurringStartDate,
+      recurring: true,
+      recurringFrequency,
+      recurringStartDate,
+      recurringEndDate
+    });
+    closeModal();
   };
 
   return (
@@ -152,7 +231,7 @@ export default function Transactions({ closeModal, addTransaction }) {
             <button
               type="button"
               className={`toggleSwitch ${isRecurring ? "toggleOn" : ""}`}
-              onClick={() => setIsRecurring((value) => !value)}
+              onClick={handleRecurringToggle}
             >
               <span className="toggleThumb" />
             </button>
@@ -168,85 +247,163 @@ export default function Transactions({ closeModal, addTransaction }) {
                     type="button"
                     key={option}
                     className={`frequencyButton ${recurringFrequency === option ? "frequencyActive" : ""}`}
-                    onClick={() => setRecurringFrequency(option)}
+                    onClick={() => {
+                      dismissActiveElement();
+                      setRecurringFrequency(option);
+                      setRecurringMessage("");
+                    }}
                   >
                     {option}
                   </button>
                 ))}
               </div>
+
+              <div className="recurringDateGrid">
+                <div className="recurringDateField">
+                  <label className="inputLabel recurringInputLabel" htmlFor="recurring-start-date">
+                    Start Date
+                  </label>
+                  <div className="dateInputWrap">
+                    <input
+                      id="recurring-start-date"
+                      ref={recurringStartDateRef}
+                      className="dateInput"
+                      type="date"
+                      value={recurringStartDate}
+                      onChange={(event) => {
+                        setRecurringStartDate(event.target.value);
+                        setRecurringMessage("");
+                      }}
+                    />
+                    <FaRegCalendarAlt
+                      className="dateInputIcon"
+                      onClick={() => openRecurringDatePicker(recurringStartDateRef)}
+                    />
+                  </div>
+                </div>
+
+                <div className="recurringDateField">
+                  <label className="inputLabel recurringInputLabel" htmlFor="recurring-end-date">
+                    End Date
+                  </label>
+                  <div className="dateInputWrap">
+                    <input
+                      id="recurring-end-date"
+                      ref={recurringEndDateRef}
+                      className="dateInput"
+                      type="date"
+                      value={recurringEndDate}
+                      min={recurringStartDate}
+                      onChange={(event) => {
+                        setRecurringEndDate(event.target.value);
+                        setRecurringMessage("");
+                      }}
+                    />
+                    <FaRegCalendarAlt
+                      className="dateInputIcon"
+                      onClick={() => openRecurringDatePicker(recurringEndDateRef)}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                className="recurringSaveButton"
+                onClick={handleSaveRecurring}
+              >
+                Save Recurring Payment
+              </button>
+
+              {recurringMessage && (
+                <p className="recurringFeedback recurringFeedbackError">
+                  {recurringMessage}
+                </p>
+              )}
             </div>
           )}
         </div>
 
-        <label className="inputLabel" htmlFor="transaction-date">
-          Date
-        </label>
-        <div className="dateInputWrap">
-          <input
-            id="transaction-date"
-            ref={dateInputRef}
-            className="dateInput"
-            type="date"
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-          />
-          <FaRegCalendarAlt className="dateInputIcon" onClick={openDatePicker} />
-        </div>
+        {!isRecurring && (
+          <>
+            <label className="inputLabel" htmlFor="transaction-date">
+              Date
+            </label>
+            <div className="dateInputWrap">
+              <input
+                id="transaction-date"
+                ref={dateInputRef}
+                className="dateInput"
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+              />
+              <FaRegCalendarAlt className="dateInputIcon" onClick={openDatePicker} />
+            </div>
+          </>
+        )}
 
-        <label className="inputLabel" htmlFor="transaction-note">
-          Note
-        </label>
-        <input
-          id="transaction-note"
-          className="note"
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          placeholder="Enter a note..."
-        />
+        {!isRecurring && (
+          <>
+            <label className="inputLabel" htmlFor="transaction-note">
+              Note
+            </label>
+            <input
+              id="transaction-note"
+              className="note"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="Enter a note..."
+            />
+          </>
+        )}
 
-        <div className="keypad">
-          <button onClick={() => setAmount(amount + "7")}>7</button>
-          <button onClick={() => setAmount(amount + "8")}>8</button>
-          <button onClick={() => setAmount(amount + "9")}>9</button>
-          <button className="mathKey" type="button">+</button>
+        {!isRecurring && (
+          <div className="keypad">
+            <button onClick={() => setAmount(amount + "7")}>7</button>
+            <button onClick={() => setAmount(amount + "8")}>8</button>
+            <button onClick={() => setAmount(amount + "9")}>9</button>
+            <button className="mathKey" type="button">+</button>
 
-          <button onClick={() => setAmount(amount + "4")}>4</button>
-          <button onClick={() => setAmount(amount + "5")}>5</button>
-          <button onClick={() => setAmount(amount + "6")}>6</button>
-          <button className="mathKey" type="button">-</button>
+            <button onClick={() => setAmount(amount + "4")}>4</button>
+            <button onClick={() => setAmount(amount + "5")}>5</button>
+            <button onClick={() => setAmount(amount + "6")}>6</button>
+            <button className="mathKey" type="button">-</button>
 
-          <button onClick={() => setAmount(amount + "1")}>1</button>
-          <button onClick={() => setAmount(amount + "2")}>2</button>
-          <button onClick={() => setAmount(amount + "3")}>3</button>
-          <button className="backKey" onClick={() => setAmount(amount.slice(0, -1))}>Back</button>
+            <button onClick={() => setAmount(amount + "1")}>1</button>
+            <button onClick={() => setAmount(amount + "2")}>2</button>
+            <button onClick={() => setAmount(amount + "3")}>3</button>
+            <button className="backKey" onClick={() => setAmount(amount.slice(0, -1))}>Back</button>
 
-          <button onClick={() => setAmount(amount + ".")}>.</button>
-          <button onClick={() => setAmount(amount + "0")}>0</button>
-          <button
-            className="ok"
-            onClick={() => {
-              if (!amount) return;
-              if (!selectedCategory) {
-                alert("Select a category");
-                return;
-              }
+            <button onClick={() => setAmount(amount + ".")}>.</button>
+            <button onClick={() => setAmount(amount + "0")}>0</button>
+            <button
+              className="ok"
+              onClick={() => {
+                if (!amount) return;
+                if (!selectedCategory) {
+                  alert("Select a category");
+                  return;
+                }
 
-              addTransaction({
-                amount: Number(amount),
-                note: note || selectedCategory,
-                type,
-                category: selectedCategory,
-                categoryIcon: selectedCategoryDetails?.icon || "",
-                transactionDate: selectedDate,
-                recurring: isRecurring,
-                recurringFrequency
-              });
-              closeModal();
-            }}
-          >
-            OK
-          </button>
-        </div>
+                addTransaction({
+                  amount: Number(amount),
+                  note: note || selectedCategory,
+                  type,
+                  category: selectedCategory,
+                  categoryIcon: selectedCategoryDetails?.icon || "",
+                  transactionDate: selectedDate,
+                  recurring: isRecurring,
+                  recurringFrequency
+                });
+                closeModal();
+              }}
+            >
+              OK
+            </button>
+          </div>
+        )}
+
       </div>
 
       {showCategory && (

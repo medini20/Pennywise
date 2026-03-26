@@ -9,9 +9,9 @@
 }
 
 .modal {
-  width: 390px;
+  width: 550px;
   max-width: calc(100vw - 24px);
-  max-height: 88vh;
+  max-height: 92vh;
   background: #1b2746;
   border-radius: 24px;
   color: white;
@@ -22,16 +22,18 @@
   box-shadow: 0 28px 60px rgba(0, 0, 0, 0.45);
 }
 
-.transactionModal {
-  padding: 0 14px 16px;
+.modal.transactionModal {
+  width: min(550px, calc(100vw - 60px));
+  max-width: calc(100vw - 60px);
+  padding: 0 32px 28px;
 }
 
 .modalHeader {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 12px 14px;
-  margin: 0 -14px 14px;
+  padding: 18px 18px 16px;
+  margin: 0 -32px 18px;
   border-bottom: 1px solid rgba(88, 128, 214, 0.2);
   font-size: 16px;
   font-weight: 600;
@@ -54,12 +56,12 @@
 .switch {
   display: flex;
   gap: 10px;
-  margin-bottom: 14px;
+  margin-bottom: 18px;
 }
 
 .switch button {
   flex: 1;
-  padding: 11px 10px;
+  padding: 13px 12px;
   border-radius: 14px;
   border: 1px solid rgba(73, 109, 186, 0.5);
   background: #24345c;
@@ -77,20 +79,20 @@
 
 .categories {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
 }
 
 .category {
   background: #24345c;
   border-radius: 14px;
-  padding: 12px 8px;
+  padding: 14px 10px;
   text-align: center;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 82px;
+  min-height: 92px;
   font-size: 14px;
   cursor: pointer;
   border: 1px solid transparent;
@@ -116,20 +118,20 @@
 
 .addCategory {
   border: 2px dashed rgba(69, 127, 238, 0.65);
-  padding: 12px;
-  border-radius: 14px;
+  padding: 16px;
+  border-radius: 18px;
   text-align: center;
-  margin-top: 12px;
+  margin-top: 14px;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 700;
   color: #ecf2ff;
 }
 
 .amount {
-  font-size: 44px;
+  font-size: 72px;
   text-align: center;
-  margin: 14px 0 12px;
+  margin: 18px 0 20px;
   font-weight: 800;
   line-height: 1;
 }
@@ -137,9 +139,9 @@
 .recurringCard {
   background: #1f3158;
   border: 1px solid rgba(73, 109, 186, 0.6);
-  border-radius: 16px;
-  padding: 12px;
-  margin-bottom: 14px;
+  border-radius: 20px;
+  padding: 18px;
+  margin-bottom: 18px;
 }
 
 .recurringHeader {
@@ -147,7 +149,7 @@
   justify-content: space-between;
   align-items: center;
   gap: 12px;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 700;
 }
 
@@ -182,7 +184,7 @@
 }
 
 .recurringBody {
-  margin-top: 12px;
+  margin-top: 16px;
 }
 
 .recurringLabel,
@@ -197,16 +199,18 @@
 .frequencyRow {
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .frequencyButton {
   flex: 1;
-  padding: 10px 8px;
+  min-width: 120px;
+  padding: 14px 10px;
   border-radius: 14px;
   border: 1px solid rgba(73, 109, 186, 0.55);
   background: #24345c;
   color: rgba(255, 255, 255, 0.72);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
   cursor: pointer;
 }
@@ -217,9 +221,20 @@
   border-color: transparent;
 }
 
+.recurringDateGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.recurringInputLabel {
+  margin-bottom: 6px;
+}
+
 .dateInputWrap {
   position: relative;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 
 .dateInput {
@@ -247,6 +262,29 @@
   cursor: pointer;
 }
 
+.recurringSaveButton {
+  width: 100%;
+  border: none;
+  border-radius: 16px;
+  padding: 15px 16px;
+  color: white;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  margin-top: 8px;
+  background: linear-gradient(135deg, #29c35c, #23bf57);
+}
+
+.recurringFeedback {
+  margin-top: 12px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.recurringFeedbackError {
+  color: #ff8a96;
+}
+
 .note {
   width: 100%;
   padding: 12px 14px;
@@ -263,6 +301,7 @@
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 8px;
+  margin-top: 6px;
 }
 
 .keypad button {
@@ -328,4 +367,29 @@
   padding: 10px 20px;
   border-radius: 10px;
   color: white;
+}
+
+@media (max-width: 768px) {
+  .modal.transactionModal {
+    width: calc(100vw - 18px);
+    max-width: calc(100vw - 18px);
+    padding: 0 16px 18px;
+  }
+
+  .modalHeader {
+    margin: 0 -16px 16px;
+    padding: 16px;
+  }
+
+  .categories {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .amount {
+    font-size: 56px;
+  }
+
+  .recurringDateGrid {
+    grid-template-columns: 1fr;
+  }
 }

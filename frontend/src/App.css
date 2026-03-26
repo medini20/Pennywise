@@ -117,6 +117,244 @@ body, html, #root, .app-container, .page-content, .sidebar {
   transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* --- TOPBAR REVISED --- */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 950;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 16px;
+  min-height: 60px;
+  padding: 10px 24px;
+  background: linear-gradient(180deg, #111b49 0%, #081133 100%);
+  border-bottom: 1px solid rgba(62, 89, 156, 0.35);
+  box-shadow: inset 0 -1px 0 rgba(5, 10, 26, 0.7);
+}
+
+.topbarNotificationWrap {
+  position: relative;
+}
+
+.topbarLogoutWrap {
+  position: relative;
+}
+
+/* Base style for both buttons to remove "circular button" look */
+.topbarNotificationButton,
+.topbarProfileButton,
+.topbarLogoutButton {
+  background: transparent !important;
+  border: none !important;
+  border-radius: 14px;
+  padding: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s ease, background-color 0.2s ease, opacity 0.2s ease;
+  color: #f8fbff;
+}
+
+/* Hover effects for a cleaner feel */
+.topbarNotificationButton:hover,
+.topbarProfileButton:hover,
+.topbarLogoutButton:hover {
+  transform: translateY(-1px);
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+.topbarNotificationButton {
+  position: relative;
+}
+
+.topbarNotificationButtonActive {
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+
+.topbarLogoutButtonActive {
+  background: rgba(255, 77, 77, 0.12) !important;
+}
+
+.topbarNotificationBadge {
+  position: absolute;
+  top: 2px;
+  right: 1px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #ff5b67;
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #081133;
+}
+
+/* Specific Red Color for Logout */
+.topbarLogoutButton {
+  color: #ff4d4d !important; /* Bright Red */
+}
+
+.topbarNotificationPanel {
+  position: absolute;
+  top: calc(100% + 12px);
+  right: 0;
+  width: min(360px, calc(100vw - 36px));
+  padding: 16px;
+  border-radius: 20px;
+  background: #13214f;
+  border: 1px solid rgba(84, 113, 185, 0.32);
+  box-shadow: 0 24px 50px rgba(0, 0, 0, 0.38);
+}
+
+.topbarLogoutPanel {
+  position: absolute;
+  top: calc(100% + 12px);
+  right: 0;
+  width: min(250px, calc(100vw - 36px));
+  padding: 16px;
+  border-radius: 18px;
+  background: #13214f;
+  border: 1px solid rgba(255, 93, 109, 0.24);
+  box-shadow: 0 24px 50px rgba(0, 0, 0, 0.38);
+}
+
+.topbarLogoutTitle {
+  margin: 0 0 6px;
+  font-size: 15px;
+}
+
+.topbarLogoutText {
+  margin: 0;
+  color: #d4dbef;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.topbarLogoutActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.topbarLogoutCancel,
+.topbarLogoutConfirm {
+  border: none;
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.topbarLogoutCancel {
+  background: rgba(255, 255, 255, 0.08);
+  color: #e8eefc;
+}
+
+.topbarLogoutConfirm {
+  background: #ff5b67;
+  color: white;
+}
+
+.topbarNotificationHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.topbarNotificationHeader h4 {
+  margin: 0 0 4px;
+  font-size: 16px;
+}
+
+.topbarNotificationHeader p {
+  margin: 0;
+  color: #b5c0df;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.topbarNotificationLink {
+  border: none;
+  background: transparent;
+  color: #7fb1ff;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 2px 0;
+}
+
+.topbarNotificationList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.topbarNotificationItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(255, 93, 109, 0.16), rgba(255, 93, 109, 0.06));
+  border: 1px solid rgba(255, 93, 109, 0.2);
+}
+
+.topbarNotificationMarker {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 5px;
+  background: #ff6b78;
+  box-shadow: 0 0 12px rgba(255, 93, 109, 0.5);
+}
+
+.topbarNotificationCopy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.topbarNotificationCopy strong {
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.topbarNotificationCopy span,
+.topbarNotificationEmpty {
+  color: #d4dbef;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.topbarNotificationEmpty {
+  margin: 0;
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+/* Remove old dropdown/icon button styles if they aren't used elsewhere */
+.topbarIconButton, .topbarDropdown {
+  display: none;
+}
+
+.route-content {
+  flex: 1;
+  min-height: 0;
+}
+
 /* Animations */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateX(-10px); }
@@ -133,4 +371,22 @@ body, html, #root, .app-container, .page-content, .sidebar {
 ::-webkit-scrollbar-thumb {
   background: #1e293b;
   border-radius: 10px;
+}
+
+@media (max-width: 768px) {
+  .topbar {
+    padding: 14px 16px;
+  }
+
+  .topbarNotificationPanel {
+    right: -8px;
+  }
+
+  .topbarLogoutPanel {
+    right: -8px;
+  }
+
+  .topbarProfileButton span {
+    display: none;
+  }
 }
