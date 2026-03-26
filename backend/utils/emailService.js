@@ -112,7 +112,11 @@ exports.sendOTP = async (email, otp) => {
 exports.sendBudgetAlert = async (email, data) => {
     const { budgetAmount, currentSpending, triggeredAlerts } = data;
     const triggeredThresholds = triggeredAlerts
-        .map((alert) => `${alert.percentage}%`)
+        .map((alert) =>
+            alert.scope === "category"
+                ? `${alert.budget_name}: ${alert.percentage}%`
+                : `${alert.percentage}%`
+        )
         .join(", ");
 
     console.log(`\n================================`);

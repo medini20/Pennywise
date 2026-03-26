@@ -45,6 +45,8 @@ CREATE TABLE `budgets` (
   `spent` decimal(10,2) DEFAULT 0.00,
   `month` int(11) DEFAULT 1,
   `color` varchar(7) DEFAULT '#ffcc00',
+  `start_date` date DEFAULT NULL,
+  `end_date` date DEFAULT NULL,
   `is_system_generated` tinyint(1) NOT NULL DEFAULT 0,
   PRIMARY KEY (`budget_id`),
   KEY `user_id` (`user_id`),
