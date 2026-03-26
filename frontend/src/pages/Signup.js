@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { saveStoredSession } from "../services/authStorage";
+
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:5001";
 
 const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID;
 
@@ -59,7 +62,7 @@ function Signup() {
     setError("");
     setLoading(true);
     try {
-      const res = await fetch("http://localhost:5001/auth/google", {
+      const res = await fetch(`${API_BASE_URL}/auth/google`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ credential: response.credential }),
@@ -67,8 +70,7 @@ function Signup() {
       const data = await res.json();
 
       if (res.ok) {
-        localStorage.setItem("token", data.token);
-        localStorage.setItem("user", JSON.stringify(data.user));
+        saveStoredSession({ user: data.user, token: data.token });
         navigate("/");
       } else {
         setError(data.error || "Google sign-up failed");
@@ -88,7 +90,7 @@ function Signup() {
     }
     setUsernameStatus("checking");
     try {
-      const response = await fetch("http://localhost:5001/auth/check-username", {
+      const response = await fetch(`${API_BASE_URL}/auth/check-username`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username }),
@@ -122,7 +124,7 @@ function Signup() {
     }
 
     try {
-      const response = await fetch("http://localhost:5001/auth/signup", {
+      const response = await fetch(`${API_BASE_URL}/auth/signup`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
@@ -131,6 +133,9 @@ function Signup() {
 
       if (response.ok) {
         setMessage(data.message);
+        if (data.otp) {
+          setOtpCode(data.otp);
+        }
         setStep(2);
       } else {
         setError(data.error || "Signup failed");
@@ -144,10 +149,10 @@ function Signup() {
 
   const handleVerifyOtp = async (e) => {
     e.preventDefault();
-    setError(""); setLoading(true);
+    setError(""); setMessage(""); setLoading(true);
 
     try {
-      const response = await fetch("http://localhost:5001/auth/verify-otp", {
+      const response = await fetch(`${API_BASE_URL}/auth/verify-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: formData.email, otpCode }),

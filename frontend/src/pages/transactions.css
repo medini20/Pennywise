@@ -136,6 +136,19 @@
   line-height: 1;
 }
 
+.amountInput {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: white;
+  padding: 0;
+  outline: none;
+}
+
+.amountInput::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
 .recurringCard {
   background: transparent;
   border: none;
