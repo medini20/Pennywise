@@ -34,6 +34,11 @@ const hasTable = async (tableName) => {
 };
 
 const ensureBudgetSchema = async () => {
+  if (!(await hasTable("budgets"))) {
+    console.log("Skipping budgets schema update: budgets table not found");
+    return;
+  }
+
   if (await hasColumn("budgets", "is_system_generated")) {
     return;
   }
@@ -49,6 +54,11 @@ const ensureBudgetSchema = async () => {
 };
 
 const ensureUsersSchema = async () => {
+  if (!(await hasTable("users"))) {
+    console.log("Skipping users schema update: users table not found");
+    return;
+  }
+
   if (await hasColumn("users", "is_verified")) {
     return;
   }
@@ -88,6 +98,11 @@ const ensureOtpSchema = async () => {
 };
 
 const ensureCategorySchema = async () => {
+  if (!(await hasTable("categories"))) {
+    console.log("Skipping categories schema update: categories table not found");
+    return;
+  }
+
   if (await hasColumn("categories", "icon")) {
     return;
   }
@@ -103,6 +118,11 @@ const ensureCategorySchema = async () => {
 };
 
 const ensureTransactionSchema = async () => {
+  if (!(await hasTable("transactions"))) {
+    console.log("Skipping transactions schema update: transactions table not found");
+    return;
+  }
+
   if (await hasColumn("transactions", "created_at")) {
     return;
   }

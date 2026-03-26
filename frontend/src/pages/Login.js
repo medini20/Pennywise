@@ -2,6 +2,9 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { hasValidSession, saveStoredSession } from "../services/authStorage";
 
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:5001";
+const API_DOWN_MESSAGE = `Cannot reach backend server (${API_BASE_URL}). Start backend with 'cd backend && npm start' or run 'start-dev.cmd'.`;
+
 function Login() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -16,7 +19,7 @@ function Login() {
     e.preventDefault();
     setError("");
     try {
-      const response = await fetch("http://localhost:5001/auth/login", {
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
@@ -29,7 +32,7 @@ function Login() {
         setError(data.error || "Login failed");
       }
     } catch {
-      setError("Network error. Please try again.");
+      setError(API_DOWN_MESSAGE);
     }
   };
 

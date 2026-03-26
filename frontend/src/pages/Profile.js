@@ -13,6 +13,26 @@ import {
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:5001";
 const API_DOWN_MESSAGE = `Cannot reach backend server (${API_BASE_URL}). Start backend and try again.`;
+const DEFAULT_PROFILE_IMAGE = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png";
+const PROFILE_IMAGE_KEY_PREFIX = "profile_image";
+const buildProfileImageStorageKey = (user) => {
+  const userId = user?.id ?? user?.user_id;
+  if (userId) {
+    return `${PROFILE_IMAGE_KEY_PREFIX}:${userId}`;
+  }
+
+  const email = typeof user?.email === "string" ? user.email.trim().toLowerCase() : "";
+  if (email) {
+    return `${PROFILE_IMAGE_KEY_PREFIX}:email:${email}`;
+  }
+
+  const username = typeof user?.username === "string" ? user.username.trim().toLowerCase() : "";
+  if (username) {
+    return `${PROFILE_IMAGE_KEY_PREFIX}:username:${username}`;
+  }
+
+  return `${PROFILE_IMAGE_KEY_PREFIX}:default`;
+};
 const sanitizeProfileMessage = (message, fallbackMessage) => {
   if (typeof message !== "string" || !message.trim()) {
     return fallbackMessage;
@@ -30,6 +50,9 @@ function Profile() {
   const webcamRef = useRef(null);
   const usernameInputRef = useRef(null);
   const sessionUserRef = useRef(getStoredUser());
+  const profileImageStorageKeyRef = useRef(
+    buildProfileImageStorageKey(sessionUserRef.current)
+  );
 
   const sessionUsername = typeof sessionUserRef.current?.username === "string"
     ? sessionUserRef.current.username.trim()
@@ -46,9 +69,7 @@ function Profile() {
   const [showCamera, setShowCamera] = useState(false);
   const [showOptions, setShowOptions] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
-  const [profileImage, setProfileImage] = useState(
-    "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
-  );
+  const [profileImage, setProfileImage] = useState(DEFAULT_PROFILE_IMAGE);
 
   const updateSavedUser = (nextUsername, nextEmail) => {
     syncStoredUser({
@@ -57,10 +78,43 @@ function Profile() {
     });
   };
 
+  const persistProfileImage = (nextProfileImage) => {
+    const storageKey = profileImageStorageKeyRef.current;
+    if (!storageKey) {
+      return;
+    }
+
+    try {
+      if (
+        !nextProfileImage ||
+        nextProfileImage === DEFAULT_PROFILE_IMAGE
+      ) {
+        localStorage.removeItem(storageKey);
+        return;
+      }
+
+      localStorage.setItem(storageKey, nextProfileImage);
+    } catch {
+      setStatusMessage("Profile photo could not be saved locally.");
+    }
+  };
+
   const handleLogout = () => {
     clearStoredSession();
     navigate("/login");
   };
+
+  useEffect(() => {
+    const storageKey = profileImageStorageKeyRef.current;
+    if (!storageKey) {
+      return;
+    }
+
+    const savedProfileImage = localStorage.getItem(storageKey);
+    if (savedProfileImage) {
+      setProfileImage(savedProfileImage);
+    }
+  }, []);
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -219,8 +273,21 @@ function Profile() {
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      const imageURL = URL.createObjectURL(file);
-      setProfileImage(imageURL);
+      const reader = new FileReader();
+      reader.onload = () => {
+        const nextImage = typeof reader.result === "string" ? reader.result : "";
+        if (!nextImage) {
+          setStatusMessage("Unable to load selected image.");
+          return;
+        }
+
+        setProfileImage(nextImage);
+        persistProfileImage(nextImage);
+      };
+      reader.onerror = () => {
+        setStatusMessage("Unable to load selected image.");
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -262,7 +329,8 @@ function Profile() {
 
             <button
               onClick={() => {
-                setProfileImage("https://cdn-icons-png.flaticon.com/512/3135/3135715.png");
+                setProfileImage(DEFAULT_PROFILE_IMAGE);
+                persistProfileImage(DEFAULT_PROFILE_IMAGE);
                 setShowOptions(false);
               }}
             >
@@ -305,7 +373,13 @@ function Profile() {
           <button
             onClick={() => {
               const imageSrc = webcamRef.current.getScreenshot();
+              if (!imageSrc) {
+                setStatusMessage("Unable to capture image. Please try again.");
+                return;
+              }
+
               setProfileImage(imageSrc);
+              persistProfileImage(imageSrc);
               setShowCamera(false);
             }}
           >
