@@ -358,11 +358,12 @@ exports.addBudget = async (req, res) => {
 };
 
 // 3. EDIT BUDGET
-exports.editBudget = (req, res) => {
+exports.editBudget = async (req, res) => {
   try {
     const { budget_id, amount, name, start_date, end_date } = req.body;
     const updates = [];
     const values = [];
+    const parsedBudgetId = Number(budget_id);
     const resolvedDates =
       start_date !== undefined || end_date !== undefined
         ? getResolvedDateRange(start_date, end_date)
@@ -388,21 +389,34 @@ exports.editBudget = (req, res) => {
       values.push(resolvedDates.endDate);
     }
 
-    if (!budget_id || updates.length === 0) {
+    if (!Number.isInteger(parsedBudgetId) || parsedBudgetId <= 0 || updates.length === 0) {
       return res.status(400).json({ error: "budget_id and at least one field are required" });
     }
 
     const query = `UPDATE budgets SET ${updates.join(", ")} WHERE budget_id = ?`;
 
-    values.push(budget_id);
+    values.push(parsedBudgetId);
 
-    db.query(query, values, (err) => {
-      if (err) {
-        console.error("SQL Error in editBudget:", err.message);
-        return res.status(500).json(err);
-      }
+    const [result] = await db.promise().query(query, values);
 
-      return res.json({ message: "Budget updated successfully" });
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: "Budget not found" });
+    }
+
+    const [updatedRows] = await db.promise().query(
+      `
+        SELECT budget_id, name, amount, icon, color, start_date, end_date, user_id, month,
+               COALESCE(is_system_generated, 0) AS is_system_generated
+        FROM budgets
+        WHERE budget_id = ?
+        LIMIT 1
+      `,
+      [parsedBudgetId]
+    );
+
+    return res.json({
+      message: "Budget updated successfully",
+      budget: updatedRows[0] || null
     });
   } catch (err) {
     return res.status(400).json({ error: err.message });

@@ -72,6 +72,67 @@ const formatBudgetRange = (startDateValue, endDateValue) => {
   return formatDate(startDate || endDate);
 };
 
+const formatCardBudgetRange = (startDateValue, endDateValue) => {
+  const startDate = parseBudgetDate(startDateValue);
+  const endDate = parseBudgetDate(endDateValue);
+
+  if (!startDate || !endDate) {
+    return formatBudgetRange(startDateValue, endDateValue);
+  }
+
+  const sameYear = startDate.getFullYear() === endDate.getFullYear();
+  const startLabel = startDate.toLocaleDateString("en-IN", {
+    month: "short",
+    day: "numeric"
+  });
+  const endLabel = endDate.toLocaleDateString("en-IN", {
+    month: "short",
+    day: "numeric",
+    year: "numeric"
+  });
+
+  if (sameYear) {
+    return `${startLabel} - ${endLabel}`;
+  }
+
+  return `${startDate.toLocaleDateString("en-IN", {
+    month: "short",
+    day: "numeric",
+    year: "numeric"
+  })} - ${endLabel}`;
+};
+
+const getBudgetStatusMeta = (budget) => {
+  const endDate = parseBudgetDate(budget?.end_date);
+
+  if (!endDate) {
+    return null;
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const diffInDays = Math.ceil((endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+  if (diffInDays < 0) {
+    return {
+      label: "Expired",
+      className: "budget-status-badge-expired"
+    };
+  }
+
+  if (diffInDays <= 7) {
+    return {
+      label: `${Math.max(diffInDays, 0)} day${diffInDays === 1 ? "" : "s"} left`,
+      className: "budget-status-badge-warning"
+    };
+  }
+
+  return {
+    label: `${diffInDays}d`,
+    className: "budget-status-badge-neutral"
+  };
+};
+
 const getTransactionIcon = (transaction) => {
   if (typeof transaction?.category_icon === "string" && transaction.category_icon.trim()) {
     return transaction.category_icon.trim();
@@ -179,6 +240,7 @@ function Budget() {
   const [amount, setAmount] = useState("");
   const [editStartDate, setEditStartDate] = useState(getCurrentMonthDateRange().startDate);
   const [editEndDate, setEditEndDate] = useState(getCurrentMonthDateRange().endDate);
+  const [editErrorMessage, setEditErrorMessage] = useState("");
 
   useEffect(() => {
     loadBudgets();
@@ -262,14 +324,18 @@ function Budget() {
     }
   }, [computedBudgets, selectedBudget]);
 
-  const loadBudgets = () => {
-    fetch(`${API_BASE_URL}/budget/list`)
-      .then((res) => res.json())
-      .then((data) => {
-        const list = Array.isArray(data) ? data : data.budgets || [];
-        setBudgets(list.map((budget) => withDefaultBudgetDateRange(budget)));
-      })
-      .catch(() => console.log("Database offline"));
+  const loadBudgets = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/budget/list`);
+      const data = await res.json();
+      const list = Array.isArray(data) ? data : data.budgets || [];
+      const normalizedBudgets = list.map((budget) => withDefaultBudgetDateRange(budget));
+      setBudgets(normalizedBudgets);
+      return normalizedBudgets;
+    } catch (error) {
+      console.log("Database offline");
+      return [];
+    }
   };
 
   const loadTransactions = () => {
@@ -306,6 +372,7 @@ function Budget() {
     setAmount(budgetWithDates.amount);
     setEditStartDate(budgetWithDates.start_date);
     setEditEndDate(budgetWithDates.end_date);
+    setEditErrorMessage("");
     setEditOpen(true);
   };
 
@@ -325,25 +392,46 @@ function Budget() {
     setSelectedBudget(null);
   };
 
-  const saveBudget = () => {
+  const saveBudget = async () => {
     if (editStartDate > editEndDate) {
+      setEditErrorMessage("Start date must be on or before end date.");
       return;
     }
 
-    fetch(`${API_BASE_URL}/budget/edit`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        budget_id: selectedBudget.budget_id,
-        name: editName,
-        amount: Number(amount),
-        start_date: editStartDate,
-        end_date: editEndDate
-      })
-    }).then(() => {
+    try {
+      setEditErrorMessage("");
+
+      const response = await fetch(`${API_BASE_URL}/budget/edit`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          budget_id: selectedBudget.budget_id,
+          name: editName,
+          amount: Number(amount),
+          start_date: editStartDate,
+          end_date: editEndDate
+        })
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(data.error || "Unable to save budget changes.");
+      }
+
+      const refreshedBudgets = await loadBudgets();
+      const refreshedBudget = refreshedBudgets.find(
+        (budget) => budget.budget_id === selectedBudget.budget_id
+      );
+
+      if (refreshedBudget) {
+        setSelectedBudget(refreshedBudget);
+      }
+
       setEditOpen(false);
-      loadBudgets();
-    });
+    } catch (error) {
+      setEditErrorMessage(error.message || "Unable to save budget changes.");
+    }
   };
 
   const deleteBudget = () => {
@@ -551,6 +639,12 @@ function Budget() {
                 </div>
               </div>
 
+              {editErrorMessage && (
+                <div className="modal-error-banner">
+                  {editErrorMessage}
+                </div>
+              )}
+
               <div className="input-group">
                 <label>Category Name</label>
                 <input
@@ -654,8 +748,9 @@ function Budget() {
             const remaining = budgetAmount - spent;
             const percent = budgetAmount > 0 ? Math.min((spent / budgetAmount) * 100, 100) : 0;
             const accentColor = getBudgetAccentColor(budgetWithDates);
-            const dateRange = formatBudgetRange(budgetWithDates.start_date, budgetWithDates.end_date);
+            const dateRange = formatCardBudgetRange(budgetWithDates.start_date, budgetWithDates.end_date);
             const expired = isBudgetExpired(budgetWithDates);
+            const statusMeta = getBudgetStatusMeta(budgetWithDates);
 
             return (
               <div
@@ -675,7 +770,11 @@ function Budget() {
                     <div className="budget-meta-copy">
                       <div className="budget-card-header">
                         <div className="cat-name">{budgetWithDates.name || budgetWithDates.icon}</div>
-                        {expired && <span className="budget-expired-badge">Expired</span>}
+                        {statusMeta && (
+                          <span className={`budget-status-badge ${statusMeta.className}`}>
+                            {statusMeta.label}
+                          </span>
+                        )}
                       </div>
 
                       {dateRange && (
@@ -710,8 +809,10 @@ function Budget() {
                         className="progress-fill"
                         style={{
                           width: `${percent}%`,
-                          backgroundColor: accentColor,
-                          boxShadow: `0 0 10px ${accentColor}60`
+                          backgroundColor: expired ? "#ff5d67" : accentColor,
+                          boxShadow: expired
+                            ? "0 0 10px rgba(255, 93, 103, 0.35)"
+                            : `0 0 10px ${accentColor}55`
                         }}
                       />
                     </div>
@@ -765,6 +866,12 @@ function Budget() {
                 <span>Current: {INR}{selectedBudget?.amount}</span>
               </div>
             </div>
+
+            {editErrorMessage && (
+              <div className="modal-error-banner">
+                {editErrorMessage}
+              </div>
+            )}
 
             <div className="input-group">
               <label>Category Name</label>
