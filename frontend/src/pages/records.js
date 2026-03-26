@@ -99,6 +99,9 @@ const getTransactionIcon = (transaction) => {
 const getTransactionId = (transaction) =>
   transaction.transaction_id || transaction.transactionId || null;
 
+const isRecurringTransaction = (transaction) =>
+  Boolean(transaction.recurring_payment_id || transaction.recurringPaymentId);
+
 const getRequestErrorMessage = (error) =>
   error.message === "Failed to fetch"
     ? "Backend is offline. Start the server on port 5001 and try again."
@@ -173,7 +176,12 @@ export default function Records({ notifications = [], dismissNotification, onSpe
           category: data.category,
           categoryIcon: data.categoryIcon,
           description: data.note,
-          transaction_date: data.transactionDate
+          transaction_date: data.transactionDate,
+          recurring: data.recurring,
+          recurringFrequency: data.recurringFrequency,
+          recurringStartDate: data.recurringStartDate,
+          recurringEndDate: data.recurringEndDate,
+          customIntervalDays: data.customIntervalDays
         })
       });
 
@@ -186,8 +194,9 @@ export default function Records({ notifications = [], dismissNotification, onSpe
       setTransactions((prevTransactions) => [
         {
           transaction_id: result.transaction_id || `local-${Date.now()}`,
-          transaction_date: data.transactionDate,
+          transaction_date: data.recurring ? data.recurringStartDate : data.transactionDate,
           created_at: result.created_at || new Date().toISOString(),
+          recurring_payment_id: result.recurring_payment_id || null,
           category_name: data.category,
           category_icon: data.categoryIcon,
           description: data.note || data.category,
@@ -382,6 +391,7 @@ export default function Records({ notifications = [], dismissNotification, onSpe
           const isTransactionActive = String(activeTransactionId) === String(transactionId);
           const isDeletePromptOpen =
             String(confirmDeleteTransactionId) === String(transactionId);
+          const recurringTransaction = isRecurringTransaction(transaction);
 
           return (
             <div
@@ -467,6 +477,14 @@ export default function Records({ notifications = [], dismissNotification, onSpe
                 <div className="transactionNote">
                   <span className="transactionEmoji">{transactionIcon}</span>
                   <span>{description}</span>
+                  {recurringTransaction && (
+                    <span
+                      className="transactionRecurringBadge"
+                      title="Recurring transaction"
+                    >
+                      (Recurring)
+                    </span>
+                  )}
                 </div>
               </div>
 

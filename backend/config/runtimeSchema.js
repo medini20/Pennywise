@@ -123,18 +123,80 @@ const ensureTransactionSchema = async () => {
     return;
   }
 
-  if (await hasColumn("transactions", "created_at")) {
+  if (!(await hasColumn("transactions", "created_at"))) {
+    await db.promise().query(
+      `
+        ALTER TABLE transactions
+        ADD COLUMN created_at DATETIME NULL
+      `
+    );
+
+    console.log("Added missing transactions.created_at column");
+  }
+
+  if (!(await hasColumn("transactions", "recurring_payment_id"))) {
+    await db.promise().query(
+      `
+        ALTER TABLE transactions
+        ADD COLUMN recurring_payment_id INT NULL
+      `
+    );
+
+    console.log("Added missing transactions.recurring_payment_id column");
+  }
+};
+
+const ensureRecurringPaymentsSchema = async () => {
+  if (await hasTable("recurring_payments")) {
     return;
   }
 
   await db.promise().query(
     `
-      ALTER TABLE transactions
-      ADD COLUMN created_at DATETIME NULL
+      CREATE TABLE recurring_payments (
+        recurring_payment_id INT(11) NOT NULL AUTO_INCREMENT,
+        user_id INT(11) NOT NULL,
+        category_id INT(11) NOT NULL,
+        amount DECIMAL(10,2) NOT NULL,
+        type VARCHAR(20) NOT NULL,
+        description VARCHAR(255) NOT NULL,
+        frequency VARCHAR(20) NOT NULL,
+        custom_interval_days INT(11) NULL,
+        start_date DATE NOT NULL,
+        end_date DATE NULL,
+        next_run_date DATE NOT NULL,
+        is_active TINYINT(1) NOT NULL DEFAULT 1,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (recurring_payment_id),
+        KEY user_id (user_id),
+        KEY category_id (category_id),
+        KEY next_run_date (next_run_date)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
     `
   );
 
-  console.log("Added missing transactions.created_at column");
+  console.log("Created missing recurring_payments table");
+};
+
+const ensureRecurringExceptionsSchema = async () => {
+  if (await hasTable("recurring_payment_exceptions")) {
+    return;
+  }
+
+  await db.promise().query(
+    `
+      CREATE TABLE recurring_payment_exceptions (
+        recurring_payment_exception_id INT(11) NOT NULL AUTO_INCREMENT,
+        recurring_payment_id INT(11) NOT NULL,
+        occurrence_date DATE NOT NULL,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (recurring_payment_exception_id),
+        UNIQUE KEY recurring_payment_occurrence (recurring_payment_id, occurrence_date)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+    `
+  );
+
+  console.log("Created missing recurring_payment_exceptions table");
 };
 
 const ensureRuntimeSchema = async () => {
@@ -144,6 +206,8 @@ const ensureRuntimeSchema = async () => {
     await ensureOtpSchema();
     await ensureCategorySchema();
     await ensureTransactionSchema();
+    await ensureRecurringPaymentsSchema();
+    await ensureRecurringExceptionsSchema();
   } catch (error) {
     console.error("Runtime schema check failed:", error.message);
     throw error;
