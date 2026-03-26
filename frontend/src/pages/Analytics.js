@@ -1,136 +1,163 @@
-import React, { useEffect, useState, useMemo, useCallback } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
   Cell,
-  Legend
+  Legend,
+  Line,
+  LineChart,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis
 } from "recharts";
+import { getStoredUser } from "../services/authStorage";
 import "./Analytics.css";
+
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:5001";
+const INR = "\u20B9";
 
 const categoryColors = {
   "Food & Dining": "#22d3ee",
-  "Transportation": "#8b5cf6",
-  "Shopping": "#facc15",
-  "Entertainment": "#a855f7",
-  "Utilities": "#ef4444",
-  "Education": "#10b981",
-  "Other": "#3b82f6"
+  Transportation: "#8b5cf6",
+  Shopping: "#facc15",
+  Entertainment: "#a855f7",
+  Utilities: "#ef4444",
+  Education: "#10b981",
+  Other: "#3b82f6"
 };
 
 const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-const years = [2024, 2025, 2026];
+
+const formatAmount = (value) => `${INR}${Number(value || 0).toLocaleString("en-IN")}`;
 
 function Analytics() {
   const [transactions, setTransactions] = useState([]);
   const [chartType, setChartType] = useState("graph");
   const [period, setPeriod] = useState("monthly");
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1); // 1-12
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const [lineData, setLineData] = useState([]);
-  const [categoryData, setCategoryData] = useState([]);
-  const [summary, setSummary] = useState({ income: 0, expenses: 0, savings: 0 });
+  const storedUser = getStoredUser();
+  const userId = storedUser?.id ?? storedUser?.user_id ?? 1;
 
-  // 1. Fetch logic - Currently fetching "All" data to filter locally. 
-  // In a final version, you would pass Month/Year to the API.
   const fetchTransactions = useCallback(async () => {
     setLoading(true);
+    setError("");
+
     try {
-      // REPLACE THIS with your real API call: const response = await axios.get('/api/transactions');
-      const dummyData = [
-        { date: "2026-03-01", amount: 500, type: "expense", category: "Food & Dining" },
-        { date: "2026-03-08", amount: 470, type: "expense", category: "Transportation" },
-        { date: "2026-03-15", amount: 1200, type: "expense", category: "Shopping" },
-        { date: "2026-02-10", amount: 300, type: "expense", category: "Education" }, // Previous month
-        { date: "2026-03-02", amount: 15000, type: "income", category: "Salary" }
-      ];
-      setTransactions(dummyData);
-    } catch (error) {
-      console.error("Error fetching transactions:", error);
+      const searchParams = new URLSearchParams({
+        userId: String(userId),
+        year: String(selectedYear),
+        period
+      });
+
+      if (period === "monthly") {
+        searchParams.set("month", String(selectedMonth));
+      }
+
+      const response = await fetch(`${API_BASE_URL}/api/analytics/summary?${searchParams.toString()}`);
+      const data = await response.json().catch(() => []);
+
+      if (!response.ok) {
+        throw new Error(data?.error || "Unable to load analytics.");
+      }
+
+      setTransactions(Array.isArray(data) ? data : []);
+    } catch (fetchError) {
+      console.error("Error fetching analytics:", fetchError);
+      setTransactions([]);
+      setError(
+        fetchError.message === "Failed to fetch"
+          ? `Backend is offline. Start the server on ${API_BASE_URL} and try again.`
+          : fetchError.message
+      );
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [period, selectedMonth, selectedYear, userId]);
 
-  // 2. Process Data based on selection
-  const processAnalytics = useCallback(() => {
+  useEffect(() => {
+    fetchTransactions();
+  }, [fetchTransactions]);
+
+  const { lineData, categoryData, summary, availableYears } = useMemo(() => {
     let income = 0;
     let expenses = 0;
-    const dateMap = {};
-    const categoryMap = {};
+    const expenseByTime = new Map();
+    const expenseByCategory = new Map();
 
-    // Filter transactions based on UI selection
-    const filtered = transactions.filter((t) => {
-      const d = new Date(t.date);
-      const mMatch = d.getMonth() + 1 === parseInt(selectedMonth);
-      const yMatch = d.getFullYear() === parseInt(selectedYear);
-      return period === "monthly" ? (mMatch && yMatch) : yMatch;
-    });
+    transactions.forEach((transaction) => {
+      const date = new Date(transaction.date);
+      const amount = Number(transaction.amount) || 0;
 
-    filtered.forEach((t) => {
-      const dateObj = new Date(t.date);
-      const key = period === "monthly"
-        ? dateObj.toLocaleDateString("en-IN", { day: "numeric", month: "short" })
-        : dateObj.toLocaleDateString("en-IN", { month: "short" });
-
-      if (t.type === "income") {
-        income += t.amount;
-      } else {
-        expenses += t.amount;
-        // Group by Date for Line Chart
-        if (!dateMap[key]) dateMap[key] = 0;
-        dateMap[key] += t.amount;
-        // Group by Category for Pie Chart
-        const cat = t.category || "Other";
-        if (!categoryMap[cat]) categoryMap[cat] = 0;
-        categoryMap[cat] += t.amount;
+      if (transaction.type === "income") {
+        income += amount;
+        return;
       }
+
+      expenses += amount;
+
+      const timeKey = period === "monthly"
+        ? date.toLocaleDateString("en-IN", { day: "numeric", month: "short" })
+        : date.toLocaleDateString("en-IN", { month: "short" });
+
+      expenseByTime.set(timeKey, (expenseByTime.get(timeKey) || 0) + amount);
+
+      const categoryName = transaction.category || "Other";
+      expenseByCategory.set(categoryName, (expenseByCategory.get(categoryName) || 0) + amount);
     });
 
-    setLineData(Object.keys(dateMap).map((d) => ({ date: d, expense: dateMap[d] })));
-    setCategoryData(Object.keys(categoryMap).map((cat) => ({
-      name: cat,
-      value: categoryMap[cat],
-      color: categoryColors[cat] || "#3b82f6"
-    })));
-    setSummary({ income, expenses, savings: income - expenses });
-  }, [transactions, period, selectedMonth, selectedYear]);
+    const currentYear = new Date().getFullYear();
+    const yearsFromTransactions = Array.from(
+      new Set(
+        transactions
+          .map((transaction) => new Date(transaction.date).getFullYear())
+          .filter((year) => Number.isFinite(year))
+      )
+    );
+    const normalizedYears = Array.from(new Set([currentYear, selectedYear, ...yearsFromTransactions]))
+      .sort((firstYear, secondYear) => secondYear - firstYear);
 
-  useEffect(() => { fetchTransactions(); }, [fetchTransactions]);
-  useEffect(() => { processAnalytics(); }, [processAnalytics]);
+    return {
+      lineData: Array.from(expenseByTime, ([date, expense]) => ({ date, expense })),
+      categoryData: Array.from(expenseByCategory, ([name, value]) => ({
+        name,
+        value,
+        color: categoryColors[name] || "#3b82f6"
+      })),
+      summary: {
+        income,
+        expenses,
+        savings: income - expenses
+      },
+      availableYears: normalizedYears
+    };
+  }, [period, selectedYear, transactions]);
 
-  // 3. Export to CSV
+  const maxCategoryValue = useMemo(
+    () => (categoryData.length ? Math.max(...categoryData.map((category) => category.value)) : 0),
+    [categoryData]
+  );
+
   const handleExport = () => {
     const csvRows = [["Date", "Category", "Type", "Amount"]];
-    const filtered = transactions.filter((t) => {
-      const d = new Date(t.date);
-      return period === "monthly" 
-        ? (d.getMonth() + 1 === parseInt(selectedMonth) && d.getFullYear() === parseInt(selectedYear))
-        : d.getFullYear() === parseInt(selectedYear);
+
+    transactions.forEach((transaction) => {
+      csvRows.push([transaction.date, transaction.category || "Other", transaction.type, transaction.amount]);
     });
 
-    filtered.forEach(t => csvRows.push([t.date, t.category, t.type, t.amount]));
-    
-    const csvContent = "data:text/csv;charset=utf-8," + csvRows.map(e => e.join(",")).join("\n");
+    const csvContent = `data:text/csv;charset=utf-8,${csvRows.map((row) => row.join(",")).join("\n")}`;
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `Pennywise_${period}_Report.csv`);
+    link.setAttribute("download", `Pennywise_${period}_${selectedYear}${period === "monthly" ? `_${selectedMonth}` : ""}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
-
-  const maxCategoryValue = useMemo(() => 
-    categoryData.length ? Math.max(...categoryData.map(c => c.value)) : 0
-  , [categoryData]);
 
   if (loading) {
     return <div className="analyticsPage analyticsLoading">Loading analytics...</div>;
@@ -138,6 +165,8 @@ function Analytics() {
 
   return (
     <div className="analyticsPage">
+      {error && <div className="analyticsEmptyState">{error}</div>}
+
       <div className="analyticsToolbarCard">
         <div className="analyticsToolbarGroup">
           <div className="analyticsSegment">
@@ -163,18 +192,27 @@ function Analytics() {
             {period === "monthly" && (
               <select
                 value={selectedMonth}
-                onChange={(e) => setSelectedMonth(e.target.value)}
+                onChange={(event) => setSelectedMonth(Number(event.target.value))}
                 className="analyticsSelect"
               >
-                {months.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
+                {months.map((month, index) => (
+                  <option key={month} value={index + 1}>
+                    {month}
+                  </option>
+                ))}
               </select>
             )}
+
             <select
               value={selectedYear}
-              onChange={(e) => setSelectedYear(e.target.value)}
+              onChange={(event) => setSelectedYear(Number(event.target.value))}
               className="analyticsSelect"
             >
-              {years.map(y => <option key={y} value={y}>{y}</option>)}
+              {availableYears.map((year) => (
+                <option key={year} value={year}>
+                  {year}
+                </option>
+              ))}
             </select>
           </div>
         </div>
@@ -183,6 +221,7 @@ function Analytics() {
           <button onClick={handleExport} className="analyticsExportButton">
             Export CSV
           </button>
+
           <div className="analyticsSegment">
             <button
               onClick={() => setChartType("graph")}
@@ -213,6 +252,7 @@ function Analytics() {
                 <XAxis dataKey="date" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
                 <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
                 <Tooltip
+                  formatter={(value) => formatAmount(value)}
                   contentStyle={{
                     backgroundColor: "#1b2759",
                     border: "1px solid rgba(106, 128, 205, 0.24)",
@@ -230,10 +270,20 @@ function Analytics() {
               </LineChart>
             ) : (
               <PieChart>
-                <Pie data={categoryData} dataKey="value" nameKey="name" outerRadius={120} innerRadius={80} paddingAngle={5}>
-                  {categoryData.map((entry, index) => <Cell key={index} fill={entry.color} />)}
+                <Pie
+                  data={categoryData}
+                  dataKey="value"
+                  nameKey="name"
+                  outerRadius={120}
+                  innerRadius={80}
+                  paddingAngle={5}
+                >
+                  {categoryData.map((entry, index) => (
+                    <Cell key={`${entry.name}-${index}`} fill={entry.color} />
+                  ))}
                 </Pie>
                 <Tooltip
+                  formatter={(value) => formatAmount(value)}
                   contentStyle={{
                     backgroundColor: "#1b2759",
                     border: "1px solid rgba(106, 128, 205, 0.24)",
@@ -250,23 +300,27 @@ function Analytics() {
       <div className="analyticsBottomGrid">
         <div className="analyticsCard analyticsCategoryCard">
           <h3 className="analyticsCardTitle">Spending by Category</h3>
-          {categoryData.length > 0 ? categoryData.map((cat, i) => (
-            <div key={i} className="analyticsCategoryRow">
-              <div className="analyticsCategoryLabelRow">
-                <span className="analyticsCategoryLabelName">{cat.name}</span>
-                <span className="analyticsCategoryLabelValue">₹{cat.value}</span>
+          {categoryData.length > 0 ? (
+            categoryData.map((category) => (
+              <div key={category.name} className="analyticsCategoryRow">
+                <div className="analyticsCategoryLabelRow">
+                  <span className="analyticsCategoryLabelName">{category.name}</span>
+                  <span className="analyticsCategoryLabelValue">{formatAmount(category.value)}</span>
+                </div>
+                <div className="analyticsProgressTrack">
+                  <div
+                    className="analyticsProgressFill"
+                    style={{
+                      width: `${maxCategoryValue ? (category.value / maxCategoryValue) * 100 : 0}%`,
+                      background: category.color
+                    }}
+                  />
+                </div>
               </div>
-              <div className="analyticsProgressTrack">
-                <div
-                  className="analyticsProgressFill"
-                  style={{
-                    width: `${maxCategoryValue ? (cat.value / maxCategoryValue) * 100 : 0}%`,
-                    background: cat.color
-                  }}
-                />
-              </div>
-            </div>
-          )) : <p className="analyticsEmptyState">No data for this period.</p>}
+            ))
+          ) : (
+            <p className="analyticsEmptyState">No expense data for this period.</p>
+          )}
         </div>
 
         <div className="analyticsCard analyticsSummaryCard">
@@ -275,19 +329,19 @@ function Analytics() {
             <div className="analyticsSummaryItem">
               <span className="analyticsSummaryLabel">Income</span>
               <span className="analyticsSummaryValue analyticsSummaryValue--income">
-                +₹{summary.income}
+                +{formatAmount(summary.income)}
               </span>
             </div>
             <div className="analyticsSummaryItem">
               <span className="analyticsSummaryLabel">Expenses</span>
               <span className="analyticsSummaryValue analyticsSummaryValue--expense">
-                -₹{summary.expenses}
+                -{formatAmount(summary.expenses)}
               </span>
             </div>
             <div className="analyticsSummaryItem analyticsSummaryItem--highlight">
               <span className="analyticsSummaryLabel">Savings</span>
               <span className="analyticsSummaryValue analyticsSummaryValue--savings">
-                ₹{summary.savings}
+                {formatAmount(summary.savings)}
               </span>
             </div>
           </div>
