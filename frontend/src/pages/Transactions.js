@@ -277,7 +277,7 @@ export default function Transactions({
     const wasSaved = await Promise.resolve(
       addTransaction({
         amount: Number(amount),
-        note: selectedCategory,
+        note: note || selectedCategory,
         type,
         category: selectedCategory,
         categoryIcon: selectedCategoryDetails?.icon || initialCategoryIcon || "",
@@ -435,7 +435,8 @@ export default function Transactions({
                   className="recurringSaveButton"
                   onClick={handleSaveRecurringPayment}
                 >
-                  Save Recurring Payment
+                  <span className="recurringSaveIcon">✓</span>
+                  <span>Save Recurring Payment</span>
                 </button>
 
                 {recurringMessage && (
@@ -443,6 +444,17 @@ export default function Transactions({
                     {recurringMessage}
                   </p>
                 )}
+
+                <label className="inputLabel" htmlFor="recurring-note">
+                  Note
+                </label>
+                <input
+                  id="recurring-note"
+                  className="note"
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  placeholder="Enter a note..."
+                />
               </div>
             )}
           </div>
