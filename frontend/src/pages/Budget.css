@@ -2,7 +2,8 @@
 .budget-container {
   padding: 40px;
   color: white;
-  max-width: 920px;
+  max-width: none;
+  width: calc(100vw - 300px);
   margin: 0;
   font-family: 'Inter', -apple-system, sans-serif;
   background: transparent;
@@ -10,8 +11,8 @@
 
 .budget-detail-container {
   max-width: none;
-  width: calc(100vw - 390px);
-  margin: 0 22px 0 18px;
+  width: calc(100vw - 292px);
+  margin: 0 6px 0 6px;
 }
 
 .budget-title {
@@ -47,8 +48,8 @@
 }
 
 .detail-icon-btn {
-  width: 46px;
-  height: 46px;
+  width: 48px;
+  height: 48px;
   border: 1px solid rgba(82, 123, 244, 0.32);
   border-radius: 14px;
   background: #15265e;
@@ -58,6 +59,14 @@
   justify-content: center;
   cursor: pointer;
   font-size: 18px;
+}
+
+.action-edit-btn,
+.action-delete-btn {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  font-size: 22px;
 }
 
 .detail-icon-btn.danger {
@@ -88,7 +97,8 @@
 
 .budget-detail-actions {
   display: flex;
-  gap: 12px;
+  gap: 10px;
+  margin-left: auto;
 }
 
 .budget-summary-card,
@@ -96,7 +106,7 @@
   background: #101b43;
   border: 1px solid rgba(88, 108, 177, 0.18);
   border-radius: 18px;
-  padding: 22px 24px;
+  padding: 20px 22px;
   width: 100%;
   max-width: none;
   margin-left: 0;
@@ -122,7 +132,7 @@
 
 .budget-summary-head h3 {
   margin: 8px 0 0;
-  font-size: 40px;
+  font-size: 36px;
   font-weight: 800;
 }
 
@@ -156,7 +166,7 @@
 .history-list {
   display: flex;
   flex-direction: column;
-  gap: 22px;
+  gap: 18px;
 }
 
 .history-item {
@@ -164,7 +174,15 @@
   grid-template-columns: 90px 74px 1fr 110px;
   gap: 18px;
   align-items: center;
-  padding: 4px 0;
+  padding: 16px 18px;
+  border-radius: 22px;
+  transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.history-item:hover {
+  background: rgba(47, 58, 104, 0.72);
+  transform: translateY(-1px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
 }
 
 .history-date-block {
