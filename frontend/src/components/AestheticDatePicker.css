@@ -1,0 +1,181 @@
+.pwDatePicker {
+  position: relative;
+  width: 100%;
+}
+
+.pwDatePickerTrigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid rgba(82, 132, 255, 0.45);
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(19, 33, 77, 0.98) 0%, rgba(16, 28, 69, 0.98) 100%);
+  color: #7fb1ff;
+  cursor: pointer;
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  box-sizing: border-box;
+}
+
+.pwDatePickerTrigger:hover,
+.pwDatePickerTriggerOpen {
+  border-color: rgba(96, 165, 250, 0.75);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+
+.pwDatePickerTriggerCopy {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.pwDatePickerValue {
+  color: #eef5ff;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pwDatePickerValuePlaceholder {
+  color: #9bb3e9;
+}
+
+.pwDatePickerPopover {
+  position: fixed;
+  z-index: 220;
+  width: 320px;
+  max-width: min(320px, calc(100vw - 40px));
+  padding: 14px;
+  border: 1px solid rgba(96, 165, 250, 0.22);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at top right, rgba(59, 130, 246, 0.18), transparent 34%),
+    linear-gradient(180deg, rgba(10, 21, 56, 0.98) 0%, rgba(7, 16, 46, 0.98) 100%);
+  box-shadow: 0 24px 70px rgba(2, 8, 23, 0.52);
+  backdrop-filter: blur(16px);
+}
+
+.pwDatePickerPopoverTop {
+  transform-origin: bottom center;
+}
+
+.pwDatePickerHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.pwDatePickerHeader strong {
+  font-size: 15px;
+  font-weight: 700;
+  color: #f8fbff;
+}
+
+.pwDatePickerNav {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid rgba(96, 165, 250, 0.2);
+  border-radius: 10px;
+  background: rgba(15, 28, 70, 0.9);
+  color: #8cc1ff;
+  cursor: pointer;
+  transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+}
+
+.pwDatePickerNav:hover {
+  transform: translateY(-1px);
+  border-color: rgba(96, 165, 250, 0.48);
+  background: rgba(26, 47, 109, 0.96);
+}
+
+.pwDatePickerWeekdays {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.pwDatePickerWeekdays span {
+  text-align: center;
+  color: #8ea8df;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.pwDatePickerGrid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.pwDatePickerDay {
+  height: 34px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: rgba(17, 32, 80, 0.64);
+  color: #f8fbff;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
+}
+
+.pwDatePickerDay:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: rgba(96, 165, 250, 0.5);
+  background: rgba(26, 47, 109, 0.92);
+}
+
+.pwDatePickerDay:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.pwDatePickerDayMuted {
+  color: rgba(181, 197, 232, 0.55);
+}
+
+.pwDatePickerDayToday {
+  border-color: rgba(96, 165, 250, 0.3);
+}
+
+.pwDatePickerDaySelected {
+  border-color: rgba(96, 165, 250, 0.8);
+  background: linear-gradient(180deg, #2d63ff 0%, #1f4fd3 100%);
+  box-shadow: 0 10px 20px rgba(37, 99, 235, 0.34);
+}
+
+.pwDatePickerFooter {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 14px;
+}
+
+.pwDatePickerFooterButton {
+  border: none;
+  border-radius: 10px;
+  padding: 8px 12px;
+  background: rgba(59, 130, 246, 0.14);
+  color: #8cc1ff;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.2s ease, filter 0.2s ease, background 0.2s ease;
+}
+
+.pwDatePickerFooterButton:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.05);
+  background: rgba(59, 130, 246, 0.22);
+}

@@ -1,57 +1,98 @@
 const db = require("../../config/db");
+const {
+  getResolvedDateRange,
+  syncBudgetLifecycle
+} = require("./budgetLifecycle");
+
+const DEFAULT_USER_ID = 1;
+const DEFAULT_BUDGET_NAME = "Monthly Budget";
+
+const getUserId = (req) => {
+  const body = req.body || {};
+  const query = req.query || {};
+  const rawUserId = body.user_id || query.user_id;
+  const parsedUserId = Number(rawUserId);
+
+  return Number.isInteger(parsedUserId) && parsedUserId > 0
+    ? parsedUserId
+    : DEFAULT_USER_ID;
+};
 
 // 1. GET ALL BUDGETS
-exports.getBudgets = (req, res) => {
-  const query = `
-    SELECT
-      b.budget_id,
-      b.user_id,
-      b.name,
-      b.icon,
-      b.amount,
-      CASE
-        WHEN b.end_date IS NOT NULL AND CURDATE() > b.end_date THEN 0
-        ELSE COALESCE((
-          SELECT SUM(t.amount)
-          FROM transactions t
-          LEFT JOIN categories c
-            ON c.category_id = t.category_id
-          WHERE t.user_id = b.user_id
-            AND t.type = 'expense'
-            AND (b.start_date IS NULL OR DATE(t.transaction_date) >= b.start_date)
-            AND (b.end_date IS NULL OR DATE(t.transaction_date) <= b.end_date)
-            AND (
-              (
-                b.icon IS NOT NULL
-                AND TRIM(b.icon) <> ''
-                AND c.icon IS NOT NULL
-                AND TRIM(c.icon) <> ''
-                AND TRIM(c.icon) = TRIM(b.icon)
+exports.getBudgets = async (req, res) => {
+  const userId = getUserId(req);
+
+  try {
+    await syncBudgetLifecycle(userId);
+
+    const query = `
+      SELECT
+        b.budget_id,
+        b.user_id,
+        b.name,
+        b.icon,
+        b.amount,
+        CASE
+          WHEN b.end_date IS NOT NULL AND CURDATE() > b.end_date THEN 0
+          ELSE COALESCE((
+            SELECT SUM(t.amount)
+            FROM transactions t
+            LEFT JOIN categories c
+              ON c.category_id = t.category_id
+            WHERE t.user_id = b.user_id
+              AND t.type = 'expense'
+              AND (b.start_date IS NULL OR DATE(t.transaction_date) >= b.start_date)
+              AND (b.end_date IS NULL OR DATE(t.transaction_date) <= b.end_date)
+              AND (
+                (
+                  b.icon IS NOT NULL
+                  AND TRIM(b.icon) <> ''
+                  AND c.icon IS NOT NULL
+                  AND TRIM(c.icon) <> ''
+                  AND TRIM(c.icon) = TRIM(b.icon)
+                )
+                OR LOWER(TRIM(COALESCE(c.name, ''))) = LOWER(TRIM(b.name))
+                OR LOWER(TRIM(COALESCE(t.description, ''))) = LOWER(TRIM(b.name))
               )
-              OR LOWER(TRIM(COALESCE(c.name, ''))) = LOWER(TRIM(b.name))
-              OR LOWER(TRIM(COALESCE(t.description, ''))) = LOWER(TRIM(b.name))
-            )
-        ), 0)
-      END AS spent,
-      b.month,
-      b.color,
-      b.is_system_generated,
-      b.start_date,
-      b.end_date
-    FROM budgets b
-    WHERE COALESCE(b.is_system_generated, 0) = 0
-      AND LOWER(TRIM(b.name)) <> 'monthly budget'
-    ORDER BY b.budget_id DESC
-  `;
+          ), 0)
+        END AS spent,
+        b.month,
+        b.color,
+        b.start_date,
+        b.end_date,
+        b.is_system_generated
+      FROM budgets b
+      WHERE b.user_id = ?
+        AND COALESCE(b.is_system_generated, 0) = 0
+        AND LOWER(TRIM(b.name)) <> LOWER(TRIM(?))
+      ORDER BY b.budget_id DESC
+    `;
 
-  db.query(query, (err, result) => {
-    if (err) {
-      console.error("SQL Error in getBudgets:", err.message);
-      return res.status(500).json(err);
-    }
+    db.query(query, [userId, DEFAULT_BUDGET_NAME], (err, result) => {
+      if (err) {
+        console.error("SQL Error in getBudgets:", err.message);
+        return res.status(500).json(err);
+      }
 
-    res.json(result);
-  });
+      return res.json(
+        result.map((budgetRow) => {
+          const resolvedDates = getResolvedDateRange(
+            budgetRow.start_date,
+            budgetRow.end_date
+          );
+
+          return {
+            ...budgetRow,
+            start_date: resolvedDates.startDate,
+            end_date: resolvedDates.endDate
+          };
+        })
+      );
+    });
+  } catch (err) {
+    console.error("Budget lifecycle error:", err.message);
+    return res.status(500).json({ error: err.message });
+  }
 };
 
 // 2. ADD NEW BUDGET
@@ -66,24 +107,37 @@ exports.addBudget = async (req, res) => {
     return res.status(400).json({ error: "End date must be after start date" });
   }
 
-  const resolvedUserId = user_id || 1;
-  const query = `
-    INSERT INTO budgets (name, amount, icon, user_id, month, spent, color, is_system_generated, start_date, end_date)
-    VALUES (?, ?, ?, ?, ?, 0, ?, 0, ?, ?)
-  `;
-
-  const values = [
-    name,
-    amount,
-    icon,
-    resolvedUserId,
-    month || 1,
-    color || "#ffcc00",
-    start_date || null,
-    end_date || null
-  ];
+  const resolvedUserId = user_id || DEFAULT_USER_ID;
 
   try {
+    const resolvedDates = getResolvedDateRange(start_date, end_date);
+    const query = `
+      INSERT INTO budgets (
+        name,
+        amount,
+        icon,
+        user_id,
+        month,
+        spent,
+        color,
+        start_date,
+        end_date,
+        is_system_generated
+      )
+      VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, 0)
+    `;
+
+    const values = [
+      name,
+      amount,
+      icon,
+      resolvedUserId,
+      month || 1,
+      color || "#ffcc00",
+      resolvedDates.startDate,
+      resolvedDates.endDate
+    ];
+
     const [existingCategories] = await db.promise().query(
       `
         SELECT category_id
@@ -111,45 +165,73 @@ exports.addBudget = async (req, res) => {
         return res.status(500).json({ error: err.message });
       }
 
-      res.status(201).json({
+      return res.status(201).json({
         budget_id: result.insertId,
         name,
         amount,
         icon,
         spent: 0,
         color: color || "#ffcc00",
-        start_date: start_date || null,
-        end_date: end_date || null
+        start_date: resolvedDates.startDate,
+        end_date: resolvedDates.endDate
       });
     });
   } catch (err) {
     console.error("Budget category sync error:", err.message);
-    return res.status(500).json({ error: err.message });
+    return res.status(400).json({ error: err.message });
   }
 };
 
-// 3. EDIT BUDGET AMOUNT
+// 3. EDIT BUDGET
 exports.editBudget = (req, res) => {
-  const { budget_id, amount, name, start_date, end_date } = req.body;
+  try {
+    const { budget_id, amount, name, start_date, end_date } = req.body;
+    const updates = [];
+    const values = [];
+    const resolvedDates =
+      start_date !== undefined || end_date !== undefined
+        ? getResolvedDateRange(start_date, end_date)
+        : null;
 
-  if (start_date && end_date && start_date > end_date) {
-    return res.status(400).json({ error: "End date must be after start date" });
-  }
-
-  const query = `
-    UPDATE budgets
-    SET amount = ?, name = ?, start_date = ?, end_date = ?
-    WHERE budget_id = ?
-  `;
-
-  db.query(query, [amount, name, start_date || null, end_date || null, budget_id], (err) => {
-    if (err) {
-      console.error("SQL Error in editBudget:", err.message);
-      return res.status(500).json(err);
+    if (name !== undefined) {
+      updates.push("name = ?");
+      values.push(name);
     }
 
-    res.json({ message: "Budget updated successfully" });
-  });
+    if (amount !== undefined) {
+      updates.push("amount = ?");
+      values.push(amount);
+    }
+
+    if (start_date !== undefined) {
+      updates.push("start_date = ?");
+      values.push(resolvedDates.startDate);
+    }
+
+    if (end_date !== undefined) {
+      updates.push("end_date = ?");
+      values.push(resolvedDates.endDate);
+    }
+
+    if (!budget_id || updates.length === 0) {
+      return res.status(400).json({ error: "budget_id and at least one field are required" });
+    }
+
+    const query = `UPDATE budgets SET ${updates.join(", ")} WHERE budget_id = ?`;
+
+    values.push(budget_id);
+
+    db.query(query, values, (err) => {
+      if (err) {
+        console.error("SQL Error in editBudget:", err.message);
+        return res.status(500).json(err);
+      }
+
+      return res.json({ message: "Budget updated successfully" });
+    });
+  } catch (err) {
+    return res.status(400).json({ error: err.message });
+  }
 };
 
 // 4. DELETE BUDGET
@@ -163,6 +245,6 @@ exports.deleteBudget = (req, res) => {
       return res.status(500).json(err);
     }
 
-    res.json({ message: "Budget deleted successfully" });
+    return res.json({ message: "Budget deleted successfully" });
   });
 };
