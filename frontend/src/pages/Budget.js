@@ -1,15 +1,14 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
   FaArrowLeft,
-  FaEdit,
   FaTimes,
-  FaTrash,
   FaUtensils,
   FaPlus,
   FaCar,
   FaShoppingCart,
   FaHeartbeat
 } from "react-icons/fa";
+import { LuPencil, LuTrash2 } from "react-icons/lu";
 import "./Budget.css";
 import Category from "./Category";
 
@@ -26,6 +25,42 @@ const getTransactionIcon = (transaction) => {
 
   if (typeof transaction?.categoryIcon === "string" && transaction.categoryIcon.trim()) {
     return transaction.categoryIcon.trim();
+  }
+
+  return "";
+};
+
+const inferIconFromText = (value) => {
+  const normalizedValue = normalizeCategoryName(value);
+
+  if (!normalizedValue) {
+    return "";
+  }
+
+  if (
+    normalizedValue.includes("finance") ||
+    normalizedValue.includes("renovation") ||
+    normalizedValue.includes("investment") ||
+    normalizedValue.includes("loan") ||
+    normalizedValue.includes("rent")
+  ) {
+    return "\uD83D\uDCB0";
+  }
+
+  if (normalizedValue.includes("home")) {
+    return "\uD83C\uDFE0";
+  }
+
+  if (normalizedValue.includes("food") || normalizedValue.includes("restaurant")) {
+    return "\uD83C\uDF7D\uFE0F";
+  }
+
+  if (normalizedValue.includes("pet")) {
+    return "\uD83D\uDC36";
+  }
+
+  if (normalizedValue.includes("electronic")) {
+    return "\uD83D\uDCF1";
   }
 
   return "";
@@ -256,11 +291,16 @@ function Budget() {
           : typeof transaction.categoryIcon === "string"
             ? transaction.categoryIcon.trim()
             : "";
+      const inferredTransactionIcon =
+        transactionIcon ||
+        inferIconFromText(transaction.category_name) ||
+        inferIconFromText(transaction.description) ||
+        inferIconFromText(transaction.category);
 
       const matchesByIcon =
         Boolean(selectedIcon) &&
-        Boolean(transactionIcon) &&
-        transactionIcon === selectedIcon;
+        Boolean(inferredTransactionIcon) &&
+        inferredTransactionIcon === selectedIcon;
 
       const matchesByName =
         normalizeCategoryName(transaction.category_name) === selectedName ||
@@ -301,11 +341,11 @@ function Budget() {
           </div>
 
           <div className="budget-detail-actions">
-            <button className="detail-icon-btn" onClick={() => openEdit(selectedBudget)}>
-              <FaEdit />
+            <button className="detail-icon-btn action-edit-btn" onClick={() => openEdit(selectedBudget)}>
+              <LuPencil />
             </button>
-            <button className="detail-icon-btn danger" onClick={() => openDelete(selectedBudget)}>
-              <FaTrash />
+            <button className="detail-icon-btn danger action-delete-btn" onClick={() => openDelete(selectedBudget)}>
+              <LuTrash2 />
             </button>
           </div>
         </div>
@@ -503,14 +543,14 @@ function Budget() {
                       />
                     </div>
                     <div className="card-actions">
-                      <FaEdit
+                      <LuPencil
                         onClick={(event) => {
                           event.stopPropagation();
                           openEdit(budget);
                         }}
                         className="action-btn edit"
                       />
-                      <FaTrash
+                      <LuTrash2
                         onClick={(event) => {
                           event.stopPropagation();
                           openDelete(budget);

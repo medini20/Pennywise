@@ -1,22 +1,45 @@
 const jwt = require("jsonwebtoken");
-require("dotenv").config();
 
-const authMiddleware = (req, res, next) => {
-    const authHeader = req.headers.authorization;
+const getTokenFromHeader = (authorizationHeader = "") => {
+  const [scheme, token] = authorizationHeader.split(" ");
+  if (scheme !== "Bearer" || !token) {
+    return null;
+  }
 
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-        return res.status(401).json({ error: "Access denied. No token provided." });
-    }
-
-    const token = authHeader.split(" ")[1];
-
-    try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || "secret");
-        req.user = decoded;
-        next();
-    } catch (error) {
-        return res.status(401).json({ error: "Invalid or expired token." });
-    }
+  return token;
 };
 
-module.exports = authMiddleware;
+const extractUserIdFromPayload = (payload) => {
+  const candidates = [payload?.id, payload?.user_id];
+
+  for (const candidate of candidates) {
+    const parsed = Number(candidate);
+    if (Number.isInteger(parsed) && parsed > 0) {
+      return parsed;
+    }
+  }
+
+  return null;
+};
+
+exports.requireAuth = (req, res, next) => {
+  const token = getTokenFromHeader(req.headers.authorization);
+  if (!token) {
+    return res.status(401).json({ message: "Authorization token is required" });
+  }
+
+  try {
+    const payload = jwt.verify(token, process.env.JWT_SECRET || "secret");
+    const userId = extractUserIdFromPayload(payload);
+    req.user = userId
+      ? {
+          ...payload,
+          id: userId,
+          user_id: userId
+        }
+      : payload;
+    return next();
+  } catch (error) {
+    return res.status(401).json({ message: "Invalid or expired token" });
+  }
+};

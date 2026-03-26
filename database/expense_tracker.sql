@@ -1,8 +1,8 @@
-CREATE DATABASE IF NOT EXISTS `expense_tracker`
+CREATE DATABASE IF NOT EXISTS `railway`
   DEFAULT CHARACTER SET utf8mb4
   COLLATE utf8mb4_general_ci;
 
-USE `expense_tracker`;
+USE `railway`;
 
 DROP TABLE IF EXISTS `alerts`;
 DROP TABLE IF EXISTS `expenses`;

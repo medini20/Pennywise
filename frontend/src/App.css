@@ -61,12 +61,18 @@ body, html, #root, .app-container, .page-content, .sidebar {
   display: flex;
   align-items: center;
   justify-content: center;
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
 }
 
 .logo-img {
   width: 100%;
   height: auto;
   object-fit: contain;
+  background: transparent !important;
+  mix-blend-mode: screen;
+  filter: drop-shadow(0 0 0 rgba(0, 0, 0, 0));
 }
 
 .logo-text {
