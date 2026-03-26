@@ -1,35 +1,34 @@
-const analyticsModel = require('./analyticsModel');
+const analyticsModel = require("./analyticsModel");
 
 const getAnalyticsSummary = async (req, res) => {
-    // Extract parameters from the request query string
-    const { month, year, userId } = req.query; 
+  const { month, year, userId, period } = req.query;
 
-    // Validation: Ensure month and year are provided
-    if (!month || !year) {
-        return res.status(400).json({ error: "Month and Year are required parameters." });
-    }
+  if (!year) {
+    return res.status(400).json({ error: "Year is a required parameter." });
+  }
 
-    // Defaulting to User ID 1 for testing until Auth is implemented
-    const id = userId || 1; 
+  const normalizedPeriod = period === "yearly" ? "yearly" : "monthly";
 
-    try {
-        const data = await analyticsModel.getFilteredTransactions(id, month, year);
-        
-        if (data.length === 0) {
-            return res.status(200).json([]); // Return empty array if no data found
-        }
-        
-        res.status(200).json(data);
+  if (normalizedPeriod === "monthly" && !month) {
+    return res.status(400).json({ error: "Month is required for monthly analytics." });
+  }
 
-        
-   // Inside analyticsController.js
-} catch (err) {
-    console.error("DETAILED ERROR:", err); // This will print the SQL error in your terminal
-    res.status(500).json({ error: err.message }); // This sends the real error to your browser
-}
+  const id = userId || 1;
+
+  try {
+    const data = await analyticsModel.getFilteredTransactions(
+      id,
+      normalizedPeriod === "monthly" ? month : null,
+      year
+    );
+
+    return res.status(200).json(data);
+  } catch (err) {
+    console.error("DETAILED ERROR:", err);
+    return res.status(500).json({ error: err.message });
+  }
 };
 
-
 module.exports = {
-    getAnalyticsSummary
+  getAnalyticsSummary
 };

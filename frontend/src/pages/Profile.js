@@ -324,6 +324,11 @@ function Profile() {
       return;
     }
 
+    if (oldPassword === newPassword) {
+      setPasswordMessage("New password must be different from your current password.");
+      return;
+    }
+
     try {
       setIsUpdatingPassword(true);
       const res = await fetch(`${API_BASE_URL}/auth/change-password`, {

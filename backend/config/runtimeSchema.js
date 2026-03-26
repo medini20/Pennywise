@@ -39,18 +39,38 @@ const ensureBudgetSchema = async () => {
     return;
   }
 
-  if (await hasColumn("budgets", "is_system_generated")) {
-    return;
+  if (!(await hasColumn("budgets", "is_system_generated"))) {
+    await db.promise().query(
+      `
+        ALTER TABLE budgets
+        ADD COLUMN is_system_generated TINYINT(1) NOT NULL DEFAULT 0
+      `
+    );
+
+    console.log("Added missing budgets.is_system_generated column");
   }
 
-  await db.promise().query(
-    `
-      ALTER TABLE budgets
-      ADD COLUMN is_system_generated TINYINT(1) NOT NULL DEFAULT 0
-    `
-  );
+  if (!(await hasColumn("budgets", "start_date"))) {
+    await db.promise().query(
+      `
+        ALTER TABLE budgets
+        ADD COLUMN start_date DATE NULL
+      `
+    );
 
-  console.log("Added missing budgets.is_system_generated column");
+    console.log("Added missing budgets.start_date column");
+  }
+
+  if (!(await hasColumn("budgets", "end_date"))) {
+    await db.promise().query(
+      `
+        ALTER TABLE budgets
+        ADD COLUMN end_date DATE NULL
+      `
+    );
+
+    console.log("Added missing budgets.end_date column");
+  }
 };
 
 const ensureUsersSchema = async () => {

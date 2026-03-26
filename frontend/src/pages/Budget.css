@@ -95,6 +95,16 @@
   font-size: 16px;
 }
 
+.detail-budget-period {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  color: #79aeff;
+  font-size: 13px;
+  font-weight: 600;
+}
+
 .budget-detail-actions {
   display: flex;
   gap: 10px;
@@ -281,6 +291,15 @@
   padding: 0;
   color: white;
   line-height: 1;
+}
+
+.budget-period-line {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #8eb7ff;
+  font-size: 12px;
+  font-weight: 600;
 }
 
 /* Progress Bar and Action Buttons inline row */
@@ -516,6 +535,12 @@
   border-color: #5b8ef4;
 }
 
+.budget-modal-date-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
 /* Modal Buttons */
 .modal-buttons {
   display: flex;
@@ -559,6 +584,12 @@
 
 .btn-confirm:hover {
   background: #dc2626;
+}
+
+@media (max-width: 700px) {
+  .budget-modal-date-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Delete Warning Alerts */
