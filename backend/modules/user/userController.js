@@ -17,22 +17,6 @@ const runQuery = async (sql, params = []) => {
   return rows;
 };
 
-const hasUsersColumn = async (columnName) => {
-  const rows = await runQuery(
-    `
-      SELECT COLUMN_NAME
-      FROM information_schema.COLUMNS
-      WHERE TABLE_SCHEMA = DATABASE()
-        AND TABLE_NAME = 'users'
-        AND COLUMN_NAME = ?
-      LIMIT 1
-    `,
-    [columnName]
-  );
-
-  return rows.length > 0;
-};
-
 const normalizeUsername = (value) =>
   typeof value === "string" ? value.trim() : "";
 
@@ -42,94 +26,20 @@ const normalizeEmail = (value) =>
 const createExpiryDate = () =>
   new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
 
-const isBcryptHash = (value) =>
-  typeof value === "string" && /^\$2[aby]\$\d{2}\$/.test(value);
-
-const getUserId = (user) => user?.user_id ?? user?.id;
-const getUserName = (user) => user?.name ?? user?.username ?? "";
-const getUserEmail = (user) => user?.email ?? "";
-const getPasswordValue = (user) => user?.password_hash ?? user?.password ?? "";
-const getPasswordColumn = (user) =>
-  Object.prototype.hasOwnProperty.call(user, "password_hash") ? "password_hash" : "password";
-const getUserIdColumn = (user) =>
-  Object.prototype.hasOwnProperty.call(user, "user_id") ? "user_id" : "id";
-const isUserVerified = (user) =>
-  Object.prototype.hasOwnProperty.call(user, "is_verified") ? Boolean(user.is_verified) : true;
-
 const createToken = (user) =>
   jwt.sign(
-    { id: getUserId(user), username: getUserName(user) },
+    { id: user.id, username: user.username },
     process.env.JWT_SECRET || "secret",
     { expiresIn: "1d" }
   );
 
 const toPublicUser = (user) => ({
-  id: getUserId(user),
-  username: getUserName(user),
-  email: getUserEmail(user)
+  id: user.id,
+  username: user.username,
+  email: user.email,
 });
 
-const getUserByEmail = async (email) => {
-  try {
-    const rows = await runQuery("SELECT * FROM users WHERE email = ? LIMIT 1", [email]);
-    return rows[0] || null;
-  } catch (error) {
-    if (/Unknown column/i.test(error.message)) {
-      return null;
-    }
-    throw error;
-  }
-};
-
-const insertUser = async ({ username, email, passwordHash, isVerified }) => {
-  try {
-    return await runQuery(
-      "INSERT INTO users (name, username, email, password_hash, password, is_verified) VALUES (?, ?, ?, ?, ?, ?)",
-      [username, username, email, passwordHash, passwordHash, isVerified ? 1 : 0]
-    );
-  } catch (error) {
-    if (!/Unknown column/i.test(error.message)) {
-      throw error;
-    }
-
-    return runQuery(
-      "INSERT INTO users (name, email, password_hash, is_verified) VALUES (?, ?, ?, ?)",
-      [username, email, passwordHash, isVerified ? 1 : 0]
-    );
-  }
-};
-
-const buildUsernameBase = (value) => {
-  const sanitizedValue = value
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "");
-
-  return (sanitizedValue || "user").slice(0, 80);
-};
-
-const buildUniqueUsername = async (seed, suffixSeed = "") => {
-  const base = buildUsernameBase(seed);
-  const stableSuffix = (suffixSeed.slice(-4).toLowerCase() || "user").replace(
-    /[^a-z0-9]+/g,
-    ""
-  );
-
-  let counter = 0;
-  while (true) {
-    const suffix =
-      counter === 0 ? "" : counter === 1 ? `_${stableSuffix}` : `_${stableSuffix}_${counter}`;
-    const candidate = `${base}${suffix}`.slice(0, 100);
-    const rows = await runQuery("SELECT 1 FROM users WHERE name = ? LIMIT 1", [candidate]);
-
-    if (rows.length === 0) {
-      return candidate;
-    }
-
-    counter += 1;
-  }
-};
-
+// Check if username is already taken
 exports.checkUsername = async (req, res) => {
   const username = normalizeUsername(req.body?.username);
 
@@ -139,7 +49,7 @@ exports.checkUsername = async (req, res) => {
 
   try {
     const rows = await runQuery(
-      "SELECT 1 FROM users WHERE name = ? AND is_verified = 1 LIMIT 1",
+      "SELECT 1 FROM users WHERE username = ? AND is_verified = 1 LIMIT 1",
       [username]
     );
 
@@ -154,6 +64,7 @@ exports.checkUsername = async (req, res) => {
   }
 };
 
+// Signup
 exports.signup = async (req, res) => {
   const username = normalizeUsername(req.body?.username);
   const email = normalizeEmail(req.body?.email);
@@ -166,6 +77,7 @@ exports.signup = async (req, res) => {
   }
 
   try {
+    // Check if email is used by a verified user
     const verifiedEmailRows = await runQuery(
       "SELECT 1 FROM users WHERE email = ? AND is_verified = 1 LIMIT 1",
       [email]
@@ -175,8 +87,9 @@ exports.signup = async (req, res) => {
       return res.status(400).json({ error: "Email already exists" });
     }
 
+    // Check if username is used by a verified user
     const verifiedUserRows = await runQuery(
-      "SELECT 1 FROM users WHERE name = ? AND is_verified = 1 LIMIT 1",
+      "SELECT 1 FROM users WHERE username = ? AND is_verified = 1 LIMIT 1",
       [username]
     );
 
@@ -184,24 +97,30 @@ exports.signup = async (req, res) => {
       return res.status(400).json({ error: "Username already taken" });
     }
 
+    // Clean up old unverified data
     await runQuery("DELETE FROM otps WHERE email = ?", [email]);
     await runQuery(
-      "DELETE FROM users WHERE (email = ? OR name = ?) AND is_verified = 0",
+      "DELETE FROM users WHERE (email = ? OR username = ?) AND is_verified = 0",
       [email, username]
     );
 
+    // Create user
     const passwordHash = await bcrypt.hash(password, 10);
-    await insertUser({ username, email, passwordHash, isVerified: false });
+    await runQuery(
+      "INSERT INTO users (username, email, password_hash, is_verified) VALUES (?, ?, ?, 0)",
+      [username, email, passwordHash]
+    );
 
+    // Generate and store OTP
     const otp = generateOTP();
     await runQuery(
       "INSERT INTO otps (email, otp_code, purpose, expires_at) VALUES (?, ?, 'SIGNUP', ?)",
       [email, otp, createExpiryDate()]
     );
 
+    // Send OTP email
     try {
       const sent = await emailService.sendOTP(email, otp);
-
       if (sent) {
         return res
           .status(201)
@@ -224,6 +143,7 @@ exports.signup = async (req, res) => {
   }
 };
 
+// Verify OTP
 exports.verifyOtp = async (req, res) => {
   const email = normalizeEmail(req.body?.email);
   const otpCode = normalizeUsername(req.body?.otpCode);
@@ -242,6 +162,7 @@ exports.verifyOtp = async (req, res) => {
       return res.status(400).json({ error: "Invalid or expired OTP" });
     }
 
+    // Delete used OTP
     await runQuery("DELETE FROM otps WHERE otp_id = ?", [rows[0].otp_id]);
 
     if (rows[0].purpose === "SIGNUP") {
@@ -256,6 +177,7 @@ exports.verifyOtp = async (req, res) => {
   }
 };
 
+// Login
 exports.login = async (req, res) => {
   const username = normalizeUsername(req.body?.username);
   const password = req.body?.password;
@@ -267,71 +189,38 @@ exports.login = async (req, res) => {
   try {
     const isEmail = username.includes("@");
     const identifier = isEmail ? normalizeEmail(username) : username;
-    const hasUsername = await hasUsersColumn("username");
+
     const rows = await runQuery(
       isEmail
         ? "SELECT * FROM users WHERE LOWER(email) = LOWER(?)"
-        : hasUsername
-          ? "SELECT * FROM users WHERE LOWER(name) = LOWER(?) OR LOWER(username) = LOWER(?)"
-          : "SELECT * FROM users WHERE LOWER(name) = LOWER(?)",
-      isEmail ? [identifier] : hasUsername ? [identifier, identifier] : [identifier]
+        : "SELECT * FROM users WHERE LOWER(username) = LOWER(?)",
+      [identifier]
     );
 
     if (rows.length === 0) {
       return res.status(400).json({ error: "Invalid username or password" });
     }
 
-    let matchedUser = null;
-    let matchedStoredPassword = "";
-    let unverifiedPasswordMatch = false;
-    for (const candidateUser of rows) {
-      const storedPassword = getPasswordValue(candidateUser);
-      const validPassword = isBcryptHash(storedPassword)
-        ? await bcrypt.compare(password, storedPassword)
-        : password === storedPassword;
+    const user = rows[0];
 
-      if (!validPassword) {
-        continue;
-      }
-
-      if (!isUserVerified(candidateUser)) {
-        unverifiedPasswordMatch = true;
-        continue;
-      }
-
-      matchedUser = candidateUser;
-      matchedStoredPassword = storedPassword;
-      break;
+    // Check verification status
+    if (!user.is_verified) {
+      return res
+        .status(403)
+        .json({ error: "Account not verified. Please verify your OTP." });
     }
 
-    if (!matchedUser) {
-      if (unverifiedPasswordMatch) {
-        return res
-          .status(403)
-          .json({ error: "Account not verified. Please verify your OTP." });
-      }
+    // Check password
+    const validPassword = await bcrypt.compare(password, user.password_hash);
+    if (!validPassword) {
       return res.status(400).json({ error: "Invalid username or password" });
-    }
-
-    const user = matchedUser;
-    const storedPassword = matchedStoredPassword;
-
-    if (!isBcryptHash(storedPassword)) {
-      const upgradedHash = await bcrypt.hash(password, 10);
-      const passwordColumn = getPasswordColumn(user);
-      const idColumn = getUserIdColumn(user);
-      await runQuery(`UPDATE users SET ${passwordColumn} = ? WHERE ${idColumn} = ?`, [
-        upgradedHash,
-        getUserId(user)
-      ]);
-      user[passwordColumn] = upgradedHash;
     }
 
     const token = createToken(user);
     return res.json({
       message: "Login successful",
       token,
-      user: toPublicUser(user)
+      user: toPublicUser(user),
     });
   } catch (error) {
     console.error("login error:", error.message);
@@ -339,6 +228,7 @@ exports.login = async (req, res) => {
   }
 };
 
+// Forgot Password — request OTP
 exports.forgotPassword = async (req, res) => {
   const email = normalizeEmail(req.body?.email);
 
@@ -347,9 +237,12 @@ exports.forgotPassword = async (req, res) => {
   }
 
   try {
-    const user = await getUserByEmail(email);
+    const rows = await runQuery(
+      "SELECT id FROM users WHERE email = ? LIMIT 1",
+      [email]
+    );
 
-    if (!user) {
+    if (rows.length === 0) {
       return res.status(400).json({ error: "User not found" });
     }
 
@@ -359,14 +252,24 @@ exports.forgotPassword = async (req, res) => {
       [email, otp, createExpiryDate()]
     );
 
-    await emailService.sendOTP(email, otp);
-    return res.json({ message: "OTP sent to email for password reset." });
+    try {
+      const sent = await emailService.sendOTP(email, otp);
+      if (sent) {
+        return res.json({ message: "OTP sent to email for password reset." });
+      }
+      console.error("Password reset OTP email failed for:", email);
+      return res.json({ message: "OTP generated. Check console if email not received." });
+    } catch (emailError) {
+      console.error("Password reset email exception:", emailError.message);
+      return res.json({ message: "OTP generated. Check console if email not received." });
+    }
   } catch (error) {
     console.error("forgotPassword error:", error.message);
     return res.status(500).json({ error: "Failed to generate OTP" });
   }
 };
 
+// Reset Password
 exports.resetPassword = async (req, res) => {
   const email = normalizeEmail(req.body?.email);
   const otpCode = normalizeUsername(req.body?.otpCode);
@@ -392,7 +295,7 @@ exports.resetPassword = async (req, res) => {
     await runQuery("DELETE FROM otps WHERE email = ? AND purpose = 'PASSWORD_RESET'", [email]);
     await runQuery("UPDATE users SET password_hash = ? WHERE email = ?", [
       passwordHash,
-      email
+      email,
     ]);
 
     return res.json({ message: "Password reset successful. You can now login." });
@@ -402,10 +305,12 @@ exports.resetPassword = async (req, res) => {
   }
 };
 
+// Logout
 exports.logout = (req, res) => {
   res.json({ message: "Logged out successfully" });
 };
 
+// Google Sign-In
 exports.googleLogin = async (req, res) => {
   const credential = req.body?.credential;
 
@@ -416,7 +321,7 @@ exports.googleLogin = async (req, res) => {
   try {
     const ticket = await googleClient.verifyIdToken({
       idToken: credential,
-      audience: process.env.GOOGLE_CLIENT_ID
+      audience: process.env.GOOGLE_CLIENT_ID,
     });
     const payload = ticket.getPayload();
     const email = normalizeEmail(payload?.email);
@@ -427,12 +332,19 @@ exports.googleLogin = async (req, res) => {
       return res.status(400).json({ error: "Google account email is required" });
     }
 
-    const existingUser = await getUserByEmail(email);
+    // Check if user already exists
+    const existingRows = await runQuery(
+      "SELECT * FROM users WHERE email = ? LIMIT 1",
+      [email]
+    );
 
-    if (existingUser) {
+    if (existingRows.length > 0) {
+      const existingUser = existingRows[0];
+
+      // Auto-verify Google users
       if (!existingUser.is_verified) {
-        await runQuery(`UPDATE users SET is_verified = 1 WHERE ${getUserIdColumn(existingUser)} = ?`, [
-          getUserId(existingUser)
+        await runQuery("UPDATE users SET is_verified = 1 WHERE id = ?", [
+          existingUser.id,
         ]);
         existingUser.is_verified = 1;
       }
@@ -441,31 +353,43 @@ exports.googleLogin = async (req, res) => {
       return res.json({
         message: "Login successful",
         token,
-        user: toPublicUser(existingUser)
+        user: toPublicUser(existingUser),
       });
     }
 
-    const username = await buildUniqueUsername(displayName, googleId);
+    // New user — build a unique username
+    const baseUsername = displayName
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "")
+      .slice(0, 80) || "user";
+    const suffix = googleId.slice(-4);
+    let username = `${baseUsername}_${suffix}`;
+
+    // Ensure unique
+    const dupes = await runQuery(
+      "SELECT 1 FROM users WHERE username = ? LIMIT 1",
+      [username]
+    );
+    if (dupes.length > 0) {
+      username = `${baseUsername}_${suffix}_${Date.now() % 10000}`;
+    }
+
     const randomPassword = crypto.randomBytes(32).toString("hex");
     const passwordHash = await bcrypt.hash(randomPassword, 10);
-    const result = await insertUser({
-      username,
-      email,
-      passwordHash,
-      isVerified: true
-    });
 
-    const user = {
-      user_id: result.insertId,
-      name: username,
-      email
-    };
-    const token = createToken(user);
+    const result = await runQuery(
+      "INSERT INTO users (username, email, password_hash, is_verified) VALUES (?, ?, ?, 1)",
+      [username, email, passwordHash]
+    );
+
+    const newUser = { id: result.insertId, username, email };
+    const token = createToken(newUser);
 
     return res.json({
       message: "Login successful",
       token,
-      user: toPublicUser(user)
+      user: toPublicUser(newUser),
     });
   } catch (error) {
     console.error("Google auth error:", error.message);
