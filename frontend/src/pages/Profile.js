@@ -29,7 +29,6 @@ function Profile() {
   const navigate = useNavigate();
   const webcamRef = useRef(null);
   const usernameInputRef = useRef(null);
-  const emailInputRef = useRef(null);
   const sessionUserRef = useRef(getStoredUser());
 
   const sessionUsername = typeof sessionUserRef.current?.username === "string"
@@ -44,7 +43,6 @@ function Profile() {
   const [tempUser, setTempUser] = useState(sessionUsername);
   const [tempEmail, setTempEmail] = useState(sessionEmail);
   const [editUser, setEditUser] = useState(false);
-  const [editEmail, setEditEmail] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
   const [showOptions, setShowOptions] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
@@ -132,21 +130,9 @@ function Profile() {
     }
   }, [editUser]);
 
-  useEffect(() => {
-    if (editEmail && emailInputRef.current) {
-      emailInputRef.current.focus();
-      emailInputRef.current.select();
-    }
-  }, [editEmail]);
-
   const resetUsernameEdit = () => {
     setTempUser(username);
     setEditUser(false);
-  };
-
-  const resetEmailEdit = () => {
-    setTempEmail(email);
-    setEditEmail(false);
   };
 
   const saveProfile = async () => {
@@ -213,7 +199,6 @@ function Profile() {
       setTempUser(savedUsername);
       setTempEmail(savedEmail);
       setEditUser(false);
-      setEditEmail(false);
       if (data?.token) {
         setStoredToken(data.token);
       }
@@ -375,7 +360,6 @@ function Profile() {
                   onClick={() => {
                     setTempUser(username);
                     setEditUser(true);
-                    setEditEmail(false);
                     setStatusMessage("");
                   }}
                   aria-label="Edit username"
@@ -392,52 +376,7 @@ function Profile() {
         <div className="profile-card-content">
           <div className="label">Email</div>
           <div className="profile-field-row">
-            {editEmail ? (
-              <>
-                <input
-                  ref={emailInputRef}
-                  className="input-box profile-inline-input"
-                  type="email"
-                  value={tempEmail}
-                  onChange={(e) => setTempEmail(e.target.value)}
-                  onBlur={resetEmailEdit}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      saveProfile();
-                    }
-                    if (e.key === "Escape") {
-                      resetEmailEdit();
-                    }
-                  }}
-                  placeholder="Enter email"
-                />
-                <button
-                  className="icon-btn save-icon-btn"
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={saveProfile}
-                  aria-label="Save email"
-                >
-                  <FaCheck />
-                </button>
-              </>
-            ) : (
-              <>
-                <span className="value profile-inline-value">{email || "Not set"}</span>
-                <button
-                  className="icon-btn edit-icon-btn"
-                  onClick={() => {
-                    setTempEmail(email);
-                    setEditEmail(true);
-                    setEditUser(false);
-                    setStatusMessage("");
-                  }}
-                  aria-label="Edit email"
-                >
-                  <FaPen />
-                </button>
-              </>
-            )}
+            <span className="value profile-inline-value">{email || "Not set"}</span>
           </div>
         </div>
       </div>

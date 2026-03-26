@@ -396,7 +396,7 @@ function AppLayout() {
     if (!isAuthRoute) {
       refreshNotifications();
     }
-  }, [isAuthRoute, location.pathname, refreshNotifications]);
+  }, [isAuthRoute, refreshNotifications]);
 
   const popupNotifications = notifications.filter(
     (notification) => !dismissedNotificationIds.includes(notification.id)
