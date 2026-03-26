@@ -46,6 +46,7 @@
   flex: 1;
 }
 
+.profile-field-row,
 .username-row {
   display: flex;
   align-items: center;
@@ -56,11 +57,14 @@
   padding: 10px 12px;
 }
 
+.profile-inline-value,
 .username-inline-value {
   font-size: 20px;
   flex: 1;
+  word-break: break-word;
 }
 
+.profile-inline-input,
 .username-input {
   flex: 1;
   min-width: 0;

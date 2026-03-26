@@ -5,21 +5,46 @@ import { useNavigate } from "react-router-dom";
 import { FaCheck, FaPen } from "react-icons/fa";
 import {
   clearStoredSession,
+  getStoredUser,
   getStoredToken,
+  setStoredToken,
   updateStoredUser as syncStoredUser
 } from "../services/authStorage";
 
-const API_BASE_URL = "http://localhost:5001";
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:5001";
+const API_DOWN_MESSAGE = `Cannot reach backend server (${API_BASE_URL}). Start backend and try again.`;
+const sanitizeProfileMessage = (message, fallbackMessage) => {
+  if (typeof message !== "string" || !message.trim()) {
+    return fallbackMessage;
+  }
+
+  if (/Unknown column|where clause|SQL|ER_/i.test(message)) {
+    return fallbackMessage;
+  }
+
+  return message;
+};
 
 function Profile() {
   const navigate = useNavigate();
   const webcamRef = useRef(null);
   const usernameInputRef = useRef(null);
+  const emailInputRef = useRef(null);
+  const sessionUserRef = useRef(getStoredUser());
 
-  const [username, setUsername] = useState("alex_user");
-  const [email, setEmail] = useState("alex.user92@gmail.com");
-  const [tempUser, setTempUser] = useState("alex_user");
+  const sessionUsername = typeof sessionUserRef.current?.username === "string"
+    ? sessionUserRef.current.username.trim()
+    : "";
+  const sessionEmail = typeof sessionUserRef.current?.email === "string"
+    ? sessionUserRef.current.email.trim()
+    : "";
+
+  const [username, setUsername] = useState(sessionUsername);
+  const [email, setEmail] = useState(sessionEmail);
+  const [tempUser, setTempUser] = useState(sessionUsername);
+  const [tempEmail, setTempEmail] = useState(sessionEmail);
   const [editUser, setEditUser] = useState(false);
+  const [editEmail, setEditEmail] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
   const [showOptions, setShowOptions] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
@@ -27,39 +52,78 @@ function Profile() {
     "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
   );
 
+  const updateSavedUser = (nextUsername, nextEmail) => {
+    syncStoredUser({
+      username: nextUsername,
+      email: nextEmail
+    });
+  };
+
   const handleLogout = () => {
     clearStoredSession();
     navigate("/login");
   };
 
   useEffect(() => {
-    const token = getStoredToken();
+    const loadProfile = async () => {
+      const token = getStoredToken();
 
-    if (!token) {
-      clearStoredSession();
-      navigate("/login");
-      return;
-    }
-
-    fetch(`${API_BASE_URL}/api/profile`, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json"
+      if (!token) {
+        clearStoredSession();
+        navigate("/login");
+        return;
       }
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        const nextUsername = data.username || "";
-        const nextEmail = data.email || "";
+
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/profile`, {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json"
+          }
+        });
+
+        const data = await res.json();
+        if (res.status === 401) {
+          clearStoredSession();
+          navigate("/login");
+          return;
+        }
+
+        if (!res.ok) {
+          const fallbackMessage = "Unable to load profile details right now.";
+          throw new Error(
+            sanitizeProfileMessage(data.message || data.error, fallbackMessage)
+          );
+        }
+
+        const apiUsername = (data.username || "").trim();
+        const apiEmail = (data.email || "").trim();
+        const nextUsername = apiUsername || sessionUsername;
+        const nextEmail = apiEmail || sessionEmail;
+
         setUsername(nextUsername);
         setEmail(nextEmail);
         setTempUser(nextUsername);
-      })
-      .catch(() => {
-        setStatusMessage("Unable to load profile details right now.");
-      });
-  }, [navigate]);
+        setTempEmail(nextEmail);
+        syncStoredUser({
+          username: nextUsername,
+          email: nextEmail
+        });
+      } catch (error) {
+        if (error?.name === "TypeError") {
+          setStatusMessage(API_DOWN_MESSAGE);
+          return;
+        }
+
+        setStatusMessage(
+          sanitizeProfileMessage(error.message, "Unable to load profile details right now.")
+        );
+      }
+    };
+
+    loadProfile();
+  }, [navigate, sessionEmail, sessionUsername]);
 
   useEffect(() => {
     if (editUser && usernameInputRef.current) {
@@ -68,53 +132,103 @@ function Profile() {
     }
   }, [editUser]);
 
-  const updateSavedUser = (nextUsername) => {
-    syncStoredUser({
-      username: nextUsername,
-      email
-    });
-  };
+  useEffect(() => {
+    if (editEmail && emailInputRef.current) {
+      emailInputRef.current.focus();
+      emailInputRef.current.select();
+    }
+  }, [editEmail]);
 
   const resetUsernameEdit = () => {
     setTempUser(username);
     setEditUser(false);
   };
 
-  const saveUser = async () => {
+  const resetEmailEdit = () => {
+    setTempEmail(email);
+    setEditEmail(false);
+  };
+
+  const saveProfile = async () => {
     const token = getStoredToken();
     const trimmedUsername = tempUser.trim();
+    const trimmedEmail = tempEmail.trim().toLowerCase();
+
+    if (!token) {
+      clearStoredSession();
+      navigate("/login");
+      return;
+    }
 
     if (!trimmedUsername) {
       setStatusMessage("Username is required.");
-      resetUsernameEdit();
       return;
     }
 
-    const res = await fetch(`${API_BASE_URL}/api/profile`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`
-      },
-      body: JSON.stringify({
-        username: trimmedUsername,
-        email
-      })
-    });
-
-    const data = await res.json();
-
-    if (!res.ok) {
-      setStatusMessage(data.message || data.error || "Unable to update profile.");
-      resetUsernameEdit();
+    if (!trimmedEmail) {
+      setStatusMessage("Email is required.");
       return;
     }
 
-    setUsername(trimmedUsername);
-    setTempUser(trimmedUsername);
-    setEditUser(false);
-    updateSavedUser(trimmedUsername);
-    setStatusMessage(data.message || "Profile updated successfully");
+    const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail);
+    if (!isValidEmail) {
+      setStatusMessage("Please enter a valid email address.");
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/profile`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          username: trimmedUsername,
+          email: trimmedEmail
+        })
+      });
+
+      let data = {};
+      try {
+        data = await res.json();
+      } catch (parseError) {
+        data = {};
+      }
+
+      if (!res.ok) {
+        setStatusMessage(
+          sanitizeProfileMessage(
+            data.message || data.error,
+            "Unable to update profile right now."
+          )
+        );
+        return;
+      }
+
+      const savedUsername = (data?.user?.username || trimmedUsername).trim();
+      const savedEmail = (data?.user?.email || trimmedEmail).trim().toLowerCase();
+      setUsername(savedUsername);
+      setEmail(savedEmail);
+      setTempUser(savedUsername);
+      setTempEmail(savedEmail);
+      setEditUser(false);
+      setEditEmail(false);
+      if (data?.token) {
+        setStoredToken(data.token);
+      }
+      updateSavedUser(savedUsername, savedEmail);
+      setStatusMessage(data.message || "Profile updated successfully");
+    } catch (error) {
+      if (error?.name === "TypeError") {
+        setStatusMessage(API_DOWN_MESSAGE);
+        return;
+      }
+
+      setStatusMessage(
+        sanitizeProfileMessage(error.message, "Unable to update profile right now.")
+      );
+    }
   };
 
   const handleImageChange = (e) => {
@@ -224,19 +338,19 @@ function Profile() {
       <div className="profile-card">
         <div className="profile-card-content">
           <div className="label">Username</div>
-          <div className="username-row">
+          <div className="profile-field-row">
             {editUser ? (
               <>
                 <input
                   ref={usernameInputRef}
-                  className="input-box username-input"
+                  className="input-box profile-inline-input"
                   value={tempUser}
                   onChange={(e) => setTempUser(e.target.value)}
                   onBlur={resetUsernameEdit}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
                       e.preventDefault();
-                      saveUser();
+                      saveProfile();
                     }
                     if (e.key === "Escape") {
                       resetUsernameEdit();
@@ -247,7 +361,7 @@ function Profile() {
                 <button
                   className="icon-btn save-icon-btn"
                   onMouseDown={(e) => e.preventDefault()}
-                  onClick={saveUser}
+                  onClick={saveProfile}
                   aria-label="Save username"
                 >
                   <FaCheck />
@@ -255,12 +369,13 @@ function Profile() {
               </>
             ) : (
               <>
-                <span className="value username-inline-value">{username}</span>
+                <span className="value profile-inline-value">{username || "Not set"}</span>
                 <button
                   className="icon-btn edit-icon-btn"
                   onClick={() => {
                     setTempUser(username);
                     setEditUser(true);
+                    setEditEmail(false);
                     setStatusMessage("");
                   }}
                   aria-label="Edit username"
@@ -276,7 +391,54 @@ function Profile() {
       <div className="profile-card">
         <div className="profile-card-content">
           <div className="label">Email</div>
-          <div className="value">{email}</div>
+          <div className="profile-field-row">
+            {editEmail ? (
+              <>
+                <input
+                  ref={emailInputRef}
+                  className="input-box profile-inline-input"
+                  type="email"
+                  value={tempEmail}
+                  onChange={(e) => setTempEmail(e.target.value)}
+                  onBlur={resetEmailEdit}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      saveProfile();
+                    }
+                    if (e.key === "Escape") {
+                      resetEmailEdit();
+                    }
+                  }}
+                  placeholder="Enter email"
+                />
+                <button
+                  className="icon-btn save-icon-btn"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={saveProfile}
+                  aria-label="Save email"
+                >
+                  <FaCheck />
+                </button>
+              </>
+            ) : (
+              <>
+                <span className="value profile-inline-value">{email || "Not set"}</span>
+                <button
+                  className="icon-btn edit-icon-btn"
+                  onClick={() => {
+                    setTempEmail(email);
+                    setEditEmail(true);
+                    setEditUser(false);
+                    setStatusMessage("");
+                  }}
+                  aria-label="Edit email"
+                >
+                  <FaPen />
+                </button>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
