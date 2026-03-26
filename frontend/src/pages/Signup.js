@@ -144,7 +144,7 @@ function Signup() {
 
   const handleVerifyOtp = async (e) => {
     e.preventDefault();
-    setError(""); setLoading(true);
+    setError(""); setMessage(""); setLoading(true);
 
     try {
       const response = await fetch("http://localhost:5001/auth/verify-otp", {
