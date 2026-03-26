@@ -9,28 +9,35 @@ exports.getBudgets = (req, res) => {
       b.name,
       b.icon,
       b.amount,
-      COALESCE((
-        SELECT SUM(t.amount)
-        FROM transactions t
-        LEFT JOIN categories c
-          ON c.category_id = t.category_id
-        WHERE t.user_id = b.user_id
-          AND t.type = 'expense'
-          AND (
-            (
-              b.icon IS NOT NULL
-              AND TRIM(b.icon) <> ''
-              AND c.icon IS NOT NULL
-              AND TRIM(c.icon) <> ''
-              AND TRIM(c.icon) = TRIM(b.icon)
+      CASE
+        WHEN b.end_date IS NOT NULL AND CURDATE() > b.end_date THEN 0
+        ELSE COALESCE((
+          SELECT SUM(t.amount)
+          FROM transactions t
+          LEFT JOIN categories c
+            ON c.category_id = t.category_id
+          WHERE t.user_id = b.user_id
+            AND t.type = 'expense'
+            AND (b.start_date IS NULL OR DATE(t.transaction_date) >= b.start_date)
+            AND (b.end_date IS NULL OR DATE(t.transaction_date) <= b.end_date)
+            AND (
+              (
+                b.icon IS NOT NULL
+                AND TRIM(b.icon) <> ''
+                AND c.icon IS NOT NULL
+                AND TRIM(c.icon) <> ''
+                AND TRIM(c.icon) = TRIM(b.icon)
+              )
+              OR LOWER(TRIM(COALESCE(c.name, ''))) = LOWER(TRIM(b.name))
+              OR LOWER(TRIM(COALESCE(t.description, ''))) = LOWER(TRIM(b.name))
             )
-            OR LOWER(TRIM(COALESCE(c.name, ''))) = LOWER(TRIM(b.name))
-            OR LOWER(TRIM(COALESCE(t.description, ''))) = LOWER(TRIM(b.name))
-          )
-      ), 0) AS spent,
+        ), 0)
+      END AS spent,
       b.month,
       b.color,
-      b.is_system_generated
+      b.is_system_generated,
+      b.start_date,
+      b.end_date
     FROM budgets b
     WHERE COALESCE(b.is_system_generated, 0) = 0
       AND LOWER(TRIM(b.name)) <> 'monthly budget'
@@ -49,16 +56,20 @@ exports.getBudgets = (req, res) => {
 
 // 2. ADD NEW BUDGET
 exports.addBudget = async (req, res) => {
-  const { name, amount, icon, user_id, month, color } = req.body;
+  const { name, amount, icon, user_id, month, color, start_date, end_date } = req.body;
 
   if (!name || !amount) {
     return res.status(400).json({ error: "Name and amount are required" });
   }
 
+  if (start_date && end_date && start_date > end_date) {
+    return res.status(400).json({ error: "End date must be after start date" });
+  }
+
   const resolvedUserId = user_id || 1;
   const query = `
-    INSERT INTO budgets (name, amount, icon, user_id, month, spent, color, is_system_generated)
-    VALUES (?, ?, ?, ?, ?, 0, ?, 0)
+    INSERT INTO budgets (name, amount, icon, user_id, month, spent, color, is_system_generated, start_date, end_date)
+    VALUES (?, ?, ?, ?, ?, 0, ?, 0, ?, ?)
   `;
 
   const values = [
@@ -67,7 +78,9 @@ exports.addBudget = async (req, res) => {
     icon,
     resolvedUserId,
     month || 1,
-    color || "#ffcc00"
+    color || "#ffcc00",
+    start_date || null,
+    end_date || null
   ];
 
   try {
@@ -104,7 +117,9 @@ exports.addBudget = async (req, res) => {
         amount,
         icon,
         spent: 0,
-        color: color || "#ffcc00"
+        color: color || "#ffcc00",
+        start_date: start_date || null,
+        end_date: end_date || null
       });
     });
   } catch (err) {
@@ -115,10 +130,19 @@ exports.addBudget = async (req, res) => {
 
 // 3. EDIT BUDGET AMOUNT
 exports.editBudget = (req, res) => {
-  const { budget_id, amount } = req.body;
-  const query = "UPDATE budgets SET amount = ? WHERE budget_id = ?";
+  const { budget_id, amount, name, start_date, end_date } = req.body;
 
-  db.query(query, [amount, budget_id], (err) => {
+  if (start_date && end_date && start_date > end_date) {
+    return res.status(400).json({ error: "End date must be after start date" });
+  }
+
+  const query = `
+    UPDATE budgets
+    SET amount = ?, name = ?, start_date = ?, end_date = ?
+    WHERE budget_id = ?
+  `;
+
+  db.query(query, [amount, name, start_date || null, end_date || null, budget_id], (err) => {
     if (err) {
       console.error("SQL Error in editBudget:", err.message);
       return res.status(500).json(err);

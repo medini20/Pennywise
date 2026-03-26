@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
   FaArrowLeft,
+  FaCalendarAlt,
   FaTimes,
   FaUtensils,
   FaPlus,
@@ -17,6 +18,54 @@ const INR = "\u20B9";
 
 const normalizeCategoryName = (value) =>
   typeof value === "string" ? value.trim().toLowerCase() : "";
+
+const formatBudgetDateValue = (value) => {
+  if (!value) {
+    return "";
+  }
+
+  return String(value).slice(0, 10);
+};
+
+const parseBudgetDate = (value) => {
+  const normalizedValue = formatBudgetDateValue(value);
+  return normalizedValue ? new Date(`${normalizedValue}T00:00:00`) : null;
+};
+
+const isBudgetExpired = (budget) => {
+  const endDate = parseBudgetDate(budget?.end_date);
+  if (!endDate) {
+    return false;
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return today > endDate;
+};
+
+const isBudgetActive = (budget) => !isBudgetExpired(budget);
+
+const formatBudgetRange = (startDateValue, endDateValue) => {
+  const startDate = parseBudgetDate(startDateValue);
+  const endDate = parseBudgetDate(endDateValue);
+
+  if (!startDate && !endDate) {
+    return "";
+  }
+
+  const formatDate = (date) =>
+    date.toLocaleDateString("en-IN", {
+      month: "short",
+      day: "numeric",
+      year: "numeric"
+    });
+
+  if (startDate && endDate) {
+    return `${formatDate(startDate)} - ${formatDate(endDate)}`;
+  }
+
+  return formatDate(startDate || endDate);
+};
 
 const getTransactionIcon = (transaction) => {
   if (typeof transaction?.category_icon === "string" && transaction.category_icon.trim()) {
@@ -122,6 +171,8 @@ function Budget() {
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [editName, setEditName] = useState("");
   const [amount, setAmount] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
 
   useEffect(() => {
     loadBudgets();
@@ -138,9 +189,22 @@ function Budget() {
     return budgets.map((budget) => {
       const budgetIcon = typeof budget.icon === "string" ? budget.icon.trim() : "";
       const budgetName = normalizeCategoryName(budget.name);
+      const budgetStartDate = formatBudgetDateValue(budget.start_date);
+      const budgetEndDate = formatBudgetDateValue(budget.end_date);
+      const expired = isBudgetExpired(budget);
 
       const spent = transactions.reduce((sum, transaction) => {
         if (transaction.type !== "expense") {
+          return sum;
+        }
+
+        const transactionDate = formatBudgetDateValue(transaction.transaction_date);
+        const isBeforeStartDate =
+          Boolean(budgetStartDate) && Boolean(transactionDate) && transactionDate < budgetStartDate;
+        const isAfterEndDate =
+          Boolean(budgetEndDate) && Boolean(transactionDate) && transactionDate > budgetEndDate;
+
+        if (isBeforeStartDate || isAfterEndDate) {
           return sum;
         }
 
@@ -162,7 +226,8 @@ function Budget() {
 
       return {
         ...budget,
-        spent
+        spent: expired ? 0 : spent,
+        expired
       };
     });
   }, [budgets, transactions]);
@@ -229,6 +294,8 @@ function Budget() {
     setSelectedBudget(budget);
     setEditName(budget.name || budget.icon || "");
     setAmount(budget.amount);
+    setStartDate(formatBudgetDateValue(budget.start_date));
+    setEndDate(formatBudgetDateValue(budget.end_date));
     setEditOpen(true);
   };
 
@@ -255,7 +322,9 @@ function Budget() {
       body: JSON.stringify({
         budget_id: selectedBudget.budget_id,
         name: editName,
-        amount: Number(amount)
+        amount: Number(amount),
+        start_date: startDate || null,
+        end_date: endDate || null
       })
     }).then(() => {
       setEditOpen(false);
@@ -311,12 +380,17 @@ function Budget() {
     });
   }, [selectedBudget, transactions]);
 
+  const totalCategories = computedBudgets.length;
+  const activeCategories = computedBudgets.filter((budget) => isBudgetActive(budget)).length;
+
   if (isDetailOpen && selectedBudget) {
     const spent = Number(selectedBudget.spent || 0);
     const budgetAmount = Number(selectedBudget.amount || 0);
     const remaining = Math.max(budgetAmount - spent, 0);
     const percent = budgetAmount > 0 ? Math.min((spent / budgetAmount) * 100, 100) : 0;
     const accentColor = getBudgetAccentColor(selectedBudget);
+    const dateRange = formatBudgetRange(selectedBudget.start_date, selectedBudget.end_date);
+    const expired = isBudgetExpired(selectedBudget);
 
     return (
       <div className="budget-container budget-detail-container">
@@ -335,7 +409,16 @@ function Budget() {
               {renderIcon(selectedBudget.icon || selectedBudget.name, accentColor)}
             </div>
             <div className="detail-budget-meta">
-              <h2>{selectedBudget.name}</h2>
+              <div className="detail-budget-title-row">
+                <h2>{selectedBudget.name}</h2>
+                {expired && <span className="budget-expired-badge">Expired</span>}
+              </div>
+              {dateRange && (
+                <div className={`budget-date-pill detail-date-pill ${expired ? "budget-date-pill-expired" : ""}`}>
+                  <FaCalendarAlt />
+                  <span>{dateRange}</span>
+                </div>
+              )}
               <span>Budget: {INR}{budgetAmount} | Spent: {INR}{spent}</span>
             </div>
           </div>
@@ -504,7 +587,20 @@ function Budget() {
 
   return (
     <div className="budget-container">
-      <h2 className="budget-title">Budget Categories</h2>
+      <div className="budget-page-head">
+        <h2 className="budget-title">Budget Categories</h2>
+
+        <div className="budget-summary-chip">
+          <div className="budget-summary-chip-icon">
+            <FaCalendarAlt />
+          </div>
+          <div className="budget-summary-chip-copy">
+            <span>Total Categories</span>
+            <strong>{activeCategories} Active</strong>
+            <small>{totalCategories} Total</small>
+          </div>
+        </div>
+      </div>
 
       <div className="budget-list">
         {computedBudgets.length > 0 ? (
@@ -514,6 +610,8 @@ function Budget() {
             const remaining = budgetAmount - spent;
             const percent = budgetAmount > 0 ? Math.min((spent / budgetAmount) * 100, 100) : 0;
             const accentColor = getBudgetAccentColor(budget);
+            const dateRange = formatBudgetRange(budget.start_date, budget.end_date);
+            const expired = isBudgetExpired(budget);
 
             return (
               <div
@@ -529,7 +627,17 @@ function Budget() {
                 </div>
 
                 <div className="card-content">
-                  <div className="cat-name">{budget.name || budget.icon}</div>
+                  <div className="budget-card-header">
+                    <div className="cat-name">{budget.name || budget.icon}</div>
+                    {expired && <span className="budget-expired-badge">Expired</span>}
+                  </div>
+
+                  {dateRange && (
+                    <div className={`budget-date-pill ${expired ? "budget-date-pill-expired" : ""}`}>
+                      <FaCalendarAlt />
+                      <span>{dateRange}</span>
+                    </div>
+                  )}
 
                   <div className="progress-row">
                     <div className="progress-track">
