@@ -9,7 +9,7 @@
 }
 
 .modal {
-  width: 550px;
+  width: 455px;
   max-width: calc(100vw - 24px);
   max-height: 92vh;
   background: #1b2746;
@@ -23,19 +23,19 @@
 }
 
 .modal.transactionModal {
-  width: min(550px, calc(100vw - 60px));
-  max-width: calc(100vw - 60px);
-  padding: 0 32px 28px;
+  width: min(455px, calc(100vw - 34px));
+  max-width: calc(100vw - 34px);
+  padding: 0 14px 14px;
 }
 
 .modalHeader {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 18px 18px 16px;
-  margin: 0 -32px 18px;
+  padding: 13px 14px 11px;
+  margin: 0 -14px 12px;
   border-bottom: 1px solid rgba(88, 128, 214, 0.2);
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
 }
 
@@ -50,19 +50,19 @@
 
 .headerIcon {
   color: #f8fbff;
-  font-size: 18px;
+  font-size: 16px;
 }
 
 .switch {
   display: flex;
-  gap: 10px;
-  margin-bottom: 18px;
+  gap: 8px;
+  margin-bottom: 12px;
 }
 
 .switch button {
   flex: 1;
-  padding: 13px 12px;
-  border-radius: 14px;
+  padding: 10px 10px;
+  border-radius: 12px;
   border: 1px solid rgba(73, 109, 186, 0.5);
   background: #24345c;
   color: rgba(255, 255, 255, 0.7);
@@ -80,33 +80,33 @@
 .categories {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
+  gap: 8px;
 }
 
 .category {
   background: #24345c;
-  border-radius: 14px;
-  padding: 14px 10px;
+  border-radius: 12px;
+  padding: 10px 6px;
   text-align: center;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 92px;
-  font-size: 14px;
+  min-height: 72px;
+  font-size: 12px;
   cursor: pointer;
   border: 1px solid transparent;
 }
 
 .category p {
-  margin: 7px 0 0;
-  font-size: 12px;
+  margin: 4px 0 0;
+  font-size: 11px;
   font-weight: 700;
   line-height: 1.2;
 }
 
 .circle {
-  font-size: 20px;
+  font-size: 17px;
   line-height: 1;
 }
 
@@ -118,54 +118,59 @@
 
 .addCategory {
   border: 2px dashed rgba(69, 127, 238, 0.65);
-  padding: 16px;
-  border-radius: 18px;
+  padding: 12px;
+  border-radius: 15px;
   text-align: center;
-  margin-top: 14px;
+  margin-top: 10px;
   cursor: pointer;
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 700;
   color: #ecf2ff;
 }
 
 .amount {
-  font-size: 72px;
+  font-size: 48px;
   text-align: center;
-  margin: 18px 0 20px;
+  margin: 10px 0 12px;
   font-weight: 800;
   line-height: 1;
 }
 
 .recurringCard {
-  background: #1f3158;
-  border: 1px solid rgba(73, 109, 186, 0.6);
-  border-radius: 20px;
-  padding: 18px;
-  margin-bottom: 18px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  margin-bottom: 14px;
 }
 
 .recurringHeader {
+  background: #23355f;
+  border: 1px solid rgba(55, 111, 228, 0.75);
+  border-radius: 15px;
+  padding: 11px 13px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 12px;
-  font-size: 16px;
+  gap: 10px;
+  font-size: 13px;
   font-weight: 700;
 }
 
 .toggleSwitch {
-  width: 46px;
-  height: 26px;
+  width: 56px;
+  height: 28px;
   border-radius: 999px;
-  border: none;
-  background: rgba(255, 255, 255, 0.22);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #4c5e8f;
   position: relative;
   cursor: pointer;
   padding: 0;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12);
 }
 
 .toggleOn {
-  background: linear-gradient(135deg, #4d85ed, #71a4ff);
+  background: linear-gradient(135deg, #4e89ef, #6da5ff);
 }
 
 .toggleThumb {
@@ -177,40 +182,41 @@
   border-radius: 50%;
   background: white;
   transition: transform 0.2s ease;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
 }
 
 .toggleOn .toggleThumb {
-  transform: translateX(20px);
+  transform: translateX(28px);
 }
 
 .recurringBody {
-  margin-top: 16px;
+  margin-top: 12px;
 }
 
 .recurringLabel,
 .inputLabel {
   display: block;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
   color: rgba(255, 255, 255, 0.72);
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .frequencyRow {
   display: flex;
   gap: 8px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 
 .frequencyButton {
   flex: 1;
-  min-width: 120px;
-  padding: 14px 10px;
-  border-radius: 14px;
-  border: 1px solid rgba(73, 109, 186, 0.55);
+  min-width: 0;
+  padding: 11px 8px;
+  border-radius: 13px;
+  border: 1px solid rgba(50, 98, 196, 0.85);
   background: #24345c;
   color: rgba(255, 255, 255, 0.72);
-  font-size: 14px;
+  font-size: 11px;
   font-weight: 700;
   cursor: pointer;
 }
@@ -223,25 +229,32 @@
 
 .recurringDateGrid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
-  margin-top: 16px;
+  grid-template-columns: 1fr;
+  gap: 0;
+  margin-top: 12px;
 }
 
 .recurringInputLabel {
-  margin-bottom: 6px;
+  margin-bottom: -10px;
+  margin-left: 12px;
+  position: relative;
+  z-index: 1;
+  display: inline-block;
+  background: #1b2746;
+  padding: 0 6px;
+  width: fit-content;
 }
 
 .dateInputWrap {
   position: relative;
-  margin-bottom: 14px;
+  margin-bottom: 10px;
 }
 
 .dateInput {
   width: 100%;
-  padding: 12px 42px 12px 14px;
-  border-radius: 14px;
-  border: 1px solid rgba(73, 109, 186, 0.55);
+  padding: 12px 38px 12px 14px;
+  border-radius: 13px;
+  border: 1px solid rgba(55, 111, 228, 0.72);
   background: #24345c;
   color: white;
   font-size: 14px;
@@ -255,29 +268,39 @@
 
 .dateInputIcon {
   position: absolute;
-  right: 14px;
+  right: 15px;
   top: 50%;
   transform: translateY(-50%);
   color: rgba(255, 255, 255, 0.8);
   cursor: pointer;
+  font-size: 13px;
 }
 
 .recurringSaveButton {
   width: 100%;
   border: none;
-  border-radius: 16px;
-  padding: 15px 16px;
+  border-radius: 15px;
+  padding: 13px 14px;
   color: white;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 700;
   cursor: pointer;
-  margin-top: 8px;
+  margin-top: 6px;
   background: linear-gradient(135deg, #29c35c, #23bf57);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.recurringSaveIcon {
+  font-size: 16px;
+  line-height: 1;
 }
 
 .recurringFeedback {
-  margin-top: 12px;
-  font-size: 13px;
+  margin-top: 8px;
+  font-size: 12px;
   line-height: 1.5;
 }
 
@@ -287,30 +310,34 @@
 
 .note {
   width: 100%;
-  padding: 12px 14px;
-  border-radius: 14px;
-  border: 1px solid rgba(73, 109, 186, 0.55);
-  margin-bottom: 14px;
+  padding: 11px 14px;
+  border-radius: 13px;
+  border: 1px solid rgba(55, 111, 228, 0.72);
+  margin-bottom: 10px;
   background: #24345c;
   color: white;
-  font-size: 14px;
+  font-size: 13px;
   outline: none;
+}
+
+.recurringAmountInput {
+  margin-bottom: 10px;
 }
 
 .keypad {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
-  margin-top: 6px;
+  gap: 6px;
+  margin-top: 4px;
 }
 
 .keypad button {
-  padding: 12px;
+  padding: 10px;
   border: none;
   border-radius: 12px;
   background: #2c4679;
   color: white;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
   cursor: pointer;
 }
