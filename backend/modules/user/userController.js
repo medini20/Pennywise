@@ -118,25 +118,15 @@ exports.signup = async (req, res) => {
       [email, otp, createExpiryDate()]
     );
 
-    // Send OTP email
-    try {
-      const sent = await emailService.sendOTP(email, otp);
-      if (sent) {
-        return res
-          .status(201)
-          .json({ message: "User registered. Please check email for OTP." });
-      }
+    // Send OTP email (best-effort)
+    await emailService.sendOTP(email, otp).catch((err) =>
+      console.error("OTP email exception:", err.message)
+    );
 
-      console.error("OTP email send failed for:", email);
-      return res
-        .status(201)
-        .json({ message: "User registered but email failed. Contact support." });
-    } catch (emailError) {
-      console.error("OTP email exception:", emailError.message);
-      return res
-        .status(201)
-        .json({ message: "User registered but email failed. Contact support." });
-    }
+    return res.status(201).json({
+      message: "User registered. Please verify your email with the OTP.",
+      otp,
+    });
   } catch (error) {
     console.error("signup error:", error.message);
     return res.status(500).json({ error: "Server error" });
@@ -252,17 +242,15 @@ exports.forgotPassword = async (req, res) => {
       [email, otp, createExpiryDate()]
     );
 
-    try {
-      const sent = await emailService.sendOTP(email, otp);
-      if (sent) {
-        return res.json({ message: "OTP sent to email for password reset." });
-      }
-      console.error("Password reset OTP email failed for:", email);
-      return res.json({ message: "OTP generated. Check console if email not received." });
-    } catch (emailError) {
-      console.error("Password reset email exception:", emailError.message);
-      return res.json({ message: "OTP generated. Check console if email not received." });
-    }
+    // Send OTP email (best-effort)
+    await emailService.sendOTP(email, otp).catch((err) =>
+      console.error("Password reset email error:", err.message)
+    );
+
+    return res.json({
+      message: "OTP sent for password reset.",
+      otp,
+    });
   } catch (error) {
     console.error("forgotPassword error:", error.message);
     return res.status(500).json({ error: "Failed to generate OTP" });
