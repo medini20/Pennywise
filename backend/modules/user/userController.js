@@ -17,6 +17,22 @@ const runQuery = async (sql, params = []) => {
   return rows;
 };
 
+const hasUsersColumn = async (columnName) => {
+  const rows = await runQuery(
+    `
+      SELECT COLUMN_NAME
+      FROM information_schema.COLUMNS
+      WHERE TABLE_SCHEMA = DATABASE()
+        AND TABLE_NAME = 'users'
+        AND COLUMN_NAME = ?
+      LIMIT 1
+    `,
+    [columnName]
+  );
+
+  return rows.length > 0;
+};
+
 const normalizeUsername = (value) =>
   typeof value === "string" ? value.trim() : "";
 
@@ -251,22 +267,15 @@ exports.login = async (req, res) => {
   try {
     const isEmail = username.includes("@");
     const identifier = isEmail ? normalizeEmail(username) : username;
-    let rows = [];
-    try {
-      rows = await runQuery(
-        isEmail
-          ? "SELECT * FROM users WHERE LOWER(email) = LOWER(?)"
-          : "SELECT * FROM users WHERE LOWER(name) = LOWER(?) OR LOWER(username) = LOWER(?)",
-        isEmail ? [identifier] : [identifier, identifier]
-      );
-    } catch (queryError) {
-      // Backward compatibility for legacy users table variants.
-      if (!/Unknown column/i.test(queryError.message)) {
-        throw queryError;
-      }
-
-      rows = await runQuery("SELECT * FROM users WHERE LOWER(username) = LOWER(?)", [identifier]);
-    }
+    const hasUsername = await hasUsersColumn("username");
+    const rows = await runQuery(
+      isEmail
+        ? "SELECT * FROM users WHERE LOWER(email) = LOWER(?)"
+        : hasUsername
+          ? "SELECT * FROM users WHERE LOWER(name) = LOWER(?) OR LOWER(username) = LOWER(?)"
+          : "SELECT * FROM users WHERE LOWER(name) = LOWER(?)",
+      isEmail ? [identifier] : hasUsername ? [identifier, identifier] : [identifier]
+    );
 
     if (rows.length === 0) {
       return res.status(400).json({ error: "Invalid username or password" });
