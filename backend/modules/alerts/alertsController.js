@@ -89,6 +89,12 @@ const getResolvedBudgetPeriod = (budgetRow, month, year) => {
   };
 };
 
+const createHttpError = (statusCode, message) => {
+  const error = new Error(message);
+  error.statusCode = statusCode;
+  return error;
+};
+
 const getResolvedDateRange = (startDateValue, endDateValue, referenceDate = new Date()) => {
   const defaultRange = getCurrentMonthDateRange(referenceDate);
   const startDate = formatDateValue(startDateValue) || defaultRange.startDate;
@@ -144,12 +150,6 @@ const toOptionalText = (value) => {
 const toHexColor = (value) => {
   const parsedValue = toOptionalText(value);
   return parsedValue && /^#[0-9a-fA-F]{6}$/.test(parsedValue) ? parsedValue : null;
-};
-
-const createHttpError = (statusCode, message) => {
-  const error = new Error(message);
-  error.statusCode = statusCode;
-  return error;
 };
 
 const getBudgetPeriodInput = (body, existingBudget, month, year) => {

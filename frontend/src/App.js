@@ -44,14 +44,8 @@ const mapTriggeredAlertsToNotifications = (summary) => {
   return triggeredAlerts.map((alert) => ({
     id: normalizeNotificationId(alert.id),
     percentage: alert.percentage,
-    message:
-      alert.scope === "category"
-        ? `${alert.budget_name} reached ${alert.percentage}% of its budget`
-        : `Spending reached ${alert.percentage}% of your monthly budget`,
-    detail:
-      alert.scope === "category"
-        ? `${formatCurrency(alert.current_spending)} spent out of ${formatCurrency(alert.budget_amount)}`
-        : `${formatCurrency(summary.current_spending)} spent out of ${formatCurrency(summary.budget)}`
+    message: `Spending reached ${alert.percentage}% of your budget`,
+    detail: `${formatCurrency(summary.current_spending)} spent out of ${formatCurrency(summary.budget)}`
   }));
 };
 
@@ -307,6 +301,8 @@ function TopBar({ notifications, refreshNotifications }) {
 
 function AppLayout() {
   const location = useLocation();
+  const storedUser = getStoredUser();
+  const userId = storedUser?.id ?? storedUser?.user_id ?? null;
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [notifications, setNotifications] = useState(readStoredNotifications);
   const [dismissedNotificationIds, setDismissedNotificationIds] = useState(
@@ -320,14 +316,26 @@ function AppLayout() {
   // Define sidebar width to match your CSS exactly
   const sidebarWidth = isCollapsed ? "70px" : "260px";
 
-  const refreshNotifications = useCallback(async () => {
+  const refreshNotifications = useCallback(async (currentSpendingOverride) => {
+    if (!userId) {
+      setNotifications([]);
+      return [];
+    }
+
+    const parsedSpending = Number(
+      currentSpendingOverride ?? window.localStorage.getItem(CURRENT_SPENDING_KEY) ?? 0
+    );
+
     try {
       const response = await fetch(`${API_BASE_URL}/alerts/check`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({})
+        body: JSON.stringify({
+          user_id: userId,
+          current_spending: Number.isFinite(parsedSpending) ? parsedSpending : 0
+        })
       });
 
       const data = await response.json();
@@ -351,12 +359,12 @@ function AppLayout() {
       console.error(error.message);
       return [];
     }
-  }, []);
+  }, [userId]);
 
   const handleSpendingChange = useCallback(
     (currentSpending) => {
       window.localStorage.setItem(CURRENT_SPENDING_KEY, String(currentSpending));
-      refreshNotifications();
+      refreshNotifications(currentSpending);
     },
     [refreshNotifications]
   );

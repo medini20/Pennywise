@@ -19,17 +19,56 @@ const INR = "\u20B9";
 
 const categoryColors = {
   "Food & Dining": "#22d3ee",
+  Food: "#22d3ee",
   Transportation: "#8b5cf6",
   Shopping: "#facc15",
   Entertainment: "#a855f7",
   Utilities: "#ef4444",
+  Health: "#ef4444",
   Education: "#10b981",
+  Freelance: "#f59e0b",
   Other: "#3b82f6"
 };
+
+const fallbackCategoryPalette = [
+  "#4c92ff",
+  "#22d3ee",
+  "#8b5cf6",
+  "#f59e0b",
+  "#10b981",
+  "#ef4444",
+  "#ec4899",
+  "#facc15",
+  "#14b8a6",
+  "#60a5fa"
+];
 
 const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 const formatAmount = (value) => `${INR}${Number(value || 0).toLocaleString("en-IN")}`;
+
+const getCategoryColor = (name, index) => {
+  if (categoryColors[name]) {
+    return categoryColors[name];
+  }
+
+  return fallbackCategoryPalette[index % fallbackCategoryPalette.length];
+};
+
+const getAnalyticsCategoryName = (transaction) => {
+  const categoryName = transaction.category || "Other";
+  const categoryType = transaction.category_type || transaction.categoryType;
+
+  if (
+    transaction.type === "expense" &&
+    categoryType &&
+    categoryType !== transaction.type
+  ) {
+    return transaction.description || categoryName;
+  }
+
+  return categoryName;
+};
 
 function Analytics() {
   const [transactions, setTransactions] = useState([]);
@@ -106,7 +145,7 @@ function Analytics() {
 
       expenseByTime.set(timeKey, (expenseByTime.get(timeKey) || 0) + amount);
 
-      const categoryName = transaction.category || "Other";
+      const categoryName = getAnalyticsCategoryName(transaction) || "Other";
       expenseByCategory.set(categoryName, (expenseByCategory.get(categoryName) || 0) + amount);
     });
 
@@ -123,10 +162,10 @@ function Analytics() {
 
     return {
       lineData: Array.from(expenseByTime, ([date, expense]) => ({ date, expense })),
-      categoryData: Array.from(expenseByCategory, ([name, value]) => ({
+      categoryData: Array.from(expenseByCategory, ([name, value], index) => ({
         name,
         value,
-        color: categoryColors[name] || "#3b82f6"
+        color: getCategoryColor(name, index)
       })),
       summary: {
         income,

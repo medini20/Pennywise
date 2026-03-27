@@ -203,7 +203,6 @@ const getUserId = (req) => {
     : DEFAULT_USER_ID;
 };
 
-// 1. GET ALL BUDGETS
 exports.getBudgets = async (req, res) => {
   const userId = getUserId(req);
 
@@ -280,7 +279,6 @@ exports.getBudgets = async (req, res) => {
   }
 };
 
-// 2. ADD NEW BUDGET
 exports.addBudget = async (req, res) => {
   const { name, amount, icon, user_id, month, color, start_date, end_date } = req.body;
 
@@ -296,7 +294,7 @@ exports.addBudget = async (req, res) => {
 
   try {
     const resolvedDates = getResolvedDateRange(start_date, end_date);
-    const resolvedMonth = toPositiveNumber(month) || getMonthNumberFromDate(resolvedDates.startDate);
+    const resolvedMonth = Number(month) > 0 ? Number(month) : getMonthNumberFromDate(resolvedDates.startDate);
     const query = `
       INSERT INTO budgets (
         name,
@@ -368,7 +366,6 @@ exports.addBudget = async (req, res) => {
   }
 };
 
-// 3. EDIT BUDGET
 exports.editBudget = async (req, res) => {
   try {
     const { budget_id, amount, name, start_date, end_date } = req.body;
@@ -443,7 +440,6 @@ exports.editBudget = async (req, res) => {
   }
 };
 
-// 4. DELETE BUDGET
 exports.deleteBudget = (req, res) => {
   const id = req.params.id;
   const query = "DELETE FROM budgets WHERE budget_id = ?";

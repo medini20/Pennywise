@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   AlertTriangle,
   CalendarDays,
@@ -10,6 +10,7 @@ import {
   X
 } from "lucide-react";
 import AestheticDatePicker from "../components/AestheticDatePicker";
+import { getStoredUser } from "../services/authStorage";
 import {
   formatDateRange,
   getCurrentMonthDateRange,
@@ -81,6 +82,7 @@ const getAlertDescription = (alert, triggerAmount) => {
 };
 
 const toBudgetIdValue = (value) => String(value ?? "");
+
 const notifyAlertStateChanged = () => {
   if (typeof window !== "undefined") {
     window.dispatchEvent(new Event("pennywise-alerts-updated"));
@@ -88,6 +90,8 @@ const notifyAlertStateChanged = () => {
 };
 
 export default function AlertsView() {
+  const storedUser = getStoredUser();
+  const userId = storedUser?.id ?? storedUser?.user_id ?? 1;
   const defaultMonthRange = getCurrentMonthDateRange();
   const [budget, setBudget] = useState(5000);
   const [budgetId, setBudgetId] = useState(null);
@@ -112,7 +116,7 @@ export default function AlertsView() {
   const [isSavingAlert, setIsSavingAlert] = useState(false);
   const [deletingAlertId, setDeletingAlertId] = useState(null);
 
-  const loadAlertData = async ({ clearStatus = true } = {}) => {
+  const loadAlertData = useCallback(async ({ clearStatus = true } = {}) => {
     setIsLoading(true);
 
     if (clearStatus) {
@@ -122,8 +126,8 @@ export default function AlertsView() {
 
     try {
       const [alertsResponse, budgetsResponse] = await Promise.all([
-        fetch(`${API_BASE_URL}/alerts/data?user_id=1`),
-        fetch(`${API_BASE_URL}/budget/list?user_id=1`).catch(() => null)
+        fetch(`${API_BASE_URL}/alerts/data?user_id=${userId}`),
+        fetch(`${API_BASE_URL}/budget/list?user_id=${userId}`).catch(() => null)
       ]);
       const data = await alertsResponse.json();
       const budgetsData = budgetsResponse
@@ -134,7 +138,6 @@ export default function AlertsView() {
         throw new Error(data.error || "Unable to load alerts right now.");
       }
 
-      const defaultMonthRange = getCurrentMonthDateRange();
       const nextBudget = Number(data.budget) || 5000;
       const nextBudgetId = Number(data.budget_id) || null;
       const nextStartDate =
@@ -176,11 +179,11 @@ export default function AlertsView() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [defaultMonthRange.endDate, defaultMonthRange.startDate, userId]);
 
   useEffect(() => {
     loadAlertData();
-  }, []);
+  }, [loadAlertData]);
 
   useEffect(() => {
     if (!showAddAlertDialog || !isCategorySpecificAlert) {
@@ -299,7 +302,7 @@ export default function AlertsView() {
         },
         body: JSON.stringify({
           amount,
-          user_id: 1,
+          user_id: userId,
           budget_id: budgetId,
           start_date: tempBudgetStartDate,
           end_date: tempBudgetEndDate
@@ -357,7 +360,7 @@ export default function AlertsView() {
       const payload = {
         threshold_percent: percentage,
         scope: isCategorySpecificAlert ? "category" : "overall",
-        user_id: 1
+        user_id: userId
       };
 
       if (isCategorySpecificAlert) {
@@ -401,7 +404,7 @@ export default function AlertsView() {
     setStatusTone("");
 
     try {
-      const response = await fetch(`${API_BASE_URL}/alerts/${alertId}`, {
+      const response = await fetch(`${API_BASE_URL}/alerts/${alertId}?user_id=${userId}`, {
         method: "DELETE"
       });
 

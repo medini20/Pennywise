@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import AestheticDatePicker from "../components/AestheticDatePicker";
+import { getStoredUser } from "../services/authStorage";
 import { getCurrentMonthDateRange } from "../utils/budgetDates";
 import "./Category.css";
 
@@ -12,6 +13,8 @@ const getMonthNumberFromDate = (value) => {
 };
 
 export default function Category({ closeCategory, addNewCategory }) {
+  const storedUser = getStoredUser();
+  const userId = storedUser?.id ?? storedUser?.user_id ?? 1;
   const defaultMonthRange = getCurrentMonthDateRange();
   const [view, setView] = useState("select");
   const [name, setName] = useState("");
@@ -74,6 +77,11 @@ export default function Category({ closeCategory, addNewCategory }) {
       return;
     }
 
+    if (!userId) {
+      setErrorMessage("Please log in again before creating a budget category.");
+      return;
+    }
+
     if (startDate > endDate) {
       setErrorMessage("Start date must be on or before end date.");
       return;
@@ -85,7 +93,7 @@ export default function Category({ closeCategory, addNewCategory }) {
       name,
       amount: Number(amount),
       icon: selectedIcon,
-      user_id: 1,
+      user_id: userId,
       month: getMonthNumberFromDate(startDate),
       start_date: startDate,
       end_date: endDate
