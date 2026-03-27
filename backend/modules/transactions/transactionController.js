@@ -71,13 +71,14 @@ const resolveCategoryId = async ({ userId, categoryName, categoryIcon, type }) =
       SELECT category_id
       FROM categories
       WHERE user_id = ?
+        AND type = ?
         AND (
           (? IS NOT NULL AND icon = ?)
           OR LOWER(TRIM(name)) = LOWER(TRIM(?))
         )
       LIMIT 1
     `,
-    [userId, categoryIcon, categoryIcon, categoryName]
+    [userId, type, categoryIcon, categoryIcon, categoryName]
   );
 
   let categoryId = existingCategories[0]?.category_id;

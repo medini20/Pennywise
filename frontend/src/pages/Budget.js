@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   FaArrowLeft,
   FaTimes,
@@ -8,14 +8,8 @@ import {
   FaShoppingCart,
   FaHeartbeat
 } from "react-icons/fa";
-import { CalendarDays } from "lucide-react";
 import { LuPencil, LuTrash2 } from "react-icons/lu";
-import AestheticDatePicker from "../components/AestheticDatePicker";
-import {
-  formatDateRange,
-  getCurrentMonthDateRange,
-  withDefaultBudgetDateRange
-} from "../utils/budgetDates";
+import { getStoredUser } from "../services/authStorage";
 import "./Budget.css";
 import Category from "./Category";
 
@@ -120,6 +114,8 @@ const formatTransactionDate = (value) => {
 };
 
 function Budget() {
+  const storedUser = getStoredUser();
+  const userId = storedUser?.id ?? storedUser?.user_id ?? null;
   const [budgets, setBudgets] = useState([]);
   const [selectedBudget, setSelectedBudget] = useState(null);
   const [transactions, setTransactions] = useState([]);
@@ -129,19 +125,46 @@ function Budget() {
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [editName, setEditName] = useState("");
   const [amount, setAmount] = useState("");
-  const [editStartDate, setEditStartDate] = useState(getCurrentMonthDateRange().startDate);
-  const [editEndDate, setEditEndDate] = useState(getCurrentMonthDateRange().endDate);
+
+  const loadBudgets = useCallback(() => {
+    if (!userId) {
+      setBudgets([]);
+      return;
+    }
+
+    fetch(`${API_BASE_URL}/budget/list?user_id=${userId}`)
+      .then((res) => res.json())
+      .then((data) => {
+        const list = Array.isArray(data) ? data : data.budgets || [];
+        setBudgets(list);
+      })
+      .catch(() => console.log("Database offline"));
+  }, [userId]);
+
+  const loadTransactions = useCallback(() => {
+    if (!userId) {
+      setTransactions([]);
+      return;
+    }
+
+    fetch(`${API_BASE_URL}/api/transactions?user_id=${userId}`)
+      .then((res) => res.json())
+      .then((data) => {
+        setTransactions(Array.isArray(data) ? data : []);
+      })
+      .catch(() => setTransactions([]));
+  }, [userId]);
 
   useEffect(() => {
     loadBudgets();
     loadTransactions();
-  }, []);
+  }, [loadBudgets, loadTransactions]);
 
   useEffect(() => {
     if (isDetailOpen && selectedBudget) {
       loadTransactions();
     }
-  }, [isDetailOpen, selectedBudget]);
+  }, [isDetailOpen, selectedBudget, loadTransactions]);
 
   const computedBudgets = useMemo(() => {
     return budgets.map((budget) => {
@@ -191,33 +214,12 @@ function Budget() {
         refreshedBudget.spent !== selectedBudget.spent ||
         refreshedBudget.amount !== selectedBudget.amount ||
         refreshedBudget.name !== selectedBudget.name ||
-        refreshedBudget.icon !== selectedBudget.icon ||
-        refreshedBudget.start_date !== selectedBudget.start_date ||
-        refreshedBudget.end_date !== selectedBudget.end_date
+        refreshedBudget.icon !== selectedBudget.icon
       )
     ) {
       setSelectedBudget(refreshedBudget);
     }
   }, [computedBudgets, selectedBudget]);
-
-  const loadBudgets = () => {
-    fetch(`${API_BASE_URL}/budget/list`)
-      .then((res) => res.json())
-      .then((data) => {
-        const list = Array.isArray(data) ? data : data.budgets || [];
-        setBudgets(list.map((budget) => withDefaultBudgetDateRange(budget)));
-      })
-      .catch(() => console.log("Database offline"));
-  };
-
-  const loadTransactions = () => {
-    fetch(`${API_BASE_URL}/api/transactions?user_id=1`)
-      .then((res) => res.json())
-      .then((data) => {
-        setTransactions(Array.isArray(data) ? data : []);
-      })
-      .catch(() => setTransactions([]));
-  };
 
   const renderIcon = (iconValue, color) => {
     const style = { color: color || "#20c4d8", fontSize: "20px" };
@@ -237,13 +239,9 @@ function Budget() {
   };
 
   const openEdit = (budget) => {
-    const budgetWithDates = withDefaultBudgetDateRange(budget);
-
-    setSelectedBudget(budgetWithDates);
-    setEditName(budgetWithDates.name || budgetWithDates.icon || "");
-    setAmount(budgetWithDates.amount);
-    setEditStartDate(budgetWithDates.start_date);
-    setEditEndDate(budgetWithDates.end_date);
+    setSelectedBudget(budget);
+    setEditName(budget.name || budget.icon || "");
+    setAmount(budget.amount);
     setEditOpen(true);
   };
 
@@ -253,7 +251,7 @@ function Budget() {
   };
 
   const openBudgetDetails = (budget) => {
-    setSelectedBudget(withDefaultBudgetDateRange(budget));
+    setSelectedBudget(budget);
     setIsDetailOpen(true);
     loadTransactions();
   };
@@ -264,19 +262,13 @@ function Budget() {
   };
 
   const saveBudget = () => {
-    if (editStartDate > editEndDate) {
-      return;
-    }
-
     fetch(`${API_BASE_URL}/budget/edit`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         budget_id: selectedBudget.budget_id,
         name: editName,
-        amount: Number(amount),
-        start_date: editStartDate,
-        end_date: editEndDate
+        amount: Number(amount)
       })
     }).then(() => {
       setEditOpen(false);
@@ -333,12 +325,11 @@ function Budget() {
   }, [selectedBudget, transactions]);
 
   if (isDetailOpen && selectedBudget) {
-    const detailBudget = withDefaultBudgetDateRange(selectedBudget);
-    const spent = Number(detailBudget.spent || 0);
-    const budgetAmount = Number(detailBudget.amount || 0);
+    const spent = Number(selectedBudget.spent || 0);
+    const budgetAmount = Number(selectedBudget.amount || 0);
     const remaining = Math.max(budgetAmount - spent, 0);
     const percent = budgetAmount > 0 ? Math.min((spent / budgetAmount) * 100, 100) : 0;
-    const accentColor = getBudgetAccentColor(detailBudget);
+    const accentColor = getBudgetAccentColor(selectedBudget);
 
     return (
       <div className="budget-container budget-detail-container">
@@ -354,15 +345,11 @@ function Budget() {
                 border: `1px solid ${accentColor}55`
               }}
             >
-              {renderIcon(detailBudget.icon || detailBudget.name, accentColor)}
+              {renderIcon(selectedBudget.icon || selectedBudget.name, accentColor)}
             </div>
             <div className="detail-budget-meta">
-              <h2>{detailBudget.name}</h2>
+              <h2>{selectedBudget.name}</h2>
               <span>Budget: {INR}{budgetAmount} | Spent: {INR}{spent}</span>
-              <div className="detail-budget-period">
-                <CalendarDays size={14} />
-                <span>{formatDateRange(detailBudget.start_date, detailBudget.end_date)}</span>
-              </div>
             </div>
           </div>
 
@@ -434,8 +421,8 @@ function Budget() {
                         border: `1px solid ${accentColor}55`
                       }}
                     >
-                  {renderIcon(detailBudget.icon || detailBudget.name, accentColor)}
-                </div>
+                      {renderIcon(selectedBudget.icon || selectedBudget.name, accentColor)}
+                    </div>
 
                     <div className="history-description">
                       {transaction.description || "No description"}
@@ -492,27 +479,6 @@ function Budget() {
                 />
               </div>
 
-              <div className="budget-modal-date-grid">
-                <div className="input-group">
-                  <label>Start Date</label>
-                  <AestheticDatePicker
-                    value={editStartDate}
-                    onChange={setEditStartDate}
-                    max={editEndDate || undefined}
-                  />
-                </div>
-
-                <div className="input-group">
-                  <label>End Date</label>
-                  <AestheticDatePicker
-                    value={editEndDate}
-                    onChange={setEditEndDate}
-                    min={editStartDate || undefined}
-                    align="right"
-                  />
-                </div>
-              </div>
-
               <div className="modal-buttons">
                 <button className="btn-cancel" onClick={() => setEditOpen(false)}>Cancel</button>
                 <button className="btn-save" onClick={saveBudget}>Save Changes</button>
@@ -556,37 +522,27 @@ function Budget() {
       <div className="budget-list">
         {computedBudgets.length > 0 ? (
           computedBudgets.map((budget) => {
-            const budgetWithDates = withDefaultBudgetDateRange(budget);
-            const spent = Number(budgetWithDates.spent || 0);
-            const budgetAmount = Number(budgetWithDates.amount || 0);
+            const spent = Number(budget.spent || 0);
+            const budgetAmount = Number(budget.amount || 0);
             const remaining = budgetAmount - spent;
             const percent = budgetAmount > 0 ? Math.min((spent / budgetAmount) * 100, 100) : 0;
-            const accentColor = getBudgetAccentColor(budgetWithDates);
+            const accentColor = getBudgetAccentColor(budget);
 
             return (
               <div
                 className="budget-card"
-                key={budgetWithDates.budget_id}
-                onClick={() => openBudgetDetails(budgetWithDates)}
+                key={budget.budget_id}
+                onClick={() => openBudgetDetails(budget)}
               >
                 <div
                   className="icon-wrapper"
                   style={{ background: `${accentColor}15` }}
                 >
-                  {renderIcon(budgetWithDates.icon || "Food", accentColor)}
+                  {renderIcon(budget.icon || "Food", accentColor)}
                 </div>
 
                 <div className="card-content">
-                  <div className="cat-name">{budgetWithDates.name || budgetWithDates.icon}</div>
-                  <div className="budget-period-line">
-                    <CalendarDays size={13} />
-                    <span>
-                      {formatDateRange(budgetWithDates.start_date, budgetWithDates.end_date, {
-                        day: "numeric",
-                        month: "short"
-                      })}
-                    </span>
-                  </div>
+                  <div className="cat-name">{budget.name || budget.icon}</div>
 
                   <div className="progress-row">
                     <div className="progress-track">
@@ -603,14 +559,14 @@ function Budget() {
                       <LuPencil
                         onClick={(event) => {
                           event.stopPropagation();
-                          openEdit(budgetWithDates);
+                          openEdit(budget);
                         }}
                         className="action-btn edit"
                       />
                       <LuTrash2
                         onClick={(event) => {
                           event.stopPropagation();
-                          openDelete(budgetWithDates);
+                          openDelete(budget);
                         }}
                         className="action-btn delete"
                       />
@@ -684,27 +640,6 @@ function Budget() {
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
               />
-            </div>
-
-            <div className="budget-modal-date-grid">
-              <div className="input-group">
-                <label>Start Date</label>
-                <AestheticDatePicker
-                  value={editStartDate}
-                  onChange={setEditStartDate}
-                  max={editEndDate || undefined}
-                />
-              </div>
-
-              <div className="input-group">
-                <label>End Date</label>
-                <AestheticDatePicker
-                  value={editEndDate}
-                  onChange={setEditEndDate}
-                  min={editStartDate || undefined}
-                  align="right"
-                />
-              </div>
             </div>
 
             <div className="modal-buttons">

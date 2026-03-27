@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { FaPen, FaTrash } from "react-icons/fa";
 import Transactions from "./Transactions";
 import Notifications from "../components/Notifications";
+import { getStoredUser } from "../services/authStorage";
 import "./records.css";
 
 const API_BASE_URL = "http://localhost:5001";
@@ -109,6 +110,8 @@ const getRequestErrorMessage = (error) =>
 
 export default function Records({ notifications = [], dismissNotification, onSpendingChange }) {
   const currentDate = new Date();
+  const storedUser = getStoredUser();
+  const userId = storedUser?.id ?? storedUser?.user_id ?? null;
   const [showTransaction, setShowTransaction] = useState(false);
   const [transactions, setTransactions] = useState([]);
   const [filter, setFilter] = useState("all");
@@ -120,11 +123,17 @@ export default function Records({ notifications = [], dismissNotification, onSpe
   const currentYear = currentDate.getFullYear();
 
   useEffect(() => {
-    fetch(`${API_BASE_URL}/api/transactions?user_id=1`)
+    if (!userId) {
+      setTransactions([]);
+      setRequestError("Please log in again to load your transactions.");
+      return;
+    }
+
+    fetch(`${API_BASE_URL}/api/transactions?user_id=${userId}`)
       .then((res) => res.json())
       .then((data) => setTransactions(Array.isArray(data) ? data : []))
       .catch(() => setTransactions([]));
-  }, []);
+  }, [userId]);
 
   const monthTransactions = transactions.filter((transaction) => {
     const transactionDate = formatTransactionDate(transaction);
@@ -170,7 +179,7 @@ export default function Records({ notifications = [], dismissNotification, onSpe
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          user_id: 1,
+          user_id: userId,
           amount: data.amount,
           type: data.type,
           category: data.category,
@@ -229,7 +238,7 @@ export default function Records({ notifications = [], dismissNotification, onSpe
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          user_id: 1,
+          user_id: userId,
           amount: data.amount,
           type: data.type,
           category: data.category,
@@ -278,7 +287,7 @@ export default function Records({ notifications = [], dismissNotification, onSpe
       setRequestError("");
 
       const response = await fetch(
-        `${API_BASE_URL}/api/transactions/${transactionId}?user_id=1`,
+        `${API_BASE_URL}/api/transactions/${transactionId}?user_id=${userId}`,
         {
           method: "DELETE"
         }

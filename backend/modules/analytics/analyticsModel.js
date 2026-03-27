@@ -8,8 +8,10 @@ const analyticsModel = {
           t.transaction_id,
           t.amount,
           t.type,
+          t.description,
           t.transaction_date AS date,
-          c.name AS category
+          c.name AS category,
+          c.type AS category_type
         FROM transactions t
         JOIN categories c ON t.category_id = c.category_id
         WHERE t.user_id = ?
