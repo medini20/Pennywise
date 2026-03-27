@@ -29,6 +29,7 @@ const getPasswordStrength = (password) => {
 
 function Signup() {
   const [formData, setFormData] = useState({ username: "", email: "", password: "" });
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [otpCode, setOtpCode] = useState("");
   const [step, setStep] = useState(1);
   const [error, setError] = useState("");
@@ -116,6 +117,12 @@ function Signup() {
   const handleSignup = async (e) => {
     e.preventDefault();
     setError(""); setMessage(""); setLoading(true);
+
+    if (formData.password !== confirmPassword) {
+      setError("Passwords do not match.");
+      setLoading(false);
+      return;
+    }
 
     if (usernameStatus === "taken") {
       setError("Username is already taken. Please choose another.");
@@ -257,6 +264,31 @@ function Signup() {
               <p style={{ fontSize: "12px", color: "#6b7280", marginTop: "6px" }}>
                 Use 6+ characters with uppercase, numbers & symbols
               </p>
+            </div>
+
+            <div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                <span style={styles.label}>Re-enter Password</span>
+                {confirmPassword && formData.password !== confirmPassword && (
+                  <span style={{ color: "#ef4444", fontSize: "12px", fontWeight: "600" }}>
+                    Passwords do not match
+                  </span>
+                )}
+                {confirmPassword && formData.password && formData.password === confirmPassword && (
+                  <span style={{ color: "#22c55e", fontSize: "12px", fontWeight: "600" }}>
+                    ✓ Passwords match
+                  </span>
+                )}
+              </div>
+              <input
+                type="password"
+                name="confirmPassword"
+                placeholder="Re-enter your password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                style={styles.input}
+                required
+              />
             </div>
 
             <label style={styles.checkboxLabel}>

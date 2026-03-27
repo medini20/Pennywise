@@ -44,8 +44,14 @@ const mapTriggeredAlertsToNotifications = (summary) => {
   return triggeredAlerts.map((alert) => ({
     id: normalizeNotificationId(alert.id),
     percentage: alert.percentage,
-    message: `Spending reached ${alert.percentage}% of your budget`,
-    detail: `${formatCurrency(summary.current_spending)} spent out of ${formatCurrency(summary.budget)}`
+    message:
+      alert.scope === "category"
+        ? `${alert.budget_name} reached ${alert.percentage}% of its budget`
+        : `Spending reached ${alert.percentage}% of your monthly budget`,
+    detail:
+      alert.scope === "category"
+        ? `${formatCurrency(alert.current_spending)} spent out of ${formatCurrency(alert.budget_amount)}`
+        : `${formatCurrency(summary.current_spending)} spent out of ${formatCurrency(summary.budget)}`
   }));
 };
 
@@ -316,15 +322,11 @@ function AppLayout() {
   // Define sidebar width to match your CSS exactly
   const sidebarWidth = isCollapsed ? "70px" : "260px";
 
-  const refreshNotifications = useCallback(async (currentSpendingOverride) => {
+  const refreshNotifications = useCallback(async () => {
     if (!userId) {
       setNotifications([]);
       return [];
     }
-
-    const parsedSpending = Number(
-      currentSpendingOverride ?? window.localStorage.getItem(CURRENT_SPENDING_KEY) ?? 0
-    );
 
     try {
       const response = await fetch(`${API_BASE_URL}/alerts/check`, {
@@ -333,8 +335,7 @@ function AppLayout() {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          user_id: userId,
-          current_spending: Number.isFinite(parsedSpending) ? parsedSpending : 0
+          user_id: userId
         })
       });
 
@@ -364,7 +365,7 @@ function AppLayout() {
   const handleSpendingChange = useCallback(
     (currentSpending) => {
       window.localStorage.setItem(CURRENT_SPENDING_KEY, String(currentSpending));
-      refreshNotifications(currentSpending);
+      refreshNotifications();
     },
     [refreshNotifications]
   );

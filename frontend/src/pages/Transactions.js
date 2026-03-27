@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { FaRegCalendarAlt } from "react-icons/fa";
+import { getStoredUser } from "../services/authStorage";
 import "./transactions.css";
 import Category from "./category1";
 
@@ -66,6 +67,8 @@ export default function Transactions({
   submitLabel = "OK"
 }) {
   const today = new Date();
+  const storedUser = getStoredUser();
+  const userId = storedUser?.id ?? storedUser?.user_id ?? 1;
   const isEditMode = Boolean(initialTransaction);
   const initialTransactionDate = getTransactionDateValue(initialTransaction, today);
   const initialCategoryName = getTransactionCategoryName(initialTransaction);
@@ -86,6 +89,7 @@ export default function Transactions({
   const [selectedDate, setSelectedDate] = useState(initialTransactionDate);
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurringFrequency, setRecurringFrequency] = useState("Monthly");
+  const [customIntervalDays, setCustomIntervalDays] = useState("");
   const [recurringStartDate, setRecurringStartDate] = useState(initialTransactionDate);
   const [recurringEndDate, setRecurringEndDate] = useState("");
   const [recurringMessage, setRecurringMessage] = useState("");
@@ -93,12 +97,13 @@ export default function Transactions({
   const [incomeCategories, setIncomeCategories] = useState(DEFAULT_INCOME_CATEGORIES);
 
   useEffect(() => {
-    fetch(`${API_BASE_URL}/budget/list`)
+    fetch(`${API_BASE_URL}/budget/list?user_id=${userId}`)
       .then((res) => res.json())
       .then((data) => {
-        const list = Array.isArray(data) ? data : [];
+        const list = Array.isArray(data) ? data : data?.budgets || [];
 
         if (list.length === 0) {
+          setExpenseCategories(DEFAULT_EXPENSE_CATEGORIES);
           return;
         }
 
@@ -124,8 +129,9 @@ export default function Transactions({
       })
       .catch(() => {
         // Keep the local fallback categories if the backend is unavailable.
+        setExpenseCategories(DEFAULT_EXPENSE_CATEGORIES);
       });
-  }, []);
+  }, [userId]);
 
   const categories = type === "income" ? incomeCategories : expenseCategories;
 
@@ -269,6 +275,11 @@ export default function Transactions({
       return;
     }
 
+    if (recurringFrequency === "Custom" && !customIntervalDays) {
+      setRecurringMessage("Enter how many days should pass between recurring payments.");
+      return;
+    }
+
     if (recurringEndDate && recurringEndDate < recurringStartDate) {
       setRecurringMessage("End date must be the same as or after the start date.");
       return;
@@ -284,6 +295,7 @@ export default function Transactions({
         transactionDate: recurringStartDate,
         recurring: true,
         recurringFrequency,
+        customIntervalDays: recurringFrequency === "Custom" ? Number(customIntervalDays) : null,
         recurringStartDate,
         recurringEndDate
       })
@@ -381,6 +393,26 @@ export default function Transactions({
                   ))}
                 </div>
 
+                {recurringFrequency === "Custom" && (
+                  <>
+                    <label className="inputLabel" htmlFor="custom-interval-days">
+                      Repeat Every (Days)
+                    </label>
+                    <input
+                      id="custom-interval-days"
+                      className="note"
+                      type="number"
+                      min="1"
+                      value={customIntervalDays}
+                      onChange={(event) => {
+                        setCustomIntervalDays(event.target.value.replace(/[^\d]/g, ""));
+                        setRecurringMessage("");
+                      }}
+                      placeholder="Enter number of days"
+                    />
+                  </>
+                )}
+
                 <div className="recurringDateGrid">
                   <div className="recurringDateField">
                     <label className="inputLabel recurringInputLabel" htmlFor="recurring-start-date">
@@ -439,12 +471,6 @@ export default function Transactions({
                   <span>Save Recurring Payment</span>
                 </button>
 
-                {recurringMessage && (
-                  <p className="recurringFeedback recurringFeedbackError">
-                    {recurringMessage}
-                  </p>
-                )}
-
                 <label className="inputLabel" htmlFor="recurring-note">
                   Note
                 </label>
@@ -455,6 +481,12 @@ export default function Transactions({
                   onChange={(e) => setNote(e.target.value)}
                   placeholder="Enter a note..."
                 />
+
+                {recurringMessage && (
+                  <p className="recurringFeedback recurringFeedbackError">
+                    {recurringMessage}
+                  </p>
+                )}
               </div>
             )}
           </div>

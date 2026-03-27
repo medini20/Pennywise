@@ -4,26 +4,19 @@
   background: rgba(0, 0, 0, 0.8);
   display: flex;
   justify-content: center;
-  align-items: flex-start;
-  padding: 24px 16px;
-  overflow-y: auto;
-  z-index: 1200;
+  align-items: center;
+  z-index: 1000;
   font-family: sans-serif;
-  box-sizing: border-box;
 }
 
 .category-modal {
   width: 410px;
   max-width: calc(100vw - 28px);
-  max-height: calc(100vh - 48px);
   background: #161c2d;
   border-radius: 16px;
   padding: 24px;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
   color: white;
-  overflow-y: auto;
-  margin: auto 0;
-  box-sizing: border-box;
 }
 
 .category-modal-header {
@@ -199,15 +192,6 @@
 }
 
 @media (max-width: 640px) {
-  .category-overlay {
-    padding: 12px;
-  }
-
-  .category-modal {
-    max-height: calc(100vh - 24px);
-    padding: 18px;
-  }
-
   .category-date-grid {
     grid-template-columns: 1fr;
   }
