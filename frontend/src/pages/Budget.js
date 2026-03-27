@@ -125,34 +125,56 @@ function Budget() {
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [editName, setEditName] = useState("");
   const [amount, setAmount] = useState("");
+  const [statusMessage, setStatusMessage] = useState("");
+  const [statusTone, setStatusTone] = useState("");
+  const [modalErrorMessage, setModalErrorMessage] = useState("");
+  const [isSavingBudget, setIsSavingBudget] = useState(false);
+  const [isDeletingBudget, setIsDeletingBudget] = useState(false);
 
-  const loadBudgets = useCallback(() => {
+  const loadBudgets = useCallback(async () => {
     if (!userId) {
       setBudgets([]);
+      setStatusMessage("Please log in again before managing budgets.");
+      setStatusTone("error");
       return;
     }
 
-    fetch(`${API_BASE_URL}/budget/list?user_id=${userId}`)
-      .then((res) => res.json())
-      .then((data) => {
-        const list = Array.isArray(data) ? data : data.budgets || [];
-        setBudgets(list);
-      })
-      .catch(() => console.log("Database offline"));
+    try {
+      const response = await fetch(`${API_BASE_URL}/budget/list?user_id=${userId}`);
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(data.error || "Unable to load budgets right now.");
+      }
+
+      const list = Array.isArray(data) ? data : data.budgets || [];
+      setBudgets(list);
+    } catch (error) {
+      setBudgets([]);
+      setStatusMessage(error.message || "Unable to load budgets right now.");
+      setStatusTone("error");
+    }
   }, [userId]);
 
-  const loadTransactions = useCallback(() => {
+  const loadTransactions = useCallback(async () => {
     if (!userId) {
       setTransactions([]);
       return;
     }
 
-    fetch(`${API_BASE_URL}/api/transactions?user_id=${userId}`)
-      .then((res) => res.json())
-      .then((data) => {
-        setTransactions(Array.isArray(data) ? data : []);
-      })
-      .catch(() => setTransactions([]));
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/transactions?user_id=${userId}`);
+      const data = await response.json().catch(() => []);
+
+      if (!response.ok) {
+        throw new Error("Unable to load transaction history right now.");
+      }
+
+      setTransactions(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error("Unable to load transactions:", error);
+      setTransactions([]);
+    }
   }, [userId]);
 
   useEffect(() => {
@@ -167,6 +189,7 @@ function Budget() {
   }, [isDetailOpen, selectedBudget, loadTransactions]);
 
   const computedBudgets = useMemo(() => {
+    // Budget progress stays in sync with the real transactions instead of trusting stale totals.
     return budgets.map((budget) => {
       const budgetIcon = typeof budget.icon === "string" ? budget.icon.trim() : "";
       const budgetName = normalizeCategoryName(budget.name);
@@ -242,11 +265,13 @@ function Budget() {
     setSelectedBudget(budget);
     setEditName(budget.name || budget.icon || "");
     setAmount(budget.amount);
+    setModalErrorMessage("");
     setEditOpen(true);
   };
 
   const openDelete = (budget) => {
     setSelectedBudget(budget);
+    setModalErrorMessage("");
     setDeleteOpen(true);
   };
 
@@ -261,31 +286,107 @@ function Budget() {
     setSelectedBudget(null);
   };
 
-  const saveBudget = () => {
-    fetch(`${API_BASE_URL}/budget/edit`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        budget_id: selectedBudget.budget_id,
-        name: editName,
-        amount: Number(amount)
-      })
-    }).then(() => {
-      setEditOpen(false);
-      loadBudgets();
-    });
+  const closeEditModal = () => {
+    if (isSavingBudget) {
+      return;
+    }
+
+    setEditOpen(false);
+    setModalErrorMessage("");
   };
 
-  const deleteBudget = () => {
-    fetch(`${API_BASE_URL}/budget/${selectedBudget.budget_id}`, {
-      method: "DELETE"
-    }).then(() => {
+  const closeDeleteModal = () => {
+    if (isDeletingBudget) {
+      return;
+    }
+
+    setDeleteOpen(false);
+    setModalErrorMessage("");
+  };
+
+  // These handlers deliberately surface backend problems so the modals do not fail silently.
+  const saveBudget = async () => {
+    const trimmedName = editName.trim();
+    const nextAmount = Number(amount);
+
+    if (!selectedBudget?.budget_id) {
+      setModalErrorMessage("Pick a budget again before saving.");
+      return;
+    }
+
+    if (!trimmedName) {
+      setModalErrorMessage("Please enter a category name.");
+      return;
+    }
+
+    if (!Number.isFinite(nextAmount) || nextAmount <= 0) {
+      setModalErrorMessage("Please enter a valid budget amount.");
+      return;
+    }
+
+    setIsSavingBudget(true);
+    setModalErrorMessage("");
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/budget/edit`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          budget_id: selectedBudget.budget_id,
+          name: trimmedName,
+          amount: nextAmount
+        })
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(data.error || "Unable to save the budget.");
+      }
+
+      setEditOpen(false);
+      setStatusMessage(data.message || "Budget updated successfully.");
+      setStatusTone("success");
+      await loadBudgets();
+    } catch (error) {
+      setModalErrorMessage(error.message || "Unable to save the budget.");
+    } finally {
+      setIsSavingBudget(false);
+    }
+  };
+
+  const deleteBudget = async () => {
+    if (!selectedBudget?.budget_id) {
+      setModalErrorMessage("Pick a budget again before deleting.");
+      return;
+    }
+
+    setIsDeletingBudget(true);
+    setModalErrorMessage("");
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/budget/${selectedBudget.budget_id}`, {
+        method: "DELETE"
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(data.error || "Unable to delete the budget.");
+      }
+
       setDeleteOpen(false);
+      setStatusMessage(data.message || "Budget deleted successfully.");
+      setStatusTone("success");
+
       if (isDetailOpen) {
         closeBudgetDetails();
       }
-      loadBudgets();
-    });
+
+      await loadBudgets();
+    } catch (error) {
+      setModalErrorMessage(error.message || "Unable to delete the budget.");
+    } finally {
+      setIsDeletingBudget(false);
+    }
   };
 
   const categoryHistory = useMemo(() => {
@@ -333,6 +434,16 @@ function Budget() {
 
     return (
       <div className="budget-container budget-detail-container">
+        {statusMessage && (
+          <p
+            className={`budget-status-banner ${
+              statusTone === "error" ? "budget-status-banner-error" : "budget-status-banner-success"
+            }`}
+          >
+            {statusMessage}
+          </p>
+        )}
+
         <div className="budget-detail-topbar">
           <div className="budget-detail-left">
             <button className="detail-icon-btn" onClick={closeBudgetDetails}>
@@ -443,8 +554,12 @@ function Budget() {
             <div className="modal">
               <div className="modal-header">
                 <h2>Edit Budget</h2>
-                <FaTimes className="close-icon" onClick={() => setEditOpen(false)} />
+                <FaTimes className="close-icon" onClick={closeEditModal} />
               </div>
+
+              {modalErrorMessage && (
+                <div className="modal-error-banner">{modalErrorMessage}</div>
+              )}
 
               <div className="category-header-box">
                 <div
@@ -480,8 +595,12 @@ function Budget() {
               </div>
 
               <div className="modal-buttons">
-                <button className="btn-cancel" onClick={() => setEditOpen(false)}>Cancel</button>
-                <button className="btn-save" onClick={saveBudget}>Save Changes</button>
+                <button className="btn-cancel" onClick={closeEditModal} disabled={isSavingBudget}>
+                  Cancel
+                </button>
+                <button className="btn-save" onClick={saveBudget} disabled={isSavingBudget}>
+                  {isSavingBudget ? "Saving..." : "Save Changes"}
+                </button>
               </div>
             </div>
           </div>
@@ -492,8 +611,12 @@ function Budget() {
             <div className="modal">
               <div className="modal-header">
                 <h2>Delete Category</h2>
-                <FaTimes className="close-icon" onClick={() => setDeleteOpen(false)} />
+                <FaTimes className="close-icon" onClick={closeDeleteModal} />
               </div>
+
+              {modalErrorMessage && (
+                <div className="modal-error-banner">{modalErrorMessage}</div>
+              )}
 
               <div className="warning-box">
                 <p className="delete-main">
@@ -505,8 +628,12 @@ function Budget() {
               </div>
 
               <div className="modal-buttons">
-                <button className="btn-cancel" onClick={() => setDeleteOpen(false)}>Cancel</button>
-                <button className="btn-confirm" onClick={deleteBudget}>Confirm</button>
+                <button className="btn-cancel" onClick={closeDeleteModal} disabled={isDeletingBudget}>
+                  Cancel
+                </button>
+                <button className="btn-confirm" onClick={deleteBudget} disabled={isDeletingBudget}>
+                  {isDeletingBudget ? "Deleting..." : "Confirm"}
+                </button>
               </div>
             </div>
           </div>
@@ -517,7 +644,19 @@ function Budget() {
 
   return (
     <div className="budget-container">
-      <h2 className="budget-title">Budget Categories</h2>
+      <div className="budget-page-head">
+        <h2 className="budget-title">Budget Categories</h2>
+      </div>
+
+      {statusMessage && (
+        <p
+          className={`budget-status-banner ${
+            statusTone === "error" ? "budget-status-banner-error" : "budget-status-banner-success"
+          }`}
+        >
+          {statusMessage}
+        </p>
+      )}
 
       <div className="budget-list">
         {computedBudgets.length > 0 ? (
@@ -606,8 +745,12 @@ function Budget() {
           <div className="modal">
             <div className="modal-header">
               <h2>Edit Budget</h2>
-              <FaTimes className="close-icon" onClick={() => setEditOpen(false)} />
+              <FaTimes className="close-icon" onClick={closeEditModal} />
             </div>
+
+            {modalErrorMessage && (
+              <div className="modal-error-banner">{modalErrorMessage}</div>
+            )}
 
             <div className="category-header-box">
               <div
@@ -643,8 +786,12 @@ function Budget() {
             </div>
 
             <div className="modal-buttons">
-              <button className="btn-cancel" onClick={() => setEditOpen(false)}>Cancel</button>
-              <button className="btn-save" onClick={saveBudget}>Save Changes</button>
+              <button className="btn-cancel" onClick={closeEditModal} disabled={isSavingBudget}>
+                Cancel
+              </button>
+              <button className="btn-save" onClick={saveBudget} disabled={isSavingBudget}>
+                {isSavingBudget ? "Saving..." : "Save Changes"}
+              </button>
             </div>
           </div>
         </div>
@@ -655,8 +802,12 @@ function Budget() {
           <div className="modal">
             <div className="modal-header">
               <h2>Delete Category</h2>
-              <FaTimes className="close-icon" onClick={() => setDeleteOpen(false)} />
+              <FaTimes className="close-icon" onClick={closeDeleteModal} />
             </div>
+
+            {modalErrorMessage && (
+              <div className="modal-error-banner">{modalErrorMessage}</div>
+            )}
 
             <div className="warning-box">
               <p className="delete-main">
@@ -668,8 +819,12 @@ function Budget() {
             </div>
 
             <div className="modal-buttons">
-              <button className="btn-cancel" onClick={() => setDeleteOpen(false)}>Cancel</button>
-              <button className="btn-confirm" onClick={deleteBudget}>Confirm</button>
+              <button className="btn-cancel" onClick={closeDeleteModal} disabled={isDeletingBudget}>
+                Cancel
+              </button>
+              <button className="btn-confirm" onClick={deleteBudget} disabled={isDeletingBudget}>
+                {isDeletingBudget ? "Deleting..." : "Confirm"}
+              </button>
             </div>
           </div>
         </div>

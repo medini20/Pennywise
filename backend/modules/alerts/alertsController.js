@@ -26,6 +26,23 @@ const getCurrentPeriod = () => {
   };
 };
 
+const formatDateOnly = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const getMonthWindow = (month, year) => {
+  const startDate = new Date(year, month - 1, 1);
+  const endDate = new Date(year, month, 0);
+
+  return {
+    startDate: formatDateOnly(startDate),
+    endDate: formatDateOnly(endDate)
+  };
+};
+
 const getUserId = (req) => {
   const body = req.body || {};
   const query = req.query || {};
@@ -54,94 +71,90 @@ const toNonNegativeNumber = (value) => {
   return Number.isFinite(parsedValue) && parsedValue >= 0 ? parsedValue : null;
 };
 
+// Alerts are tied to the dedicated monthly budget row, not the category budget cards.
+// Querying that row directly keeps the alerts page stable even with the newer budgets schema.
 const getBudgetForMonth = async (userId, month) => {
   const rows = await runQuery(
-    `SELECT
-        b.budget_id,
-        b.user_id,
-        b.category_id,
-        c.name,
-        c.icon,
-        b.amount,
-        COALESCE((
-          SELECT SUM(t.amount)
-          FROM transactions t
-          WHERE t.user_id = b.user_id
-            AND t.type = 'expense'
-            AND t.category_id = b.category_id
-        ), 0) AS spent,
-        b.month,
-        COALESCE(b.is_system_generated, 0) AS is_system_generated
-     FROM budgets b
-     LEFT JOIN categories c
-       ON c.category_id = b.category_id
-     WHERE b.user_id = ? AND b.month = ?
-     ORDER BY COALESCE(b.is_system_generated, 0) ASC, b.budget_id DESC
-     LIMIT 1`,
-    [userId, month]
+    `
+      SELECT
+        budget_id,
+        user_id,
+        name,
+        icon,
+        amount,
+        spent,
+        month,
+        color,
+        COALESCE(is_system_generated, 0) AS is_system_generated,
+        start_date,
+        end_date
+      FROM budgets
+      WHERE user_id = ?
+        AND month = ?
+        AND (
+          COALESCE(is_system_generated, 0) = 1
+          OR LOWER(TRIM(COALESCE(name, ''))) = LOWER(TRIM(?))
+        )
+      ORDER BY COALESCE(is_system_generated, 0) DESC, budget_id DESC
+      LIMIT 1
+    `,
+    [userId, month, DEFAULT_BUDGET_NAME]
   );
 
   return rows[0] || null;
 };
 
-const ensureMonthlyBudgetCategory = async (userId) => {
-  const existingCategories = await runQuery(
-    `SELECT category_id, name, icon
-     FROM categories
-     WHERE user_id = ?
-       AND LOWER(TRIM(name)) = LOWER(TRIM(?))
-     LIMIT 1`,
-    [userId, DEFAULT_BUDGET_NAME]
-  );
-
-  if (existingCategories.length > 0) {
-    return existingCategories[0];
-  }
-
-  const result = await runQuery(
-    `INSERT INTO categories (user_id, name, type, icon)
-     VALUES (?, ?, 'expense', NULL)`,
-    [userId, DEFAULT_BUDGET_NAME]
-  );
-
-  return {
-    category_id: result.insertId,
-    name: DEFAULT_BUDGET_NAME,
-    icon: null
-  };
-};
-
-const ensureBudgetForMonth = async (userId, month) => {
+const ensureBudgetForMonth = async (userId, month, year) => {
   const existingBudget = await getBudgetForMonth(userId, month);
   if (existingBudget) {
     return existingBudget;
   }
 
-  const category = await ensureMonthlyBudgetCategory(userId);
-
+  const monthWindow = getMonthWindow(month, year);
   const result = await runQuery(
-    `INSERT INTO budgets
-      (user_id, category_id, amount, month, is_system_generated)
-     VALUES (?, ?, ?, ?, 1)`,
-    [userId, category.category_id, DEFAULT_BUDGET_AMOUNT, month]
+    `
+      INSERT INTO budgets (
+        user_id,
+        name,
+        icon,
+        amount,
+        spent,
+        month,
+        color,
+        is_system_generated,
+        start_date,
+        end_date
+      )
+      VALUES (?, ?, NULL, ?, 0, ?, '#ffcc00', 1, ?, ?)
+    `,
+    [userId, DEFAULT_BUDGET_NAME, DEFAULT_BUDGET_AMOUNT, month, monthWindow.startDate, monthWindow.endDate]
   );
 
   return {
     budget_id: result.insertId,
     user_id: userId,
-    category_id: category.category_id,
     name: DEFAULT_BUDGET_NAME,
     icon: null,
     amount: DEFAULT_BUDGET_AMOUNT,
     spent: 0,
     month,
-    is_system_generated: 1
+    color: "#ffcc00",
+    is_system_generated: 1,
+    start_date: monthWindow.startDate,
+    end_date: monthWindow.endDate
   };
 };
 
 const getCurrentSpending = async (userId, month, year) => {
   const rows = await runQuery(
-    "SELECT COALESCE(SUM(amount), 0) AS total_spent FROM transactions WHERE user_id = ? AND type = 'expense' AND MONTH(transaction_date) = ? AND YEAR(transaction_date) = ?",
+    `
+      SELECT COALESCE(SUM(amount), 0) AS total_spent
+      FROM transactions
+      WHERE user_id = ?
+        AND type = 'expense'
+        AND MONTH(transaction_date) = ?
+        AND YEAR(transaction_date) = ?
+    `,
     [userId, month, year]
   );
 
@@ -232,19 +245,23 @@ exports.saveBudget = async (req, res) => {
     }
 
     const userId = getUserId(req);
-    const { month } = getCurrentPeriod();
+    const { month, year } = getCurrentPeriod();
+    const monthWindow = getMonthWindow(month, year);
     const existingBudget = await getBudgetForMonth(userId, month);
-    const category = existingBudget || (await ensureMonthlyBudgetCategory(userId));
 
     if (existingBudget) {
       await runQuery(
-        `UPDATE budgets
-         SET amount = ?, is_system_generated = 1
-         WHERE budget_id = ?`,
-        [
-          amount,
-          existingBudget.budget_id
-        ]
+        `
+          UPDATE budgets
+          SET
+            amount = ?,
+            name = ?,
+            is_system_generated = 1,
+            start_date = ?,
+            end_date = ?
+          WHERE budget_id = ?
+        `,
+        [amount, DEFAULT_BUDGET_NAME, monthWindow.startDate, monthWindow.endDate, existingBudget.budget_id]
       );
 
       return res.json({
@@ -257,9 +274,22 @@ exports.saveBudget = async (req, res) => {
     }
 
     const result = await runQuery(
-      `INSERT INTO budgets (user_id, category_id, amount, month, is_system_generated)
-       VALUES (?, ?, ?, ?, 1)`,
-      [userId, category.category_id, amount, month]
+      `
+        INSERT INTO budgets (
+          user_id,
+          name,
+          icon,
+          amount,
+          spent,
+          month,
+          color,
+          is_system_generated,
+          start_date,
+          end_date
+        )
+        VALUES (?, ?, NULL, ?, 0, ?, '#ffcc00', 1, ?, ?)
+      `,
+      [userId, DEFAULT_BUDGET_NAME, amount, month, monthWindow.startDate, monthWindow.endDate]
     );
 
     return res.status(201).json({
@@ -267,7 +297,7 @@ exports.saveBudget = async (req, res) => {
       budget_id: result.insertId,
       amount,
       name: DEFAULT_BUDGET_NAME,
-      icon: category.icon || null
+      icon: null
     });
   } catch (error) {
     return res.status(500).json({ error: error.message });
@@ -285,22 +315,9 @@ exports.createAlert = async (req, res) => {
     }
 
     const userId = getUserId(req);
-    const { month } = getCurrentPeriod();
-    const currentBudget = await ensureBudgetForMonth(userId, month);
-    const requestedBudgetId = Number(body.budget_id);
-    const budgetId =
-      Number.isInteger(requestedBudgetId) && requestedBudgetId > 0
-        ? requestedBudgetId
-        : currentBudget?.budget_id;
-
-    const matchingBudgets = await runQuery(
-      "SELECT budget_id FROM budgets WHERE budget_id = ? AND user_id = ? LIMIT 1",
-      [budgetId, userId]
-    );
-
-    if (matchingBudgets.length === 0) {
-      return res.status(404).json({ error: "Budget not found for this user." });
-    }
+    const { month, year } = getCurrentPeriod();
+    const currentBudget = await ensureBudgetForMonth(userId, month, year);
+    const budgetId = currentBudget.budget_id;
 
     const existingAlerts = await runQuery(
       "SELECT alert_id FROM alerts WHERE budget_id = ? AND threshold_percent = ? LIMIT 1",

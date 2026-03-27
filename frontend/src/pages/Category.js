@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { getStoredUser } from "../services/authStorage";
 import "./Category.css";
 
+const API_BASE_URL = "http://localhost:5001";
+
 export default function Category({ closeCategory, addNewCategory }) {
   const storedUser = getStoredUser();
   const userId = storedUser?.id ?? storedUser?.user_id ?? null;
@@ -56,10 +58,10 @@ export default function Category({ closeCategory, addNewCategory }) {
       amount: Number(amount),
       icon: selectedIcon,
       user_id: userId,
-      month: 1
+      month: new Date().getMonth() + 1
     };
 
-    fetch("http://localhost:5001/budget/add", {
+    fetch(`${API_BASE_URL}/budget/add`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(budgetData)
