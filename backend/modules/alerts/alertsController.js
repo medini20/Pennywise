@@ -1,6 +1,5 @@
 const db = require("../../config/db");
 const emailService = require("../../utils/emailService");
-const { syncBudgetLifecycle } = require("../budget/budgetLifecycle");
 
 const DEFAULT_USER_ID = 1;
 const DEFAULT_BUDGET_AMOUNT = 5000;
@@ -62,6 +61,13 @@ const getCurrentPeriod = () => {
   };
 };
 
+const getCurrentMonthDateRange = (referenceDate = new Date()) => ({
+  startDate: `${referenceDate.getFullYear()}-${padNumber(referenceDate.getMonth() + 1)}-01`,
+  endDate: formatDateValue(
+    new Date(referenceDate.getFullYear(), referenceDate.getMonth() + 1, 0)
+  )
+});
+
 const getDefaultBudgetPeriod = (month, year) => ({
   startDate: `${year}-${padNumber(month)}-01`,
   endDate: formatDateValue(new Date(year, month, 0))
@@ -80,6 +86,21 @@ const getResolvedBudgetPeriod = (budgetRow, month, year) => {
   return {
     startDate: formatDateValue(budgetRow?.start_date) || defaultPeriod.startDate,
     endDate: formatDateValue(budgetRow?.end_date) || defaultPeriod.endDate
+  };
+};
+
+const getResolvedDateRange = (startDateValue, endDateValue, referenceDate = new Date()) => {
+  const defaultRange = getCurrentMonthDateRange(referenceDate);
+  const startDate = formatDateValue(startDateValue) || defaultRange.startDate;
+  const endDate = formatDateValue(endDateValue) || defaultRange.endDate;
+
+  if (startDate > endDate) {
+    throw createHttpError(400, "Start date must be on or before end date.");
+  }
+
+  return {
+    startDate,
+    endDate
   };
 };
 
@@ -166,6 +187,104 @@ const getMonthlyBudgetForMonth = async (userId, month) => {
   );
 
   return rows[0] || null;
+};
+
+const getLatestMonthlyBudget = async (userId) => {
+  const rows = await runQuery(
+    `SELECT budget_id, user_id, name, icon, amount, spent, month, color, start_date, end_date,
+            COALESCE(is_system_generated, 0) AS is_system_generated
+     FROM budgets
+     WHERE user_id = ?
+       AND (
+         COALESCE(is_system_generated, 0) = 1
+         OR LOWER(TRIM(name)) = LOWER(TRIM(?))
+       )
+     ORDER BY budget_id DESC
+     LIMIT 1`,
+    [userId, DEFAULT_BUDGET_NAME]
+  );
+
+  return rows[0] || null;
+};
+
+const syncBudgetLifecycle = async (userId) => {
+  const today = formatDateValue(new Date());
+  const { month } = getCurrentPeriod();
+  const currentRange = getCurrentMonthDateRange();
+
+  await runQuery(
+    `DELETE a
+     FROM alerts a
+     INNER JOIN budgets b
+       ON b.budget_id = a.budget_id
+     WHERE b.user_id = ?
+       AND (
+         COALESCE(b.is_system_generated, 0) = 1
+         OR LOWER(TRIM(b.name)) = LOWER(TRIM(?))
+       )
+       AND b.end_date IS NOT NULL
+       AND b.end_date < ?`,
+    [userId, DEFAULT_BUDGET_NAME, today]
+  );
+
+  await runQuery(
+    `DELETE FROM budgets
+     WHERE user_id = ?
+       AND COALESCE(is_system_generated, 0) = 0
+       AND LOWER(TRIM(name)) <> LOWER(TRIM(?))
+       AND end_date IS NOT NULL
+       AND end_date < ?`,
+    [userId, DEFAULT_BUDGET_NAME, today]
+  );
+
+  const monthlyBudget = await getLatestMonthlyBudget(userId);
+
+  if (!monthlyBudget) {
+    return null;
+  }
+
+  const resolvedDates = getResolvedDateRange(
+    monthlyBudget.start_date,
+    monthlyBudget.end_date
+  );
+  const shouldResetMonthlyBudget =
+    resolvedDates.endDate < today ||
+    Number(monthlyBudget.month) !== month ||
+    normalizeBudgetName(monthlyBudget.name) !== normalizeBudgetName(DEFAULT_BUDGET_NAME) ||
+    Number(monthlyBudget.is_system_generated) !== 1;
+
+  if (!shouldResetMonthlyBudget) {
+    return {
+      ...monthlyBudget,
+      name: DEFAULT_BUDGET_NAME,
+      start_date: resolvedDates.startDate,
+      end_date: resolvedDates.endDate,
+      is_system_generated: 1
+    };
+  }
+
+  await runQuery("DELETE FROM alerts WHERE budget_id = ?", [monthlyBudget.budget_id]);
+  await runQuery(
+    `UPDATE budgets
+     SET name = ?, month = ?, start_date = ?, end_date = ?, is_system_generated = 1
+     WHERE budget_id = ?`,
+    [
+      DEFAULT_BUDGET_NAME,
+      month,
+      currentRange.startDate,
+      currentRange.endDate,
+      monthlyBudget.budget_id
+    ]
+  );
+
+  return {
+    ...monthlyBudget,
+    name: DEFAULT_BUDGET_NAME,
+    month,
+    start_date: currentRange.startDate,
+    end_date: currentRange.endDate,
+    is_system_generated: 1
+  };
 };
 
 const ensureBudgetForMonth = async (userId, month, year) => {
@@ -328,6 +447,21 @@ const getCategoryBudgetSpending = async (userId, budgetRow) => {
   return Number(rows[0]?.total_spent || 0);
 };
 
+const getAlertScope = (body, budgetRow) => {
+  const requestedScope =
+    typeof body?.scope === "string" ? body.scope.trim().toLowerCase() : "";
+
+  if (requestedScope === "category") {
+    return "category";
+  }
+
+  if (requestedScope === "overall") {
+    return "overall";
+  }
+
+  return isMonthlyBudgetRow(budgetRow) ? "overall" : "category";
+};
+
 const getAlertsForUser = async (userId) => {
   const rows = await runQuery(
     `SELECT
@@ -381,13 +515,20 @@ const buildAlertSummary = async (userId, currentSpendingOverride = null) => {
       }
 
       const budgetAmount = Number(alertRow.amount || 0);
-      const currentSpending = Number(spendingByBudgetId.get(alertRow.budget_id) || 0);
-      const spentPercentage =
-        budgetAmount > 0
-          ? Number(((currentSpending / budgetAmount) * 100).toFixed(2))
-          : 0;
-      const budgetPeriod = getResolvedBudgetPeriod(alertRow, month, year);
       const scope = isMonthlyBudgetRow(alertRow) ? "overall" : "category";
+      const effectiveBudgetAmount = scope === "overall" ? monthlyBudgetAmount : budgetAmount;
+      const currentSpending =
+        scope === "overall"
+          ? monthlyBudgetSpending
+          : Number(spendingByBudgetId.get(alertRow.budget_id) || 0);
+      const spentPercentage =
+        effectiveBudgetAmount > 0
+          ? Number(((currentSpending / effectiveBudgetAmount) * 100).toFixed(2))
+          : 0;
+      const budgetPeriod =
+        scope === "overall"
+          ? monthlyBudgetPeriod
+          : getResolvedBudgetPeriod(alertRow, month, year);
 
       return {
         id: alertRow.alert_id,
@@ -396,7 +537,10 @@ const buildAlertSummary = async (userId, currentSpendingOverride = null) => {
         budget_name: scope === "overall" ? DEFAULT_BUDGET_NAME : alertRow.name,
         budget_icon: alertRow.icon,
         budget_color: alertRow.color || DEFAULT_BUDGET_COLOR,
-        budget_amount: budgetAmount,
+        budget_amount: effectiveBudgetAmount,
+        threshold_amount: Number(
+          ((effectiveBudgetAmount * alertRow.threshold_percent) / 100).toFixed(2)
+        ),
         current_spending: currentSpending,
         spent_percentage: spentPercentage,
         triggered: spentPercentage >= alertRow.threshold_percent,
@@ -533,8 +677,18 @@ exports.createAlert = async (req, res) => {
     const { month, year } = getCurrentPeriod();
     const currentBudget = await ensureBudgetForMonth(userId, month, year);
     const requestedBudgetId = Number(body.budget_id);
-    const budgetId =
-      Number.isInteger(requestedBudgetId) && requestedBudgetId > 0
+    const requestedScope =
+      typeof body.scope === "string" ? body.scope.trim().toLowerCase() : "";
+    const isCategoryRequest = requestedScope === "category";
+    const isOverallRequest = requestedScope === "overall";
+
+    if (isCategoryRequest && (!Number.isInteger(requestedBudgetId) || requestedBudgetId <= 0)) {
+      return res.status(400).json({ error: "Please choose a valid category budget first." });
+    }
+
+    const budgetId = isOverallRequest
+      ? currentBudget?.budget_id
+      : Number.isInteger(requestedBudgetId) && requestedBudgetId > 0
         ? requestedBudgetId
         : currentBudget?.budget_id;
 
@@ -551,13 +705,42 @@ exports.createAlert = async (req, res) => {
       return res.status(404).json({ error: "Budget not found for this user." });
     }
 
+    const budgetRow = matchingBudgets[0];
+    const alertScope = getAlertScope(body, budgetRow);
+
+    if (alertScope === "category" && isMonthlyBudgetRow(budgetRow)) {
+      return res.status(400).json({ error: "Category alerts must be linked to a category budget." });
+    }
+
+    if (alertScope === "overall" && !isMonthlyBudgetRow(budgetRow)) {
+      return res.status(400).json({ error: "Overall alerts must use the monthly budget." });
+    }
+
     const existingAlerts = await runQuery(
-      "SELECT alert_id FROM alerts WHERE budget_id = ? AND threshold_percent = ? LIMIT 1",
-      [budgetId, thresholdPercent]
+      `SELECT a.alert_id, b.name,
+              COALESCE(b.is_system_generated, 0) AS is_system_generated
+       FROM alerts a
+       INNER JOIN budgets b
+         ON b.budget_id = a.budget_id
+       WHERE a.user_id = ?
+         AND a.budget_id = ?
+         AND a.threshold_percent = ?
+       LIMIT 1`,
+      [userId, budgetId, thresholdPercent]
     );
 
     if (existingAlerts.length > 0) {
-      return res.status(409).json({ error: "An alert already exists for this threshold." });
+      const existingAlert = existingAlerts[0];
+      const existingScope = isMonthlyBudgetRow(existingAlert) ? "overall" : "category";
+
+      return res.status(409).json({
+        error:
+          existingScope === "category"
+            ? "This category already has an alert for that percentage."
+            : "Your monthly budget already has an alert for that percentage.",
+        scope: existingScope,
+        budget_name: existingScope === "overall" ? DEFAULT_BUDGET_NAME : existingAlert.name
+      });
     }
 
     const result = await runQuery(
@@ -565,16 +748,18 @@ exports.createAlert = async (req, res) => {
       [userId, budgetId, thresholdPercent]
     );
 
-    const budgetRow = matchingBudgets[0];
-
     return res.status(201).json({
       message: "Alert added!",
       alert_id: result.insertId,
       budget_id: budgetId,
       threshold_percent: thresholdPercent,
-      budget_name: isMonthlyBudgetRow(budgetRow) ? DEFAULT_BUDGET_NAME : budgetRow.name,
+      budget_name: alertScope === "overall" ? DEFAULT_BUDGET_NAME : budgetRow.name,
       budget_icon: budgetRow.icon,
-      scope: isMonthlyBudgetRow(budgetRow) ? "overall" : "category"
+      budget_amount: Number(budgetRow.amount || 0),
+      threshold_amount: Number(
+        (((Number(budgetRow.amount || 0) || DEFAULT_BUDGET_AMOUNT) * thresholdPercent) / 100).toFixed(2)
+      ),
+      scope: alertScope
     });
   } catch (error) {
     return res.status(error.statusCode || 500).json({ error: error.message });

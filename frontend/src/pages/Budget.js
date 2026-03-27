@@ -347,6 +347,28 @@ function Budget() {
       .catch(() => setTransactions([]));
   };
 
+  const mergeUpdatedBudget = (budget) => {
+    if (!budget) {
+      return;
+    }
+
+    const normalizedBudget = withDefaultBudgetDateRange(budget);
+
+    setBudgets((previousBudgets) =>
+      previousBudgets.map((currentBudget) =>
+        currentBudget.budget_id === normalizedBudget.budget_id
+          ? { ...currentBudget, ...normalizedBudget }
+          : currentBudget
+      )
+    );
+
+    setSelectedBudget((currentBudget) =>
+      currentBudget && currentBudget.budget_id === normalizedBudget.budget_id
+        ? { ...currentBudget, ...normalizedBudget }
+        : currentBudget
+    );
+  };
+
   const renderIcon = (iconValue, color) => {
     const style = { color: color || "#20c4d8", fontSize: "20px" };
 
@@ -374,6 +396,22 @@ function Budget() {
     setEditEndDate(budgetWithDates.end_date);
     setEditErrorMessage("");
     setEditOpen(true);
+  };
+
+  const handleEditStartDateChange = (nextStartDate) => {
+    setEditStartDate(nextStartDate);
+
+    if (editEndDate && nextStartDate && nextStartDate > editEndDate) {
+      setEditEndDate(nextStartDate);
+    }
+  };
+
+  const handleEditEndDateChange = (nextEndDate) => {
+    setEditEndDate(nextEndDate);
+
+    if (editStartDate && nextEndDate && nextEndDate < editStartDate) {
+      setEditStartDate(nextEndDate);
+    }
   };
 
   const openDelete = (budget) => {
@@ -419,13 +457,17 @@ function Budget() {
         throw new Error(data.error || "Unable to save budget changes.");
       }
 
-      const refreshedBudgets = await loadBudgets();
-      const refreshedBudget = refreshedBudgets.find(
-        (budget) => budget.budget_id === selectedBudget.budget_id
-      );
+      if (data.budget) {
+        mergeUpdatedBudget(data.budget);
+      } else {
+        const refreshedBudgets = await loadBudgets();
+        const refreshedBudget = refreshedBudgets.find(
+          (budget) => budget.budget_id === selectedBudget.budget_id
+        );
 
-      if (refreshedBudget) {
-        setSelectedBudget(refreshedBudget);
+        if (refreshedBudget) {
+          setSelectedBudget(refreshedBudget);
+        }
       }
 
       setEditOpen(false);
@@ -670,8 +712,7 @@ function Budget() {
                   <label>Start Date</label>
                   <AestheticDatePicker
                     value={editStartDate}
-                    onChange={setEditStartDate}
-                    max={editEndDate || undefined}
+                    onChange={handleEditStartDateChange}
                   />
                 </div>
 
@@ -679,8 +720,7 @@ function Budget() {
                   <label>End Date</label>
                   <AestheticDatePicker
                     value={editEndDate}
-                    onChange={setEditEndDate}
-                    min={editStartDate || undefined}
+                    onChange={handleEditEndDateChange}
                     align="right"
                   />
                 </div>
@@ -898,8 +938,7 @@ function Budget() {
                 <label>Start Date</label>
                 <AestheticDatePicker
                   value={editStartDate}
-                  onChange={setEditStartDate}
-                  max={editEndDate || undefined}
+                  onChange={handleEditStartDateChange}
                 />
               </div>
 
@@ -907,8 +946,7 @@ function Budget() {
                 <label>End Date</label>
                 <AestheticDatePicker
                   value={editEndDate}
-                  onChange={setEditEndDate}
-                  min={editStartDate || undefined}
+                  onChange={handleEditEndDateChange}
                   align="right"
                 />
               </div>

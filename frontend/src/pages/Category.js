@@ -3,6 +3,14 @@ import AestheticDatePicker from "../components/AestheticDatePicker";
 import { getCurrentMonthDateRange } from "../utils/budgetDates";
 import "./Category.css";
 
+const getMonthNumberFromDate = (value) => {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return new Date().getMonth() + 1;
+  }
+
+  return Number(value.slice(5, 7));
+};
+
 export default function Category({ closeCategory, addNewCategory }) {
   const defaultMonthRange = getCurrentMonthDateRange();
   const [view, setView] = useState("select");
@@ -44,6 +52,22 @@ export default function Category({ closeCategory, addNewCategory }) {
     setView("create");
   };
 
+  const handleStartDateChange = (nextStartDate) => {
+    setStartDate(nextStartDate);
+
+    if (endDate && nextStartDate && nextStartDate > endDate) {
+      setEndDate(nextStartDate);
+    }
+  };
+
+  const handleEndDateChange = (nextEndDate) => {
+    setEndDate(nextEndDate);
+
+    if (startDate && nextEndDate && nextEndDate < startDate) {
+      setStartDate(nextEndDate);
+    }
+  };
+
   const handleSave = () => {
     if (!name || !amount || !selectedIcon) {
       alert("Please enter Name, Amount, and choose an Icon!");
@@ -62,7 +86,7 @@ export default function Category({ closeCategory, addNewCategory }) {
       amount: Number(amount),
       icon: selectedIcon,
       user_id: 1,
-      month: 1,
+      month: getMonthNumberFromDate(startDate),
       start_date: startDate,
       end_date: endDate
     };
@@ -170,8 +194,7 @@ export default function Category({ closeCategory, addNewCategory }) {
                   <label>START DATE</label>
                   <AestheticDatePicker
                     value={startDate}
-                    onChange={setStartDate}
-                    max={endDate || undefined}
+                    onChange={handleStartDateChange}
                   />
                 </div>
 
@@ -179,8 +202,7 @@ export default function Category({ closeCategory, addNewCategory }) {
                   <label>END DATE</label>
                   <AestheticDatePicker
                     value={endDate}
-                    onChange={setEndDate}
-                    min={startDate || undefined}
+                    onChange={handleEndDateChange}
                     align="right"
                   />
                 </div>

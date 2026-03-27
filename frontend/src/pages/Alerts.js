@@ -81,6 +81,11 @@ const getAlertDescription = (alert, triggerAmount) => {
 };
 
 const toBudgetIdValue = (value) => String(value ?? "");
+const notifyAlertStateChanged = () => {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event("pennywise-alerts-updated"));
+  }
+};
 
 export default function AlertsView() {
   const defaultMonthRange = getCurrentMonthDateRange();
@@ -117,8 +122,8 @@ export default function AlertsView() {
 
     try {
       const [alertsResponse, budgetsResponse] = await Promise.all([
-        fetch(`${API_BASE_URL}/alerts/data`),
-        fetch(`${API_BASE_URL}/budget/list`).catch(() => null)
+        fetch(`${API_BASE_URL}/alerts/data?user_id=1`),
+        fetch(`${API_BASE_URL}/budget/list?user_id=1`).catch(() => null)
       ]);
       const data = await alertsResponse.json();
       const budgetsData = budgetsResponse
@@ -245,6 +250,22 @@ export default function AlertsView() {
     setStatusTone("");
   };
 
+  const handleBudgetStartDateChange = (nextStartDate) => {
+    setTempBudgetStartDate(nextStartDate);
+
+    if (tempBudgetEndDate && nextStartDate && nextStartDate > tempBudgetEndDate) {
+      setTempBudgetEndDate(nextStartDate);
+    }
+  };
+
+  const handleBudgetEndDateChange = (nextEndDate) => {
+    setTempBudgetEndDate(nextEndDate);
+
+    if (tempBudgetStartDate && nextEndDate && nextEndDate < tempBudgetStartDate) {
+      setTempBudgetStartDate(nextEndDate);
+    }
+  };
+
   const handleSaveBudget = async () => {
     const amount = Number(tempBudget);
 
@@ -278,6 +299,7 @@ export default function AlertsView() {
         },
         body: JSON.stringify({
           amount,
+          user_id: 1,
           budget_id: budgetId,
           start_date: tempBudgetStartDate,
           end_date: tempBudgetEndDate
@@ -295,6 +317,7 @@ export default function AlertsView() {
       setStatusMessage(data.message || "Budget saved successfully.");
       setStatusTone("success");
       localStorage.setItem("totalBudget", String(amount));
+      notifyAlertStateChanged();
     } catch (error) {
       setStatusMessage(error.message || "Unable to save the budget.");
       setStatusTone("error");
@@ -332,7 +355,9 @@ export default function AlertsView() {
 
     try {
       const payload = {
-        threshold_percent: percentage
+        threshold_percent: percentage,
+        scope: isCategorySpecificAlert ? "category" : "overall",
+        user_id: 1
       };
 
       if (isCategorySpecificAlert) {
@@ -356,8 +381,10 @@ export default function AlertsView() {
       await loadAlertData({ clearStatus: false });
       setStatusMessage(data.message || "Alert added successfully.");
       setStatusTone("success");
+      notifyAlertStateChanged();
       didSave = true;
     } catch (error) {
+      await loadAlertData({ clearStatus: false });
       setDialogError(error.message || "Unable to add alert.");
     } finally {
       setIsSavingAlert(false);
@@ -387,6 +414,7 @@ export default function AlertsView() {
       await loadAlertData({ clearStatus: false });
       setStatusMessage(data.message || "Alert deleted successfully.");
       setStatusTone("success");
+      notifyAlertStateChanged();
     } catch (error) {
       setStatusMessage(error.message || "Unable to delete alert.");
       setStatusTone("error");
@@ -468,8 +496,7 @@ export default function AlertsView() {
                   <span>Start Date</span>
                   <AestheticDatePicker
                     value={tempBudgetStartDate}
-                    max={tempBudgetEndDate || undefined}
-                    onChange={setTempBudgetStartDate}
+                    onChange={handleBudgetStartDateChange}
                   />
                 </label>
 
@@ -477,8 +504,7 @@ export default function AlertsView() {
                   <span>End Date</span>
                   <AestheticDatePicker
                     value={tempBudgetEndDate}
-                    min={tempBudgetStartDate || undefined}
-                    onChange={setTempBudgetEndDate}
+                    onChange={handleBudgetEndDateChange}
                     align="right"
                   />
                 </label>
@@ -539,7 +565,9 @@ export default function AlertsView() {
                 const tone = isCategoryAlert ? "category" : getAlertTone(alert.percentage);
                 const isTriggered = Boolean(alert.triggered);
                 const triggerAmount =
-                  Number(alert.budget_amount || 0) * (alert.percentage / 100);
+                  Number(alert.threshold_amount || 0) ||
+                  Number(alert.budget_amount || 0) * (alert.percentage / 100) ||
+                  (alert.scope === "overall" ? Number(budget || 0) * (alert.percentage / 100) : 0);
                 const categoryAccent = isCategoryAlert
                   ? getCategoryAlertAccent(alert)
                   : null;

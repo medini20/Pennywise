@@ -31,6 +31,7 @@ const API_BASE_URL = "http://localhost:5001";
 const CURRENT_SPENDING_KEY = "currentSpending";
 const ALERT_STORAGE_KEY = "pennywise-triggered-alerts";
 const DISMISSED_ALERT_STORAGE_KEY = "pennywise-dismissed-triggered-alerts";
+const ALERTS_UPDATED_EVENT = "pennywise-alerts-updated";
 
 const formatCurrency = (value) => `₹${Number(value || 0).toLocaleString("en-IN")}`;
 const normalizeNotificationId = (value) => String(value ?? "");
@@ -396,7 +397,23 @@ function AppLayout() {
     if (!isAuthRoute) {
       refreshNotifications();
     }
-  }, [isAuthRoute, refreshNotifications]);
+  }, [isAuthRoute, location.pathname, refreshNotifications]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return undefined;
+    }
+
+    const handleAlertsUpdated = () => {
+      refreshNotifications();
+    };
+
+    window.addEventListener(ALERTS_UPDATED_EVENT, handleAlertsUpdated);
+
+    return () => {
+      window.removeEventListener(ALERTS_UPDATED_EVENT, handleAlertsUpdated);
+    };
+  }, [refreshNotifications]);
 
   const popupNotifications = notifications.filter(
     (notification) => !dismissedNotificationIds.includes(notification.id)

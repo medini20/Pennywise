@@ -69,6 +69,16 @@ const getCurrentMonthDateRange = (referenceDate = new Date()) => ({
   )
 });
 
+const getMonthNumberFromDate = (value) => {
+  const normalizedValue = formatDateValue(value);
+
+  if (!normalizedValue) {
+    return getCurrentPeriod().month;
+  }
+
+  return Number(normalizedValue.slice(5, 7));
+};
+
 const getResolvedDateRange = (startDateValue, endDateValue, referenceDate = new Date()) => {
   const defaultRange = getCurrentMonthDateRange(referenceDate);
   const startDate = formatDateValue(startDateValue) || defaultRange.startDate;
@@ -286,6 +296,7 @@ exports.addBudget = async (req, res) => {
 
   try {
     const resolvedDates = getResolvedDateRange(start_date, end_date);
+    const resolvedMonth = toPositiveNumber(month) || getMonthNumberFromDate(resolvedDates.startDate);
     const query = `
       INSERT INTO budgets (
         name,
@@ -307,7 +318,7 @@ exports.addBudget = async (req, res) => {
       amount,
       icon,
       resolvedUserId,
-      month || 1,
+      resolvedMonth,
       color || DEFAULT_BUDGET_COLOR,
       resolvedDates.startDate,
       resolvedDates.endDate
@@ -382,6 +393,8 @@ exports.editBudget = async (req, res) => {
     if (start_date !== undefined) {
       updates.push("start_date = ?");
       values.push(resolvedDates.startDate);
+      updates.push("month = ?");
+      values.push(getMonthNumberFromDate(resolvedDates.startDate));
     }
 
     if (end_date !== undefined) {
@@ -414,9 +427,16 @@ exports.editBudget = async (req, res) => {
       [parsedBudgetId]
     );
 
+    const updatedBudget = updatedRows[0]
+      ? {
+          ...updatedRows[0],
+          ...getResolvedDateRange(updatedRows[0].start_date, updatedRows[0].end_date)
+        }
+      : null;
+
     return res.json({
       message: "Budget updated successfully",
-      budget: updatedRows[0] || null
+      budget: updatedBudget
     });
   } catch (err) {
     return res.status(400).json({ error: err.message });
