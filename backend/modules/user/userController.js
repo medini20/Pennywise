@@ -9,6 +9,7 @@ require("dotenv").config({ quiet: true });
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 const OTP_EXPIRY_MINUTES = 5;
+const isLocalOtpFallbackEnabled = process.env.NODE_ENV !== "production";
 
 const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
 
@@ -212,29 +213,46 @@ exports.signup = async (req, res) => {
     );
 
     try {
-      const sent = await emailService.sendOTP(email, otp);
-      const shouldExposeOtp = emailService.isEmailPreviewMode();
+      const delivery = await emailService.sendOTP(email, otp);
+      const shouldExposeOtp =
+        isLocalOtpFallbackEnabled &&
+        (Boolean(delivery.previewUrl) || emailService.isEmailPreviewMode());
 
-      if (sent) {
+      if (delivery.sent) {
         return res
           .status(201)
-          .json({
-            message: shouldExposeOtp
-              ? "User registered. OTP is shown in the app because email preview mode is active."
-              : "User registered. Please check email for OTP.",
-            ...(shouldExposeOtp ? { otp } : {})
-          });
+          .json({ message: "User registered. Please check email for OTP." });
       }
 
-      console.error("OTP email send failed for:", email);
-      return res
-        .status(201)
-        .json({ message: "User registered but email failed. Contact support." });
+      console.error("OTP email send failed for:", email, delivery.reason || "Unknown error");
+
+      const responsePayload = {
+        message: shouldExposeOtp
+          ? "User registered. Email preview mode is active, so the OTP has been filled in below."
+          : isLocalOtpFallbackEnabled
+            ? "User registered. Email delivery failed, so the OTP has been filled in below for local development."
+          : "User registered but email delivery failed. Please try again later."
+      };
+
+      if (isLocalOtpFallbackEnabled) {
+        responsePayload.otp = otp;
+
+        if (delivery.previewUrl) {
+          responsePayload.previewUrl = delivery.previewUrl;
+        }
+      }
+
+      return res.status(201).json(responsePayload);
     } catch (emailError) {
       console.error("OTP email exception:", emailError.message);
-      return res
-        .status(201)
-        .json({ message: "User registered but email failed. Contact support." });
+      return res.status(201).json(
+        isLocalOtpFallbackEnabled
+          ? {
+              message: "User registered. Email delivery failed, so the OTP has been filled in below for local development.",
+              otp
+            }
+          : { message: "User registered but email delivery failed. Please try again later." }
+      );
     }
   } catch (error) {
     console.error("signup error:", error.message);
@@ -466,15 +484,32 @@ exports.forgotPassword = async (req, res) => {
       [email, otp, createExpiryDate()]
     );
 
-    await emailService.sendOTP(email, otp);
-    const shouldExposeOtp = emailService.isEmailPreviewMode();
+    const delivery = await emailService.sendOTP(email, otp);
+    const shouldExposeOtp =
+      isLocalOtpFallbackEnabled &&
+      (Boolean(delivery.previewUrl) || emailService.isEmailPreviewMode());
 
-    return res.json({
+    if (delivery.sent) {
+      return res.json({ message: "OTP sent to email for password reset." });
+    }
+
+    const responsePayload = {
       message: shouldExposeOtp
-        ? "OTP generated. Email preview mode is active, so the OTP is shown in the app."
-        : "OTP sent to email for password reset.",
-      ...(shouldExposeOtp ? { otp } : {})
-    });
+        ? "OTP generated. Email preview mode is active, so the code has been filled in below."
+        : isLocalOtpFallbackEnabled
+          ? "OTP generated. Email delivery failed, so the code has been filled in below for local development."
+        : "OTP generated, but email delivery failed. Please try again later."
+    };
+
+    if (isLocalOtpFallbackEnabled) {
+      responsePayload.otp = otp;
+
+      if (delivery.previewUrl) {
+        responsePayload.previewUrl = delivery.previewUrl;
+      }
+    }
+
+    return res.json(responsePayload);
   } catch (error) {
     console.error("forgotPassword error:", error.message);
     return res.status(500).json({ error: "Failed to generate OTP" });

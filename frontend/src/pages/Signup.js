@@ -139,7 +139,13 @@ function Signup() {
       const data = await response.json();
 
       if (response.ok) {
-        setMessage(data.message);
+        const nextMessage = data.otp
+          ? `${data.message} The OTP has been auto-filled below.`
+          : data.message;
+        setMessage(nextMessage);
+        if (data.otp) {
+          setOtpCode(data.otp);
+        }
         setStep(2);
       } else {
         setError(data.error || "Signup failed");

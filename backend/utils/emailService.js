@@ -93,8 +93,12 @@ exports.sendOTP = async (email, otp) => {
 
     const t = await getTransporter();
     if (!t) {
-        console.log("No email transporter available. Use OTP from console above.");
-        return true;
+        console.log("📋 No email transporter available. Use OTP from console above.");
+        return {
+            sent: false,
+            previewUrl: null,
+            reason: "No email transporter available",
+        };
     }
 
     const fromAddress = etherealAccount
@@ -120,18 +124,31 @@ exports.sendOTP = async (email, otp) => {
     try {
         const info = await t.sendMail(mailOptions);
         
-        // If using Ethereal, show the preview URL
+        // Ethereal is useful for local debugging, but it does not deliver to a real inbox.
         const previewUrl = nodemailer.getTestMessageUrl(info);
         if (previewUrl) {
-            console.log("Email preview created successfully.");
+            console.log(`📧 Email preview: ${previewUrl}`);
+            return {
+                sent: false,
+                previewUrl,
+                reason: "Email is using an Ethereal preview inbox",
+            };
         } else {
-            console.log(`Email sent to ${email}`);
+            console.log(`✅ Email sent to ${email}`);
+            return {
+                sent: true,
+                previewUrl: null,
+                reason: "",
+            };
         }
-        return true;
     } catch (error) {
-        console.error("Email send failed:", error.message);
-        console.log("Use the OTP from the console log above.");
-        return true;
+        console.error("⚠️  Email send failed:", error.message);
+        console.log("📋 Use the OTP from the console log above.");
+        return {
+            sent: false,
+            previewUrl: null,
+            reason: error.message,
+        };
     }
 };
 
