@@ -1,6 +1,6 @@
 const express = require("express");
 const cors = require("cors");
-require("dotenv").config();
+require("dotenv").config({ quiet: true });
 const { ensureRuntimeSchema } = require("./config/runtimeSchema");
 const profileRoutes = require("./modules/profile/profileRoutes");
 const budgetRoutes = require("./modules/budget/budgetRoutes");

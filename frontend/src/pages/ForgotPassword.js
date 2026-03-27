@@ -28,9 +28,6 @@ function ForgotPassword() {
 
       if (response.ok) {
         setMessage(data.message);
-        if (data.otp) {
-          setOtpCode(data.otp);
-        }
         setStep(2);
       } else {
         setError(data.error || "Request failed");

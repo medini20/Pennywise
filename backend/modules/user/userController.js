@@ -5,10 +5,10 @@ const jwt = require("jsonwebtoken");
 const emailService = require("../../utils/emailService");
 const { OAuth2Client } = require("google-auth-library");
 
-require("dotenv").config();
+require("dotenv").config({ quiet: true });
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
-const OTP_EXPIRY_MINUTES = 15;
+const OTP_EXPIRY_MINUTES = 5;
 
 const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
 
@@ -213,11 +213,17 @@ exports.signup = async (req, res) => {
 
     try {
       const sent = await emailService.sendOTP(email, otp);
+      const shouldExposeOtp = emailService.isEmailPreviewMode();
 
       if (sent) {
         return res
           .status(201)
-          .json({ message: "User registered. Please check email for OTP." });
+          .json({
+            message: shouldExposeOtp
+              ? "User registered. OTP is shown in the app because email preview mode is active."
+              : "User registered. Please check email for OTP.",
+            ...(shouldExposeOtp ? { otp } : {})
+          });
       }
 
       console.error("OTP email send failed for:", email);
@@ -461,7 +467,14 @@ exports.forgotPassword = async (req, res) => {
     );
 
     await emailService.sendOTP(email, otp);
-    return res.json({ message: "OTP sent to email for password reset." });
+    const shouldExposeOtp = emailService.isEmailPreviewMode();
+
+    return res.json({
+      message: shouldExposeOtp
+        ? "OTP generated. Email preview mode is active, so the OTP is shown in the app."
+        : "OTP sent to email for password reset.",
+      ...(shouldExposeOtp ? { otp } : {})
+    });
   } catch (error) {
     console.error("forgotPassword error:", error.message);
     return res.status(500).json({ error: "Failed to generate OTP" });
