@@ -2,11 +2,45 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  position: relative;
   padding: 40px;
   color: white;
-  /* CRITICAL: Allows content to fill the screen space */
-  width: 100%;
+  width: min(920px, 100%);
+  min-height: calc(100vh - 90px);
+  margin: 12px auto 0;
+  border-radius: 28px;
+  border: 1px solid rgba(49, 122, 210, 0.35);
+  background: linear-gradient(140deg, rgba(22, 34, 74, 0.95) 0%, rgba(17, 30, 66, 0.95) 55%, rgba(14, 27, 60, 0.95) 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 22px 46px rgba(2, 8, 24, 0.45);
   box-sizing: border-box;
+  overflow: hidden;
+}
+
+.profile-wrapper::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(59, 130, 246, 0.18), transparent 48%),
+    linear-gradient(118deg, rgba(255, 255, 255, 0.03) 0%, transparent 38%, rgba(255, 255, 255, 0.02) 62%, transparent 100%);
+  pointer-events: none;
+}
+
+.profile-wrapper::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 3px;
+  background: linear-gradient(to bottom, rgba(56, 189, 248, 0.1), rgba(59, 130, 246, 0.6), rgba(56, 189, 248, 0.1));
+  pointer-events: none;
+}
+
+.profile-wrapper > * {
+  position: relative;
+  z-index: 1;
 }
 
 .profile-avatar {
@@ -32,14 +66,15 @@
 
 .profile-card {
   background: #141c3c;
-  width: 520px; /* Keep fixed width to prevent stretching */
+  width: 100%;
   padding: 20px 25px;
   border-radius: 14px;
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 25px;
-  box-shadow: 0 0 20px rgba(0,0,0,0.5);
+  border: 1px solid rgba(59, 130, 246, 0.16);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.3);
 }
 
 .profile-card-content {
@@ -53,6 +88,7 @@
   gap: 12px;
   min-height: 42px;
   background: #0d1430;
+  border: 1px solid rgba(59, 130, 246, 0.2);
   border-radius: 8px;
   padding: 10px 12px;
 }
@@ -155,7 +191,7 @@
 }
 
 .profile-status {
-  width: 520px;
+  width: 100%;
   box-sizing: border-box;
   background: rgba(59, 130, 246, 0.12);
   border: 1px solid rgba(96, 165, 250, 0.35);
@@ -324,8 +360,18 @@
 }
 
 @media (max-width: 620px) {
+  .profile-wrapper {
+    min-height: auto;
+    margin: 0;
+    border-radius: 16px;
+    padding: 28px 14px 34px;
+  }
+
   .profile-card,
-  .profile-status,
+  .profile-status {
+    width: 100%;
+  }
+
   .profile-password-modal {
     width: calc(100vw - 40px);
   }
