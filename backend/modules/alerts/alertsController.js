@@ -1,6 +1,10 @@
 const db = require("../../config/db");
 const emailService = require("../../utils/emailService");
-const { syncBudgetLifecycle } = require("../budget/budgetLifecycle");
+const {
+  getMonthlyBudgetCategoryId,
+  hasBudgetCategoryIdColumn,
+  syncBudgetLifecycle
+} = require("../budget/budgetLifecycle");
 
 const DEFAULT_USER_ID = 1;
 const DEFAULT_BUDGET_AMOUNT = 5000;
@@ -171,6 +175,10 @@ const getMonthlyBudgetForMonth = async (userId, month) => {
 const ensureBudgetForMonth = async (userId, month, year) => {
   await syncBudgetLifecycle(userId);
   const existingBudget = await getMonthlyBudgetForMonth(userId, month);
+  const hasCategoryIdColumn = await hasBudgetCategoryIdColumn();
+  const monthlyBudgetCategoryId = hasCategoryIdColumn
+    ? await getMonthlyBudgetCategoryId(userId)
+    : null;
 
   if (existingBudget) {
     const resolvedPeriod = getResolvedBudgetPeriod(existingBudget, month, year);
@@ -178,12 +186,27 @@ const ensureBudgetForMonth = async (userId, month, year) => {
     const hasEndDate = Boolean(formatDateValue(existingBudget.end_date));
 
     if (!hasStartDate || !hasEndDate || !isMonthlyBudgetRow(existingBudget)) {
-      await runQuery(
-        `UPDATE budgets
-         SET name = ?, start_date = ?, end_date = ?, is_system_generated = 1
-         WHERE budget_id = ?`,
-        [DEFAULT_BUDGET_NAME, resolvedPeriod.startDate, resolvedPeriod.endDate, existingBudget.budget_id]
-      );
+      if (monthlyBudgetCategoryId !== null) {
+        await runQuery(
+          `UPDATE budgets
+           SET name = ?, category_id = ?, start_date = ?, end_date = ?, is_system_generated = 1
+           WHERE budget_id = ?`,
+          [
+            DEFAULT_BUDGET_NAME,
+            monthlyBudgetCategoryId,
+            resolvedPeriod.startDate,
+            resolvedPeriod.endDate,
+            existingBudget.budget_id
+          ]
+        );
+      } else {
+        await runQuery(
+          `UPDATE budgets
+           SET name = ?, start_date = ?, end_date = ?, is_system_generated = 1
+           WHERE budget_id = ?`,
+          [DEFAULT_BUDGET_NAME, resolvedPeriod.startDate, resolvedPeriod.endDate, existingBudget.budget_id]
+        );
+      }
     }
 
     return {
@@ -196,21 +219,38 @@ const ensureBudgetForMonth = async (userId, month, year) => {
   }
 
   const defaultPeriod = getDefaultBudgetPeriod(month, year);
-  const result = await runQuery(
-    `INSERT INTO budgets
-      (user_id, name, icon, amount, spent, month, color, start_date, end_date, is_system_generated)
-     VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, 1)`,
-    [
-      userId,
-      DEFAULT_BUDGET_NAME,
-      null,
-      DEFAULT_BUDGET_AMOUNT,
-      month,
-      DEFAULT_BUDGET_COLOR,
-      defaultPeriod.startDate,
-      defaultPeriod.endDate
-    ]
-  );
+  const result = monthlyBudgetCategoryId !== null
+    ? await runQuery(
+        `INSERT INTO budgets
+          (user_id, category_id, name, icon, amount, spent, month, color, start_date, end_date, is_system_generated)
+         VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, ?, 1)`,
+        [
+          userId,
+          monthlyBudgetCategoryId,
+          DEFAULT_BUDGET_NAME,
+          null,
+          DEFAULT_BUDGET_AMOUNT,
+          month,
+          DEFAULT_BUDGET_COLOR,
+          defaultPeriod.startDate,
+          defaultPeriod.endDate
+        ]
+      )
+    : await runQuery(
+        `INSERT INTO budgets
+          (user_id, name, icon, amount, spent, month, color, start_date, end_date, is_system_generated)
+         VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, 1)`,
+        [
+          userId,
+          DEFAULT_BUDGET_NAME,
+          null,
+          DEFAULT_BUDGET_AMOUNT,
+          month,
+          DEFAULT_BUDGET_COLOR,
+          defaultPeriod.startDate,
+          defaultPeriod.endDate
+        ]
+      );
 
   return {
     budget_id: result.insertId,
@@ -458,22 +498,41 @@ exports.saveBudget = async (req, res) => {
     const existingBudget = await getMonthlyBudgetForMonth(userId, month);
     const budgetDraft = getBudgetDraft(body, existingBudget);
     const budgetPeriod = getBudgetPeriodInput(body, existingBudget, month, year);
+    const monthlyBudgetCategoryId = await getMonthlyBudgetCategoryId(userId);
 
     if (existingBudget) {
-      await runQuery(
-        `UPDATE budgets
-         SET amount = ?, name = ?, icon = ?, color = ?, start_date = ?, end_date = ?, is_system_generated = 1
-         WHERE budget_id = ?`,
-        [
-          amount,
-          DEFAULT_BUDGET_NAME,
-          budgetDraft.icon,
-          budgetDraft.color,
-          budgetPeriod.startDate,
-          budgetPeriod.endDate,
-          existingBudget.budget_id
-        ]
-      );
+      if (monthlyBudgetCategoryId !== null) {
+        await runQuery(
+          `UPDATE budgets
+           SET amount = ?, name = ?, icon = ?, color = ?, category_id = ?, start_date = ?, end_date = ?, is_system_generated = 1
+           WHERE budget_id = ?`,
+          [
+            amount,
+            DEFAULT_BUDGET_NAME,
+            budgetDraft.icon,
+            budgetDraft.color,
+            monthlyBudgetCategoryId,
+            budgetPeriod.startDate,
+            budgetPeriod.endDate,
+            existingBudget.budget_id
+          ]
+        );
+      } else {
+        await runQuery(
+          `UPDATE budgets
+           SET amount = ?, name = ?, icon = ?, color = ?, start_date = ?, end_date = ?, is_system_generated = 1
+           WHERE budget_id = ?`,
+          [
+            amount,
+            DEFAULT_BUDGET_NAME,
+            budgetDraft.icon,
+            budgetDraft.color,
+            budgetPeriod.startDate,
+            budgetPeriod.endDate,
+            existingBudget.budget_id
+          ]
+        );
+      }
 
       return res.json({
         message: "Budget updated successfully!",
@@ -487,21 +546,38 @@ exports.saveBudget = async (req, res) => {
       });
     }
 
-    const result = await runQuery(
-      `INSERT INTO budgets
-        (user_id, name, icon, amount, spent, month, color, start_date, end_date, is_system_generated)
-       VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, 1)`,
-      [
-        userId,
-        DEFAULT_BUDGET_NAME,
-        budgetDraft.icon,
-        amount,
-        month,
-        budgetDraft.color,
-        budgetPeriod.startDate,
-        budgetPeriod.endDate
-      ]
-    );
+    const result = monthlyBudgetCategoryId !== null
+      ? await runQuery(
+          `INSERT INTO budgets
+            (user_id, category_id, name, icon, amount, spent, month, color, start_date, end_date, is_system_generated)
+           VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, ?, 1)`,
+          [
+            userId,
+            monthlyBudgetCategoryId,
+            DEFAULT_BUDGET_NAME,
+            budgetDraft.icon,
+            amount,
+            month,
+            budgetDraft.color,
+            budgetPeriod.startDate,
+            budgetPeriod.endDate
+          ]
+        )
+      : await runQuery(
+          `INSERT INTO budgets
+            (user_id, name, icon, amount, spent, month, color, start_date, end_date, is_system_generated)
+           VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, 1)`,
+          [
+            userId,
+            DEFAULT_BUDGET_NAME,
+            budgetDraft.icon,
+            amount,
+            month,
+            budgetDraft.color,
+            budgetPeriod.startDate,
+            budgetPeriod.endDate
+          ]
+        );
 
     return res.status(201).json({
       message: "Budget saved successfully!",

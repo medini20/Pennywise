@@ -3,6 +3,7 @@ const db = require("../../config/db");
 const DEFAULT_BUDGET_AMOUNT = 5000;
 const DEFAULT_BUDGET_NAME = "Monthly Budget";
 const DEFAULT_BUDGET_COLOR = "#ffcc00";
+let budgetCategoryIdColumnExists = null;
 
 const runQuery = (sql, params = []) =>
   new Promise((resolve, reject) => {
@@ -15,6 +16,26 @@ const runQuery = (sql, params = []) =>
       resolve(results);
     });
   });
+
+const hasBudgetCategoryIdColumn = async () => {
+  if (budgetCategoryIdColumnExists !== null) {
+    return budgetCategoryIdColumnExists;
+  }
+
+  const rows = await runQuery(
+    `
+      SELECT COLUMN_NAME
+      FROM information_schema.COLUMNS
+      WHERE TABLE_SCHEMA = DATABASE()
+        AND TABLE_NAME = 'budgets'
+        AND COLUMN_NAME = 'category_id'
+      LIMIT 1
+    `
+  );
+
+  budgetCategoryIdColumnExists = rows.length > 0;
+  return budgetCategoryIdColumnExists;
+};
 
 const padNumber = (value) => String(value).padStart(2, "0");
 
@@ -52,6 +73,41 @@ const formatDateValue = (value) => {
 
 const normalizeBudgetName = (value) =>
   typeof value === "string" ? value.trim().toLowerCase() : "";
+
+const ensureExpenseCategory = async (userId, name, icon = null) => {
+  const rows = await runQuery(
+    `
+      SELECT category_id
+      FROM categories
+      WHERE user_id = ?
+        AND LOWER(TRIM(name)) = LOWER(TRIM(?))
+      LIMIT 1
+    `,
+    [userId, name]
+  );
+
+  if (rows.length > 0) {
+    return rows[0].category_id;
+  }
+
+  const result = await runQuery(
+    `
+      INSERT INTO categories (user_id, name, type, icon)
+      VALUES (?, ?, 'expense', ?)
+    `,
+    [userId, name, icon]
+  );
+
+  return result.insertId;
+};
+
+const getMonthlyBudgetCategoryId = async (userId) => {
+  if (!(await hasBudgetCategoryIdColumn())) {
+    return null;
+  }
+
+  return ensureExpenseCategory(userId, DEFAULT_BUDGET_NAME, null);
+};
 
 const getCurrentPeriod = () => {
   const now = new Date();
@@ -159,18 +215,36 @@ const syncBudgetLifecycle = async (userId) => {
   }
 
   await runQuery("DELETE FROM alerts WHERE budget_id = ?", [monthlyBudget.budget_id]);
-  await runQuery(
-    `UPDATE budgets
-     SET name = ?, month = ?, spent = 0, start_date = ?, end_date = ?, is_system_generated = 1
-     WHERE budget_id = ?`,
-    [
-      DEFAULT_BUDGET_NAME,
-      month,
-      currentRange.startDate,
-      currentRange.endDate,
-      monthlyBudget.budget_id
-    ]
-  );
+  const monthlyBudgetCategoryId = await getMonthlyBudgetCategoryId(userId);
+
+  if (monthlyBudgetCategoryId !== null) {
+    await runQuery(
+      `UPDATE budgets
+       SET name = ?, category_id = ?, month = ?, spent = 0, start_date = ?, end_date = ?, is_system_generated = 1
+       WHERE budget_id = ?`,
+      [
+        DEFAULT_BUDGET_NAME,
+        monthlyBudgetCategoryId,
+        month,
+        currentRange.startDate,
+        currentRange.endDate,
+        monthlyBudget.budget_id
+      ]
+    );
+  } else {
+    await runQuery(
+      `UPDATE budgets
+       SET name = ?, month = ?, spent = 0, start_date = ?, end_date = ?, is_system_generated = 1
+       WHERE budget_id = ?`,
+      [
+        DEFAULT_BUDGET_NAME,
+        month,
+        currentRange.startDate,
+        currentRange.endDate,
+        monthlyBudget.budget_id
+      ]
+    );
+  }
 
   return {
     ...monthlyBudget,
@@ -189,7 +263,9 @@ module.exports = {
   formatDateValue,
   getCurrentMonthDateRange,
   getCurrentPeriod,
+  getMonthlyBudgetCategoryId,
   getResolvedDateRange,
+  hasBudgetCategoryIdColumn,
   runQuery,
   syncBudgetLifecycle
 };
