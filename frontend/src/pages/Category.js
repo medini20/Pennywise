@@ -1,16 +1,19 @@
 import React, { useState } from "react";
+import AestheticDatePicker from "../components/AestheticDatePicker";
 import { getStoredUser } from "../services/authStorage";
+import { getCurrentMonthDateRange } from "../utils/budgetDates";
 import "./Category.css";
 
-const API_BASE_URL = "http://localhost:5001";
-
 export default function Category({ closeCategory, addNewCategory }) {
+  const defaultMonthRange = getCurrentMonthDateRange();
   const storedUser = getStoredUser();
-  const userId = storedUser?.id ?? storedUser?.user_id ?? null;
+  const userId = storedUser?.id ?? storedUser?.user_id ?? 1;
   const [view, setView] = useState("select");
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
   const [selectedIcon, setSelectedIcon] = useState("");
+  const [startDate, setStartDate] = useState(defaultMonthRange.startDate);
+  const [endDate, setEndDate] = useState(defaultMonthRange.endDate);
   const [errorMessage, setErrorMessage] = useState("");
 
   const predefinedCategories = [
@@ -31,12 +34,16 @@ export default function Category({ closeCategory, addNewCategory }) {
   const handleSelectPredefined = (category) => {
     setName(category.name);
     setSelectedIcon(category.icon);
+    setStartDate(defaultMonthRange.startDate);
+    setEndDate(defaultMonthRange.endDate);
     setView("create");
   };
 
   const handleAddNewCustom = () => {
     setName("");
     setSelectedIcon("");
+    setStartDate(defaultMonthRange.startDate);
+    setEndDate(defaultMonthRange.endDate);
     setView("create");
   };
 
@@ -46,8 +53,8 @@ export default function Category({ closeCategory, addNewCategory }) {
       return;
     }
 
-    if (!userId) {
-      setErrorMessage("Please log in again before creating a budget category.");
+    if (startDate > endDate) {
+      setErrorMessage("Start date must be on or before end date.");
       return;
     }
 
@@ -58,10 +65,12 @@ export default function Category({ closeCategory, addNewCategory }) {
       amount: Number(amount),
       icon: selectedIcon,
       user_id: userId,
-      month: new Date().getMonth() + 1
+      month: new Date().getMonth() + 1,
+      start_date: startDate,
+      end_date: endDate
     };
 
-    fetch(`${API_BASE_URL}/budget/add`, {
+    fetch("http://localhost:5001/budget/add", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(budgetData)
@@ -157,6 +166,27 @@ export default function Category({ closeCategory, addNewCategory }) {
                   onChange={(e) => setAmount(e.target.value)}
                   autoFocus
                 />
+              </div>
+
+              <div className="category-date-grid">
+                <div className="input-group">
+                  <label>START DATE</label>
+                  <AestheticDatePicker
+                    value={startDate}
+                    onChange={setStartDate}
+                    max={endDate || undefined}
+                  />
+                </div>
+
+                <div className="input-group">
+                  <label>END DATE</label>
+                  <AestheticDatePicker
+                    value={endDate}
+                    onChange={setEndDate}
+                    min={startDate || undefined}
+                    align="right"
+                  />
+                </div>
               </div>
 
               <div>

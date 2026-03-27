@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { FaRegCalendarAlt } from "react-icons/fa";
+import { getStoredUser } from "../services/authStorage";
 import "./transactions.css";
 import Category from "./category1";
 
@@ -66,6 +67,8 @@ export default function Transactions({
   submitLabel = "OK"
 }) {
   const today = new Date();
+  const storedUser = getStoredUser();
+  const userId = storedUser?.id ?? storedUser?.user_id ?? 1;
   const isEditMode = Boolean(initialTransaction);
   const initialTransactionDate = getTransactionDateValue(initialTransaction, today);
   const initialCategoryName = getTransactionCategoryName(initialTransaction);
@@ -94,12 +97,13 @@ export default function Transactions({
   const [incomeCategories, setIncomeCategories] = useState(DEFAULT_INCOME_CATEGORIES);
 
   useEffect(() => {
-    fetch(`${API_BASE_URL}/budget/list`)
+    fetch(`${API_BASE_URL}/budget/list?user_id=${userId}`)
       .then((res) => res.json())
       .then((data) => {
-        const list = Array.isArray(data) ? data : [];
+        const list = Array.isArray(data) ? data : data?.budgets || [];
 
         if (list.length === 0) {
+          setExpenseCategories(DEFAULT_EXPENSE_CATEGORIES);
           return;
         }
 
@@ -125,8 +129,9 @@ export default function Transactions({
       })
       .catch(() => {
         // Keep the local fallback categories if the backend is unavailable.
+        setExpenseCategories(DEFAULT_EXPENSE_CATEGORIES);
       });
-  }, []);
+  }, [userId]);
 
   const categories = type === "income" ? incomeCategories : expenseCategories;
 

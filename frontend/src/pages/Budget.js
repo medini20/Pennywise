@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   FaArrowLeft,
   FaTimes,
@@ -6,10 +6,19 @@ import {
   FaPlus,
   FaCar,
   FaShoppingCart,
-  FaHeartbeat
+  FaHeartbeat,
+  FaWallet
 } from "react-icons/fa";
+import { CalendarDays } from "lucide-react";
 import { LuPencil, LuTrash2 } from "react-icons/lu";
+import AestheticDatePicker from "../components/AestheticDatePicker";
 import { getStoredUser } from "../services/authStorage";
+import {
+  formatDateRange,
+  getCurrentMonthDateRange,
+  normalizeBudgetDateValue,
+  withDefaultBudgetDateRange
+} from "../utils/budgetDates";
 import "./Budget.css";
 import Category from "./Category";
 
@@ -113,9 +122,23 @@ const formatTransactionDate = (value) => {
   return new Date(value);
 };
 
+const isTransactionWithinBudgetPeriod = (transaction, budget) => {
+  const transactionDate = normalizeBudgetDateValue(
+    transaction?.transaction_date || transaction?.transactionDate
+  );
+  const budgetStartDate = normalizeBudgetDateValue(budget?.start_date);
+  const budgetEndDate = normalizeBudgetDateValue(budget?.end_date);
+
+  if (!transactionDate || !budgetStartDate || !budgetEndDate) {
+    return false;
+  }
+
+  return transactionDate >= budgetStartDate && transactionDate <= budgetEndDate;
+};
+
 function Budget() {
   const storedUser = getStoredUser();
-  const userId = storedUser?.id ?? storedUser?.user_id ?? null;
+  const userId = storedUser?.id ?? storedUser?.user_id ?? 1;
   const [budgets, setBudgets] = useState([]);
   const [selectedBudget, setSelectedBudget] = useState(null);
   const [transactions, setTransactions] = useState([]);
@@ -125,77 +148,34 @@ function Budget() {
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [editName, setEditName] = useState("");
   const [amount, setAmount] = useState("");
-  const [statusMessage, setStatusMessage] = useState("");
-  const [statusTone, setStatusTone] = useState("");
-  const [modalErrorMessage, setModalErrorMessage] = useState("");
-  const [isSavingBudget, setIsSavingBudget] = useState(false);
-  const [isDeletingBudget, setIsDeletingBudget] = useState(false);
-
-  const loadBudgets = useCallback(async () => {
-    if (!userId) {
-      setBudgets([]);
-      setStatusMessage("Please log in again before managing budgets.");
-      setStatusTone("error");
-      return;
-    }
-
-    try {
-      const response = await fetch(`${API_BASE_URL}/budget/list?user_id=${userId}`);
-      const data = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        throw new Error(data.error || "Unable to load budgets right now.");
-      }
-
-      const list = Array.isArray(data) ? data : data.budgets || [];
-      setBudgets(list);
-    } catch (error) {
-      setBudgets([]);
-      setStatusMessage(error.message || "Unable to load budgets right now.");
-      setStatusTone("error");
-    }
-  }, [userId]);
-
-  const loadTransactions = useCallback(async () => {
-    if (!userId) {
-      setTransactions([]);
-      return;
-    }
-
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/transactions?user_id=${userId}`);
-      const data = await response.json().catch(() => []);
-
-      if (!response.ok) {
-        throw new Error("Unable to load transaction history right now.");
-      }
-
-      setTransactions(Array.isArray(data) ? data : []);
-    } catch (error) {
-      console.error("Unable to load transactions:", error);
-      setTransactions([]);
-    }
-  }, [userId]);
+  const [editStartDate, setEditStartDate] = useState(getCurrentMonthDateRange().startDate);
+  const [editEndDate, setEditEndDate] = useState(getCurrentMonthDateRange().endDate);
+  const [requestError, setRequestError] = useState("");
 
   useEffect(() => {
     loadBudgets();
     loadTransactions();
-  }, [loadBudgets, loadTransactions]);
+  }, [userId]);
 
   useEffect(() => {
     if (isDetailOpen && selectedBudget) {
       loadTransactions();
     }
-  }, [isDetailOpen, selectedBudget, loadTransactions]);
+  }, [isDetailOpen, selectedBudget, userId]);
 
   const computedBudgets = useMemo(() => {
-    // Budget progress stays in sync with the real transactions instead of trusting stale totals.
     return budgets.map((budget) => {
-      const budgetIcon = typeof budget.icon === "string" ? budget.icon.trim() : "";
-      const budgetName = normalizeCategoryName(budget.name);
+      const budgetWithDates = withDefaultBudgetDateRange(budget);
+      const budgetIcon =
+        typeof budgetWithDates.icon === "string" ? budgetWithDates.icon.trim() : "";
+      const budgetName = normalizeCategoryName(budgetWithDates.name);
 
       const spent = transactions.reduce((sum, transaction) => {
         if (transaction.type !== "expense") {
+          return sum;
+        }
+
+        if (!isTransactionWithinBudgetPeriod(transaction, budgetWithDates)) {
           return sum;
         }
 
@@ -216,7 +196,7 @@ function Budget() {
       }, 0);
 
       return {
-        ...budget,
+        ...budgetWithDates,
         spent
       };
     });
@@ -237,15 +217,41 @@ function Budget() {
         refreshedBudget.spent !== selectedBudget.spent ||
         refreshedBudget.amount !== selectedBudget.amount ||
         refreshedBudget.name !== selectedBudget.name ||
-        refreshedBudget.icon !== selectedBudget.icon
+        refreshedBudget.icon !== selectedBudget.icon ||
+        refreshedBudget.start_date !== selectedBudget.start_date ||
+        refreshedBudget.end_date !== selectedBudget.end_date
       )
     ) {
       setSelectedBudget(refreshedBudget);
     }
   }, [computedBudgets, selectedBudget]);
 
-  const renderIcon = (iconValue, color) => {
+  const loadBudgets = () => {
+    fetch(`${API_BASE_URL}/budget/list?user_id=${userId}`)
+      .then((res) => res.json())
+      .then((data) => {
+        const list = Array.isArray(data) ? data : data.budgets || [];
+        setRequestError("");
+        setBudgets(list.map((budget) => withDefaultBudgetDateRange(budget)));
+      })
+      .catch(() => {
+        setRequestError("Unable to load categories right now.");
+        console.log("Database offline");
+      });
+  };
+
+  const loadTransactions = () => {
+    fetch(`${API_BASE_URL}/api/transactions?user_id=${userId}`)
+      .then((res) => res.json())
+      .then((data) => {
+        setTransactions(Array.isArray(data) ? data : []);
+      })
+      .catch(() => setTransactions([]));
+  };
+
+  const renderIcon = (iconValue, categoryName, color) => {
     const style = { color: color || "#20c4d8", fontSize: "20px" };
+    const normalizedSource = normalizeCategoryName(iconValue || categoryName);
 
     switch (iconValue) {
       case "Food":
@@ -257,26 +263,57 @@ function Budget() {
       case "Health":
         return <FaHeartbeat style={style} />;
       default:
-        return <span style={{ fontSize: "22px" }}>{iconValue}</span>;
+        if (
+          normalizedSource.includes("food") ||
+          normalizedSource.includes("dining")
+        ) {
+          return <FaUtensils style={style} />;
+        }
+
+        if (
+          normalizedSource.includes("transport") ||
+          normalizedSource.includes("travel")
+        ) {
+          return <FaCar style={style} />;
+        }
+
+        if (normalizedSource.includes("shop")) {
+          return <FaShoppingCart style={style} />;
+        }
+
+        if (
+          normalizedSource.includes("health") ||
+          normalizedSource.includes("medical")
+        ) {
+          return <FaHeartbeat style={style} />;
+        }
+
+        if (typeof iconValue === "string" && iconValue.trim() && iconValue.trim().length <= 4) {
+          return <span style={{ fontSize: "22px" }}>{iconValue.trim()}</span>;
+        }
+
+        return <FaWallet style={style} />;
     }
   };
 
   const openEdit = (budget) => {
-    setSelectedBudget(budget);
-    setEditName(budget.name || budget.icon || "");
-    setAmount(budget.amount);
-    setModalErrorMessage("");
+    const budgetWithDates = withDefaultBudgetDateRange(budget);
+
+    setSelectedBudget(budgetWithDates);
+    setEditName(budgetWithDates.name || budgetWithDates.icon || "");
+    setAmount(budgetWithDates.amount);
+    setEditStartDate(budgetWithDates.start_date);
+    setEditEndDate(budgetWithDates.end_date);
     setEditOpen(true);
   };
 
   const openDelete = (budget) => {
     setSelectedBudget(budget);
-    setModalErrorMessage("");
     setDeleteOpen(true);
   };
 
   const openBudgetDetails = (budget) => {
-    setSelectedBudget(budget);
+    setSelectedBudget(withDefaultBudgetDateRange(budget));
     setIsDetailOpen(true);
     loadTransactions();
   };
@@ -286,106 +323,55 @@ function Budget() {
     setSelectedBudget(null);
   };
 
-  const closeEditModal = () => {
-    if (isSavingBudget) {
+  const saveBudget = () => {
+    if (editStartDate > editEndDate) {
       return;
     }
 
-    setEditOpen(false);
-    setModalErrorMessage("");
-  };
-
-  const closeDeleteModal = () => {
-    if (isDeletingBudget) {
-      return;
-    }
-
-    setDeleteOpen(false);
-    setModalErrorMessage("");
-  };
-
-  // These handlers deliberately surface backend problems so the modals do not fail silently.
-  const saveBudget = async () => {
-    const trimmedName = editName.trim();
-    const nextAmount = Number(amount);
-
-    if (!selectedBudget?.budget_id) {
-      setModalErrorMessage("Pick a budget again before saving.");
-      return;
-    }
-
-    if (!trimmedName) {
-      setModalErrorMessage("Please enter a category name.");
-      return;
-    }
-
-    if (!Number.isFinite(nextAmount) || nextAmount <= 0) {
-      setModalErrorMessage("Please enter a valid budget amount.");
-      return;
-    }
-
-    setIsSavingBudget(true);
-    setModalErrorMessage("");
-
-    try {
-      const response = await fetch(`${API_BASE_URL}/budget/edit`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          budget_id: selectedBudget.budget_id,
-          name: trimmedName,
-          amount: nextAmount
-        })
-      });
-      const data = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        throw new Error(data.error || "Unable to save the budget.");
-      }
-
+    fetch(`${API_BASE_URL}/budget/edit`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        budget_id: selectedBudget.budget_id,
+        user_id: userId,
+        name: editName,
+        amount: Number(amount),
+        start_date: editStartDate,
+        end_date: editEndDate
+      })
+    }).then(() => {
       setEditOpen(false);
-      setStatusMessage(data.message || "Budget updated successfully.");
-      setStatusTone("success");
-      await loadBudgets();
-    } catch (error) {
-      setModalErrorMessage(error.message || "Unable to save the budget.");
-    } finally {
-      setIsSavingBudget(false);
-    }
+      loadBudgets();
+    });
   };
 
   const deleteBudget = async () => {
     if (!selectedBudget?.budget_id) {
-      setModalErrorMessage("Pick a budget again before deleting.");
       return;
     }
 
-    setIsDeletingBudget(true);
-    setModalErrorMessage("");
-
     try {
-      const response = await fetch(`${API_BASE_URL}/budget/${selectedBudget.budget_id}`, {
-        method: "DELETE"
-      });
+      setRequestError("");
+
+      const response = await fetch(
+        `${API_BASE_URL}/budget/${selectedBudget.budget_id}?user_id=${userId}`,
+        {
+          method: "DELETE"
+        }
+      );
       const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        throw new Error(data.error || "Unable to delete the budget.");
+        throw new Error(data.error || "Unable to delete this category.");
       }
 
       setDeleteOpen(false);
-      setStatusMessage(data.message || "Budget deleted successfully.");
-      setStatusTone("success");
-
       if (isDetailOpen) {
         closeBudgetDetails();
       }
-
-      await loadBudgets();
+      loadBudgets();
     } catch (error) {
-      setModalErrorMessage(error.message || "Unable to delete the budget.");
-    } finally {
-      setIsDeletingBudget(false);
+      setRequestError(error.message || "Unable to delete this category.");
     }
   };
 
@@ -394,11 +380,18 @@ function Budget() {
       return [];
     }
 
-    const selectedName = normalizeCategoryName(selectedBudget.name);
+    const selectedBudgetWithDates = withDefaultBudgetDateRange(selectedBudget);
+    const selectedName = normalizeCategoryName(selectedBudgetWithDates.name);
     const selectedIcon =
-      typeof selectedBudget.icon === "string" ? selectedBudget.icon.trim() : "";
+      typeof selectedBudgetWithDates.icon === "string"
+        ? selectedBudgetWithDates.icon.trim()
+        : "";
 
     return transactions.filter((transaction) => {
+      if (!isTransactionWithinBudgetPeriod(transaction, selectedBudgetWithDates)) {
+        return false;
+      }
+
       const transactionIcon =
         typeof transaction.category_icon === "string"
           ? transaction.category_icon.trim()
@@ -426,24 +419,15 @@ function Budget() {
   }, [selectedBudget, transactions]);
 
   if (isDetailOpen && selectedBudget) {
-    const spent = Number(selectedBudget.spent || 0);
-    const budgetAmount = Number(selectedBudget.amount || 0);
+    const detailBudget = withDefaultBudgetDateRange(selectedBudget);
+    const spent = Number(detailBudget.spent || 0);
+    const budgetAmount = Number(detailBudget.amount || 0);
     const remaining = Math.max(budgetAmount - spent, 0);
     const percent = budgetAmount > 0 ? Math.min((spent / budgetAmount) * 100, 100) : 0;
-    const accentColor = getBudgetAccentColor(selectedBudget);
+    const accentColor = getBudgetAccentColor(detailBudget);
 
     return (
       <div className="budget-container budget-detail-container">
-        {statusMessage && (
-          <p
-            className={`budget-status-banner ${
-              statusTone === "error" ? "budget-status-banner-error" : "budget-status-banner-success"
-            }`}
-          >
-            {statusMessage}
-          </p>
-        )}
-
         <div className="budget-detail-topbar">
           <div className="budget-detail-left">
             <button className="detail-icon-btn" onClick={closeBudgetDetails}>
@@ -456,11 +440,15 @@ function Budget() {
                 border: `1px solid ${accentColor}55`
               }}
             >
-              {renderIcon(selectedBudget.icon || selectedBudget.name, accentColor)}
+              {renderIcon(detailBudget.icon, detailBudget.name, accentColor)}
             </div>
             <div className="detail-budget-meta">
-              <h2>{selectedBudget.name}</h2>
+              <h2>{detailBudget.name}</h2>
               <span>Budget: {INR}{budgetAmount} | Spent: {INR}{spent}</span>
+              <div className="detail-budget-period">
+                <CalendarDays size={14} />
+                <span>{formatDateRange(detailBudget.start_date, detailBudget.end_date)}</span>
+              </div>
             </div>
           </div>
 
@@ -532,8 +520,8 @@ function Budget() {
                         border: `1px solid ${accentColor}55`
                       }}
                     >
-                      {renderIcon(selectedBudget.icon || selectedBudget.name, accentColor)}
-                    </div>
+                  {renderIcon(detailBudget.icon, detailBudget.name, accentColor)}
+                </div>
 
                     <div className="history-description">
                       {transaction.description || "No description"}
@@ -554,19 +542,15 @@ function Budget() {
             <div className="modal">
               <div className="modal-header">
                 <h2>Edit Budget</h2>
-                <FaTimes className="close-icon" onClick={closeEditModal} />
+                <FaTimes className="close-icon" onClick={() => setEditOpen(false)} />
               </div>
-
-              {modalErrorMessage && (
-                <div className="modal-error-banner">{modalErrorMessage}</div>
-              )}
 
               <div className="category-header-box">
                 <div
                   className="ch-icon"
                   style={{ background: `${selectedBudget?.color || "#20c4d8"}20` }}
                 >
-                  {renderIcon(selectedBudget?.icon, selectedBudget?.color || "#20c4d8")}
+                  {renderIcon(selectedBudget?.icon, selectedBudget?.name, selectedBudget?.color || "#20c4d8")}
                 </div>
                 <div className="ch-details">
                   <h4>{selectedBudget?.name}</h4>
@@ -594,13 +578,30 @@ function Budget() {
                 />
               </div>
 
+              <div className="budget-modal-date-grid">
+                <div className="input-group">
+                  <label>Start Date</label>
+                  <AestheticDatePicker
+                    value={editStartDate}
+                    onChange={setEditStartDate}
+                    max={editEndDate || undefined}
+                  />
+                </div>
+
+                <div className="input-group">
+                  <label>End Date</label>
+                  <AestheticDatePicker
+                    value={editEndDate}
+                    onChange={setEditEndDate}
+                    min={editStartDate || undefined}
+                    align="right"
+                  />
+                </div>
+              </div>
+
               <div className="modal-buttons">
-                <button className="btn-cancel" onClick={closeEditModal} disabled={isSavingBudget}>
-                  Cancel
-                </button>
-                <button className="btn-save" onClick={saveBudget} disabled={isSavingBudget}>
-                  {isSavingBudget ? "Saving..." : "Save Changes"}
-                </button>
+                <button className="btn-cancel" onClick={() => setEditOpen(false)}>Cancel</button>
+                <button className="btn-save" onClick={saveBudget}>Save Changes</button>
               </div>
             </div>
           </div>
@@ -611,12 +612,8 @@ function Budget() {
             <div className="modal">
               <div className="modal-header">
                 <h2>Delete Category</h2>
-                <FaTimes className="close-icon" onClick={closeDeleteModal} />
+                <FaTimes className="close-icon" onClick={() => setDeleteOpen(false)} />
               </div>
-
-              {modalErrorMessage && (
-                <div className="modal-error-banner">{modalErrorMessage}</div>
-              )}
 
               <div className="warning-box">
                 <p className="delete-main">
@@ -628,12 +625,8 @@ function Budget() {
               </div>
 
               <div className="modal-buttons">
-                <button className="btn-cancel" onClick={closeDeleteModal} disabled={isDeletingBudget}>
-                  Cancel
-                </button>
-                <button className="btn-confirm" onClick={deleteBudget} disabled={isDeletingBudget}>
-                  {isDeletingBudget ? "Deleting..." : "Confirm"}
-                </button>
+                <button className="btn-cancel" onClick={() => setDeleteOpen(false)}>Cancel</button>
+                <button className="btn-confirm" onClick={deleteBudget}>Confirm</button>
               </div>
             </div>
           </div>
@@ -644,44 +637,57 @@ function Budget() {
 
   return (
     <div className="budget-container">
-      <div className="budget-page-head">
-        <h2 className="budget-title">Budget Categories</h2>
-      </div>
-
-      {statusMessage && (
-        <p
-          className={`budget-status-banner ${
-            statusTone === "error" ? "budget-status-banner-error" : "budget-status-banner-success"
-          }`}
+      {requestError && (
+        <div
+          style={{
+            marginBottom: "16px",
+            padding: "12px 14px",
+            borderRadius: "10px",
+            background: "rgba(239, 68, 68, 0.12)",
+            border: "1px solid rgba(239, 68, 68, 0.35)",
+            color: "#fecaca"
+          }}
         >
-          {statusMessage}
-        </p>
+          {requestError}
+        </div>
       )}
+
+      <h2 className="budget-title">Budget Categories</h2>
 
       <div className="budget-list">
         {computedBudgets.length > 0 ? (
           computedBudgets.map((budget) => {
-            const spent = Number(budget.spent || 0);
-            const budgetAmount = Number(budget.amount || 0);
+            const budgetWithDates = withDefaultBudgetDateRange(budget);
+            const spent = Number(budgetWithDates.spent || 0);
+            const budgetAmount = Number(budgetWithDates.amount || 0);
             const remaining = budgetAmount - spent;
             const percent = budgetAmount > 0 ? Math.min((spent / budgetAmount) * 100, 100) : 0;
-            const accentColor = getBudgetAccentColor(budget);
+            const accentColor = getBudgetAccentColor(budgetWithDates);
 
             return (
               <div
                 className="budget-card"
-                key={budget.budget_id}
-                onClick={() => openBudgetDetails(budget)}
+                key={budgetWithDates.budget_id}
+                onClick={() => openBudgetDetails(budgetWithDates)}
               >
                 <div
                   className="icon-wrapper"
                   style={{ background: `${accentColor}15` }}
                 >
-                  {renderIcon(budget.icon || "Food", accentColor)}
+                  {renderIcon(budgetWithDates.icon, budgetWithDates.name, accentColor)}
                 </div>
 
                 <div className="card-content">
-                  <div className="cat-name">{budget.name || budget.icon}</div>
+                  <div className="cat-name">{budgetWithDates.name || budgetWithDates.icon}</div>
+                  <div className="budget-period-line">
+                    <CalendarDays size={13} />
+                    <span>
+                      {formatDateRange(budgetWithDates.start_date, budgetWithDates.end_date, {
+                        day: "numeric",
+                        month: "short"
+                      })}
+                    </span>
+                  </div>
 
                   <div className="progress-row">
                     <div className="progress-track">
@@ -698,14 +704,14 @@ function Budget() {
                       <LuPencil
                         onClick={(event) => {
                           event.stopPropagation();
-                          openEdit(budget);
+                          openEdit(budgetWithDates);
                         }}
                         className="action-btn edit"
                       />
                       <LuTrash2
                         onClick={(event) => {
                           event.stopPropagation();
-                          openDelete(budget);
+                          openDelete(budgetWithDates);
                         }}
                         className="action-btn delete"
                       />
@@ -745,19 +751,15 @@ function Budget() {
           <div className="modal">
             <div className="modal-header">
               <h2>Edit Budget</h2>
-              <FaTimes className="close-icon" onClick={closeEditModal} />
+              <FaTimes className="close-icon" onClick={() => setEditOpen(false)} />
             </div>
-
-            {modalErrorMessage && (
-              <div className="modal-error-banner">{modalErrorMessage}</div>
-            )}
 
             <div className="category-header-box">
               <div
                 className="ch-icon"
                 style={{ background: `${selectedBudget?.color || "#20c4d8"}20` }}
               >
-                {renderIcon(selectedBudget?.icon, selectedBudget?.color || "#20c4d8")}
+                {renderIcon(selectedBudget?.icon, selectedBudget?.name, selectedBudget?.color || "#20c4d8")}
               </div>
               <div className="ch-details">
                 <h4>{selectedBudget?.name}</h4>
@@ -785,13 +787,30 @@ function Budget() {
               />
             </div>
 
+            <div className="budget-modal-date-grid">
+              <div className="input-group">
+                <label>Start Date</label>
+                <AestheticDatePicker
+                  value={editStartDate}
+                  onChange={setEditStartDate}
+                  max={editEndDate || undefined}
+                />
+              </div>
+
+              <div className="input-group">
+                <label>End Date</label>
+                <AestheticDatePicker
+                  value={editEndDate}
+                  onChange={setEditEndDate}
+                  min={editStartDate || undefined}
+                  align="right"
+                />
+              </div>
+            </div>
+
             <div className="modal-buttons">
-              <button className="btn-cancel" onClick={closeEditModal} disabled={isSavingBudget}>
-                Cancel
-              </button>
-              <button className="btn-save" onClick={saveBudget} disabled={isSavingBudget}>
-                {isSavingBudget ? "Saving..." : "Save Changes"}
-              </button>
+              <button className="btn-cancel" onClick={() => setEditOpen(false)}>Cancel</button>
+              <button className="btn-save" onClick={saveBudget}>Save Changes</button>
             </div>
           </div>
         </div>
@@ -802,12 +821,8 @@ function Budget() {
           <div className="modal">
             <div className="modal-header">
               <h2>Delete Category</h2>
-              <FaTimes className="close-icon" onClick={closeDeleteModal} />
+              <FaTimes className="close-icon" onClick={() => setDeleteOpen(false)} />
             </div>
-
-            {modalErrorMessage && (
-              <div className="modal-error-banner">{modalErrorMessage}</div>
-            )}
 
             <div className="warning-box">
               <p className="delete-main">
@@ -819,12 +834,8 @@ function Budget() {
             </div>
 
             <div className="modal-buttons">
-              <button className="btn-cancel" onClick={closeDeleteModal} disabled={isDeletingBudget}>
-                Cancel
-              </button>
-              <button className="btn-confirm" onClick={deleteBudget} disabled={isDeletingBudget}>
-                {isDeletingBudget ? "Deleting..." : "Confirm"}
-              </button>
+              <button className="btn-cancel" onClick={() => setDeleteOpen(false)}>Cancel</button>
+              <button className="btn-confirm" onClick={deleteBudget}>Confirm</button>
             </div>
           </div>
         </div>

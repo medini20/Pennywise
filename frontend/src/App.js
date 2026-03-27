@@ -30,13 +30,10 @@ import ForgotPassword from "./pages/ForgotPassword";
 const API_BASE_URL = "http://localhost:5001";
 const CURRENT_SPENDING_KEY = "currentSpending";
 const ALERT_STORAGE_KEY = "pennywise-triggered-alerts";
-const ALERT_HISTORY_STORAGE_KEY = "pennywise-notification-history";
 const DISMISSED_ALERT_STORAGE_KEY = "pennywise-dismissed-triggered-alerts";
 
 const formatCurrency = (value) => `₹${Number(value || 0).toLocaleString("en-IN")}`;
 const normalizeNotificationId = (value) => String(value ?? "");
-const createNotificationHistoryId = () =>
-  `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
 const mapTriggeredAlertsToNotifications = (summary) => {
   const triggeredAlerts = Array.isArray(summary?.triggered_alerts)
@@ -46,8 +43,14 @@ const mapTriggeredAlertsToNotifications = (summary) => {
   return triggeredAlerts.map((alert) => ({
     id: normalizeNotificationId(alert.id),
     percentage: alert.percentage,
-    message: `Spending reached ${alert.percentage}% of your budget`,
-    detail: `${formatCurrency(summary.current_spending)} spent out of ${formatCurrency(summary.budget)}`
+    message:
+      alert.scope === "category"
+        ? `${alert.budget_name} reached ${alert.percentage}% of its budget`
+        : `Spending reached ${alert.percentage}% of your monthly budget`,
+    detail:
+      alert.scope === "category"
+        ? `${formatCurrency(alert.current_spending)} spent out of ${formatCurrency(alert.budget_amount)}`
+        : `${formatCurrency(summary.current_spending)} spent out of ${formatCurrency(summary.budget)}`
   }));
 };
 
@@ -65,28 +68,6 @@ const readStoredNotifications = () => {
           ...notification,
           id: normalizeNotificationId(notification.id)
         }))
-      : [];
-  } catch (error) {
-    return [];
-  }
-};
-
-const readStoredNotificationHistory = () => {
-  if (typeof window === "undefined") {
-    return [];
-  }
-
-  try {
-    const storedValue = window.localStorage.getItem(ALERT_HISTORY_STORAGE_KEY);
-    const parsedValue = storedValue ? JSON.parse(storedValue) : [];
-
-    return Array.isArray(parsedValue)
-      ? parsedValue
-          .filter((notification) => notification && notification.historyId && notification.createdAt)
-          .map((notification) => ({
-            ...notification,
-            notificationId: normalizeNotificationId(notification.notificationId ?? notification.id)
-          }))
       : [];
   } catch (error) {
     return [];
@@ -112,45 +93,13 @@ const readStoredDismissedNotificationIds = () => {
   }
 };
 
-const formatNotificationDateLabel = (value) =>
-  new Date(value).toLocaleDateString("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric"
-  });
-
-const formatNotificationTimeLabel = (value) =>
-  new Date(value).toLocaleTimeString("en-IN", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: true
-  });
-
-const groupNotificationHistoryByDate = (notificationHistory) => {
-  const sortedHistory = [...notificationHistory].sort(
-    (leftEntry, rightEntry) => new Date(rightEntry.createdAt) - new Date(leftEntry.createdAt)
-  );
-
-  return sortedHistory.reduce((groups, notificationEntry) => {
-    const dateLabel = formatNotificationDateLabel(notificationEntry.createdAt);
-    const lastGroup = groups[groups.length - 1];
-
-    if (lastGroup && lastGroup.dateLabel === dateLabel) {
-      lastGroup.items.push(notificationEntry);
-      return groups;
-    }
-
-    return [...groups, { dateLabel, items: [notificationEntry] }];
-  }, []);
-};
-
 const PrivateRoute = ({ children }) => {
   const isLoggedIn = hasValidSession();
 
   return isLoggedIn ? children : <Navigate to="/login" />;
 };
 
-function TopBar({ notifications, notificationHistory, refreshNotifications, clearNotificationHistory }) {
+function TopBar({ notifications, refreshNotifications }) {
   const navigate = useNavigate();
   const storedUser = getStoredUser();
   const profileLabel = storedUser?.name || storedUser?.username || storedUser?.email || "Profile";
@@ -159,7 +108,6 @@ function TopBar({ notifications, notificationHistory, refreshNotifications, clea
   const [isRefreshingNotifications, setIsRefreshingNotifications] = useState(false);
   const notificationPanelRef = useRef(null);
   const logoutPanelRef = useRef(null);
-  const groupedNotificationHistory = groupNotificationHistoryByDate(notificationHistory);
 
   const handleLogout = () => {
     clearStoredSession();
@@ -264,68 +212,38 @@ function TopBar({ notifications, notificationHistory, refreshNotifications, clea
               <div>
                 <h4>Notifications</h4>
                 <p>
-                  {notificationHistory.length > 0
-                    ? `${notificationHistory.length} notification${notificationHistory.length === 1 ? "" : "s"} in history`
-                    : "No notification history yet."}
+                  {notifications.length > 0
+                    ? `${notifications.length} triggered alert${notifications.length === 1 ? "" : "s"}`
+                    : "No budget alerts are triggered right now."}
                 </p>
               </div>
 
-              <div className="topbarNotificationHeaderActions">
-                <button
-                  type="button"
-                  className="topbarNotificationLink topbarNotificationDangerLink"
-                  onClick={clearNotificationHistory}
-                  disabled={notificationHistory.length === 0}
-                >
-                  Delete History
-                </button>
-
-                <button
-                  type="button"
-                  className="topbarNotificationLink"
-                  onClick={() => {
-                    setIsNotificationOpen(false);
-                    navigate("/alerts");
-                  }}
-                >
-                  View Alerts
-                </button>
-              </div>
+              <button
+                type="button"
+                className="topbarNotificationLink"
+                onClick={() => {
+                  setIsNotificationOpen(false);
+                  navigate("/alerts");
+                }}
+              >
+                View Alerts
+              </button>
             </div>
-
-            {notifications.length > 0 && (
-              <p className="topbarNotificationActiveSummary">
-                {notifications.length} active alert{notifications.length === 1 ? "" : "s"} right now
-              </p>
-            )}
 
             {isRefreshingNotifications ? (
               <p className="topbarNotificationEmpty">Loading notifications...</p>
-            ) : notificationHistory.length === 0 ? (
+            ) : notifications.length === 0 ? (
               <p className="topbarNotificationEmpty">
-                You will see your notification history here whenever spending crosses one of your thresholds.
+                You will see triggered budget alerts here whenever spending crosses one of your thresholds.
               </p>
             ) : (
-              <div className="topbarNotificationHistory">
-                {groupedNotificationHistory.map((notificationGroup) => (
-                  <div className="topbarNotificationDateGroup" key={notificationGroup.dateLabel}>
-                    <div className="topbarNotificationDateLabel">
-                      {notificationGroup.dateLabel}
-                    </div>
-
-                    <div className="topbarNotificationList">
-                      {notificationGroup.items.map((notification) => (
-                        <div className="topbarNotificationItem" key={notification.historyId}>
-                          <span className="topbarNotificationMarker" />
-                          <div className="topbarNotificationCopy">
-                            <strong>{notification.message}</strong>
-                            <span>{notification.detail}</span>
-                            <time className="topbarNotificationTime">
-                              {formatNotificationTimeLabel(notification.createdAt)}
-                            </time>
-                          </div>
-                        </div>
-                      ))}
+              <div className="topbarNotificationList">
+                {notifications.map((notification) => (
+                  <div className="topbarNotificationItem" key={notification.id}>
+                    <span className="topbarNotificationMarker" />
+                    <div className="topbarNotificationCopy">
+                      <strong>{notification.message}</strong>
+                      <span>{notification.detail}</span>
                     </div>
                   </div>
                 ))}
@@ -392,12 +310,9 @@ function AppLayout() {
   const userId = storedUser?.id ?? storedUser?.user_id ?? null;
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [notifications, setNotifications] = useState(readStoredNotifications);
-  const [notificationHistory, setNotificationHistory] = useState(readStoredNotificationHistory);
   const [dismissedNotificationIds, setDismissedNotificationIds] = useState(
     readStoredDismissedNotificationIds
   );
-  const notificationsRef = useRef(notifications);
-  const notificationHistoryRef = useRef(notificationHistory);
   const dismissedNotificationIdsRef = useRef(dismissedNotificationIds);
 
   // Identify auth routes to remove sidebar and margins
@@ -406,15 +321,11 @@ function AppLayout() {
   // Define sidebar width to match your CSS exactly
   const sidebarWidth = isCollapsed ? "70px" : "260px";
 
-  const refreshNotifications = useCallback(async (currentSpendingOverride) => {
+  const refreshNotifications = useCallback(async () => {
     if (!userId) {
       setNotifications([]);
       return [];
     }
-
-    const parsedSpending = Number(
-      currentSpendingOverride ?? window.localStorage.getItem(CURRENT_SPENDING_KEY) ?? 0
-    );
 
     try {
       const response = await fetch(`${API_BASE_URL}/alerts/check`, {
@@ -423,8 +334,7 @@ function AppLayout() {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          user_id: userId,
-          current_spending: Number.isFinite(parsedSpending) ? parsedSpending : 0
+          user_id: userId
         })
       });
 
@@ -435,36 +345,12 @@ function AppLayout() {
       }
 
       const nextNotifications = mapTriggeredAlertsToNotifications(data);
-      const previousNotificationIds = new Set(
-        notificationsRef.current.map((notification) => notification.id)
-      );
-      const newlyTriggeredNotifications = nextNotifications.filter(
-        (notification) => !previousNotificationIds.has(notification.id)
-      );
       const nextNotificationIds = nextNotifications.map((notification) => notification.id);
       const nextDismissedNotificationIds = dismissedNotificationIdsRef.current.filter((id) =>
         nextNotificationIds.includes(id)
       );
 
-      if (newlyTriggeredNotifications.length > 0) {
-        const timestampBase = Date.now();
-        const nextNotificationHistory = [
-          ...newlyTriggeredNotifications.map((notification, index) => ({
-            historyId: createNotificationHistoryId(),
-            notificationId: notification.id,
-            message: notification.message,
-            detail: notification.detail,
-            createdAt: new Date(timestampBase + index).toISOString()
-          })),
-          ...notificationHistoryRef.current
-        ];
-
-        notificationHistoryRef.current = nextNotificationHistory;
-        setNotificationHistory(nextNotificationHistory);
-      }
-
       setNotifications(nextNotifications);
-      notificationsRef.current = nextNotifications;
       dismissedNotificationIdsRef.current = nextDismissedNotificationIds;
       setDismissedNotificationIds(nextDismissedNotificationIds);
 
@@ -478,16 +364,10 @@ function AppLayout() {
   const handleSpendingChange = useCallback(
     (currentSpending) => {
       window.localStorage.setItem(CURRENT_SPENDING_KEY, String(currentSpending));
-      refreshNotifications(currentSpending);
+      refreshNotifications();
     },
     [refreshNotifications]
   );
-
-  const clearNotificationHistory = useCallback(() => {
-    notificationHistoryRef.current = [];
-    setNotificationHistory([]);
-    window.localStorage.removeItem(ALERT_HISTORY_STORAGE_KEY);
-  }, []);
 
   const dismissNotification = useCallback((notificationId) => {
     const normalizedNotificationId = normalizeNotificationId(notificationId);
@@ -510,17 +390,8 @@ function AppLayout() {
   }, []);
 
   useEffect(() => {
-    notificationsRef.current = notifications;
     window.localStorage.setItem(ALERT_STORAGE_KEY, JSON.stringify(notifications));
   }, [notifications]);
-
-  useEffect(() => {
-    notificationHistoryRef.current = notificationHistory;
-    window.localStorage.setItem(
-      ALERT_HISTORY_STORAGE_KEY,
-      JSON.stringify(notificationHistory)
-    );
-  }, [notificationHistory]);
 
   useEffect(() => {
     dismissedNotificationIdsRef.current = dismissedNotificationIds;
@@ -563,9 +434,7 @@ function AppLayout() {
         {!isAuthRoute && (
           <TopBar
             notifications={notifications}
-            notificationHistory={notificationHistory}
             refreshNotifications={refreshNotifications}
-            clearNotificationHistory={clearNotificationHistory}
           />
         )}
 

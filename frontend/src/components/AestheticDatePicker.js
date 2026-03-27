@@ -1,16 +1,22 @@
-import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
-import { formatAsDateValue, formatDisplayDate } from "../utils/budgetDates";
+import {
+  formatAsDateValue,
+  formatDisplayDate,
+  normalizeBudgetDateValue
+} from "../utils/budgetDates";
 import "./AestheticDatePicker.css";
 
 const WEEK_DAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 
 const parseDateValue = (value) => {
-  if (!value || typeof value !== "string") {
+  const normalizedValue = normalizeBudgetDateValue(value);
+
+  if (!normalizedValue) {
     return null;
   }
 
-  const parsedDate = new Date(`${value}T00:00:00`);
+  const parsedDate = new Date(`${normalizedValue}T00:00:00`);
   return Number.isNaN(parsedDate.getTime()) ? null : parsedDate;
 };
 
@@ -37,13 +43,10 @@ export default function AestheticDatePicker({
   const triggerRef = useRef(null);
   const popoverRef = useRef(null);
   const selectedDate = parseDateValue(value);
+  const normalizedValue = normalizeBudgetDateValue(value);
+  const normalizedMin = normalizeBudgetDateValue(min);
+  const normalizedMax = normalizeBudgetDateValue(max);
   const [isOpen, setIsOpen] = useState(false);
-  const [popoverPosition, setPopoverPosition] = useState({
-    top: 0,
-    left: 0,
-    width: 320,
-    placement: "bottom"
-  });
   const [viewDate, setViewDate] = useState(() => {
     const today = new Date();
     const initialDate = selectedDate || today;
@@ -87,56 +90,6 @@ export default function AestheticDatePicker({
     setViewDate(new Date(baseDate.getFullYear(), baseDate.getMonth(), 1));
   }, [value]);
 
-  useLayoutEffect(() => {
-    if (!isOpen || !triggerRef.current) {
-      return undefined;
-    }
-
-    const updatePopoverPosition = () => {
-      const triggerRect = triggerRef.current.getBoundingClientRect();
-      const viewportWidth = window.innerWidth;
-      const viewportHeight = window.innerHeight;
-      const popoverWidth = Math.min(320, viewportWidth - 24);
-      const estimatedPopoverHeight = 360;
-      const spacing = 10;
-
-      const availableBelow = viewportHeight - triggerRect.bottom - 16;
-      const availableAbove = triggerRect.top - 16;
-      const placement =
-        availableBelow < estimatedPopoverHeight && availableAbove > availableBelow
-          ? "top"
-          : "bottom";
-
-      let left =
-        align === "right"
-          ? triggerRect.right - popoverWidth
-          : triggerRect.left;
-
-      left = Math.max(12, Math.min(left, viewportWidth - popoverWidth - 12));
-
-      const top =
-        placement === "top"
-          ? Math.max(12, triggerRect.top - estimatedPopoverHeight - spacing)
-          : Math.min(triggerRect.bottom + spacing, viewportHeight - estimatedPopoverHeight - 12);
-
-      setPopoverPosition({
-        top,
-        left,
-        width: popoverWidth,
-        placement
-      });
-    };
-
-    updatePopoverPosition();
-    window.addEventListener("resize", updatePopoverPosition);
-    window.addEventListener("scroll", updatePopoverPosition, true);
-
-    return () => {
-      window.removeEventListener("resize", updatePopoverPosition);
-      window.removeEventListener("scroll", updatePopoverPosition, true);
-    };
-  }, [align, isOpen]);
-
   const calendarDays = useMemo(() => {
     const monthStart = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1);
     const firstGridDate = new Date(monthStart);
@@ -149,9 +102,9 @@ export default function AestheticDatePicker({
 
       const dayValue = formatAsDateValue(dayDate);
       const isCurrentMonth = dayDate.getMonth() === viewDate.getMonth();
-      const isSelected = dayValue === value;
+      const isSelected = dayValue === normalizedValue;
       const isToday = dayValue === todayValue;
-      const isDisabled = isOutsideRange(dayValue, min, max);
+      const isDisabled = isOutsideRange(dayValue, normalizedMin, normalizedMax);
 
       return {
         dayValue,
@@ -162,10 +115,10 @@ export default function AestheticDatePicker({
         isDisabled
       };
     });
-  }, [max, min, value, viewDate]);
+  }, [normalizedMax, normalizedMin, normalizedValue, viewDate]);
 
   const handleSelectDate = (nextValue) => {
-    if (isOutsideRange(nextValue, min, max)) {
+    if (isOutsideRange(nextValue, normalizedMin, normalizedMax)) {
       return;
     }
 
@@ -173,7 +126,7 @@ export default function AestheticDatePicker({
     setIsOpen(false);
   };
 
-  const selectedLabel = value ? formatDisplayDate(value) : placeholder;
+  const selectedLabel = normalizedValue ? formatDisplayDate(normalizedValue) : placeholder;
   const monthLabel = viewDate.toLocaleDateString("en-IN", {
     month: "long",
     year: "numeric"
@@ -199,13 +152,8 @@ export default function AestheticDatePicker({
         <div
           ref={popoverRef}
           className={`pwDatePickerPopover ${
-            popoverPosition.placement === "top" ? "pwDatePickerPopoverTop" : ""
+            align === "right" ? "pwDatePickerPopoverRight" : ""
           }`}
-          style={{
-            top: `${popoverPosition.top}px`,
-            left: `${popoverPosition.left}px`,
-            width: `${popoverPosition.width}px`
-          }}
         >
           <div className="pwDatePickerHeader">
             <button
@@ -268,7 +216,7 @@ export default function AestheticDatePicker({
               className="pwDatePickerFooterButton"
               onClick={() => {
                 const todayValue = formatAsDateValue(new Date());
-                if (!isOutsideRange(todayValue, min, max)) {
+                if (!isOutsideRange(todayValue, normalizedMin, normalizedMax)) {
                   handleSelectDate(todayValue);
                 }
               }}
