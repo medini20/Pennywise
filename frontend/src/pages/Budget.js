@@ -460,17 +460,15 @@ function Budget() {
         throw new Error(data.error || "Unable to save budget changes.");
       }
 
-      if (data.budget) {
-        mergeUpdatedBudget(data.budget);
-      } else {
-        const refreshedBudgets = await loadBudgets();
-        const refreshedBudget = refreshedBudgets.find(
-          (budget) => budget.budget_id === selectedBudget.budget_id
-        );
+      const refreshedBudgets = await loadBudgets();
+      const refreshedBudget = refreshedBudgets.find(
+        (budget) => budget.budget_id === selectedBudget.budget_id
+      );
 
-        if (refreshedBudget) {
-          setSelectedBudget(refreshedBudget);
-        }
+      if (refreshedBudget) {
+        setSelectedBudget(refreshedBudget);
+      } else if (data.budget) {
+        mergeUpdatedBudget(data.budget);
       }
 
       setEditOpen(false);
@@ -530,6 +528,116 @@ function Budget() {
   const totalCategories = computedBudgets.length;
   const activeCategories = computedBudgets.filter((budget) => isBudgetActive(budget)).length;
 
+  const renderBudgetModals = () => (
+    <>
+      {isCategoryModalOpen && (
+        <Category
+          closeCategory={() => setIsCategoryModalOpen(false)}
+          addNewCategory={loadBudgets}
+        />
+      )}
+
+      {editOpen && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <div className="modal-header">
+              <h2>Edit Budget</h2>
+              <FaTimes className="close-icon" onClick={() => setEditOpen(false)} />
+            </div>
+
+            <div className="category-header-box">
+              <div
+                className="ch-icon"
+                style={{ background: `${selectedBudget?.color || "#20c4d8"}20` }}
+              >
+                {renderIcon(selectedBudget?.icon, selectedBudget?.color || "#20c4d8")}
+              </div>
+              <div className="ch-details">
+                <h4>{selectedBudget?.name}</h4>
+                <span>Current: {INR}{selectedBudget?.amount}</span>
+              </div>
+            </div>
+
+            {editErrorMessage && (
+              <div className="modal-error-banner">
+                {editErrorMessage}
+              </div>
+            )}
+
+            <div className="input-group">
+              <label>Category Name</label>
+              <input
+                className="styled-input"
+                type="text"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+              />
+            </div>
+
+            <div className="input-group">
+              <label>Monthly Budget ({INR})</label>
+              <input
+                className="styled-input"
+                type="number"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+              />
+            </div>
+
+            <div className="budget-modal-date-grid">
+              <div className="input-group">
+                <label>Start Date</label>
+                <AestheticDatePicker
+                  value={editStartDate}
+                  onChange={handleEditStartDateChange}
+                />
+              </div>
+
+              <div className="input-group">
+                <label>End Date</label>
+                <AestheticDatePicker
+                  value={editEndDate}
+                  onChange={handleEditEndDateChange}
+                  align="right"
+                />
+              </div>
+            </div>
+
+            <div className="modal-buttons">
+              <button className="btn-cancel" onClick={() => setEditOpen(false)}>Cancel</button>
+              <button className="btn-save" onClick={saveBudget}>Save Changes</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deleteOpen && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <div className="modal-header">
+              <h2>Delete Category</h2>
+              <FaTimes className="close-icon" onClick={() => setDeleteOpen(false)} />
+            </div>
+
+            <div className="warning-box">
+              <p className="delete-main">
+                Are you sure you want to delete <b>{selectedBudget?.name}</b>?
+              </p>
+              <p className="delete-sub">
+                This action cannot be undone. All transactions in this category will be permanently deleted.
+              </p>
+            </div>
+
+            <div className="modal-buttons">
+              <button className="btn-cancel" onClick={() => setDeleteOpen(false)}>Cancel</button>
+              <button className="btn-confirm" onClick={deleteBudget}>Confirm</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+
   if (isDetailOpen && selectedBudget) {
     const detailBudget = withDefaultBudgetDateRange(selectedBudget);
     const spent = Number(detailBudget.spent || 0);
@@ -541,6 +649,7 @@ function Budget() {
     const expired = isBudgetExpired(detailBudget);
 
     return (
+      <>
       <div className="budget-container budget-detail-container">
         <div className="budget-detail-topbar">
           <div className="budget-detail-left">
@@ -663,10 +772,13 @@ function Budget() {
           )}
         </div>
       </div>
+      {renderBudgetModals()}
+      </>
     );
   }
 
   return (
+    <>
     <div className="budget-container">
       <div className="budget-page-head">
         <h2 className="budget-title">Budget Categories</h2>
@@ -783,112 +895,9 @@ function Budget() {
         </div>
       </div>
 
-      {isCategoryModalOpen && (
-        <Category
-          closeCategory={() => setIsCategoryModalOpen(false)}
-          addNewCategory={loadBudgets}
-        />
-      )}
-
-      {editOpen && (
-        <div className="modal-overlay">
-          <div className="modal">
-            <div className="modal-header">
-              <h2>Edit Budget</h2>
-              <FaTimes className="close-icon" onClick={() => setEditOpen(false)} />
-            </div>
-
-            <div className="category-header-box">
-              <div
-                className="ch-icon"
-                style={{ background: `${selectedBudget?.color || "#20c4d8"}20` }}
-              >
-                {renderIcon(selectedBudget?.icon, selectedBudget?.color || "#20c4d8")}
-              </div>
-              <div className="ch-details">
-                <h4>{selectedBudget?.name}</h4>
-                <span>Current: {INR}{selectedBudget?.amount}</span>
-              </div>
-            </div>
-
-            {editErrorMessage && (
-              <div className="modal-error-banner">
-                {editErrorMessage}
-              </div>
-            )}
-
-            <div className="input-group">
-              <label>Category Name</label>
-              <input
-                className="styled-input"
-                type="text"
-                value={editName}
-                onChange={(e) => setEditName(e.target.value)}
-              />
-            </div>
-
-            <div className="input-group">
-              <label>Monthly Budget ({INR})</label>
-              <input
-                className="styled-input"
-                type="number"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-              />
-            </div>
-
-            <div className="budget-modal-date-grid">
-              <div className="input-group">
-                <label>Start Date</label>
-                <AestheticDatePicker
-                  value={editStartDate}
-                  onChange={handleEditStartDateChange}
-                />
-              </div>
-
-              <div className="input-group">
-                <label>End Date</label>
-                <AestheticDatePicker
-                  value={editEndDate}
-                  onChange={handleEditEndDateChange}
-                  align="right"
-                />
-              </div>
-            </div>
-
-            <div className="modal-buttons">
-              <button className="btn-cancel" onClick={() => setEditOpen(false)}>Cancel</button>
-              <button className="btn-save" onClick={saveBudget}>Save Changes</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {deleteOpen && (
-        <div className="modal-overlay">
-          <div className="modal">
-            <div className="modal-header">
-              <h2>Delete Category</h2>
-              <FaTimes className="close-icon" onClick={() => setDeleteOpen(false)} />
-            </div>
-
-            <div className="warning-box">
-              <p className="delete-main">
-                Are you sure you want to delete <b>{selectedBudget?.name}</b>?
-              </p>
-              <p className="delete-sub">
-                This action cannot be undone. All transactions in this category will be permanently deleted.
-              </p>
-            </div>
-
-            <div className="modal-buttons">
-              <button className="btn-cancel" onClick={() => setDeleteOpen(false)}>Cancel</button>
-              <button className="btn-confirm" onClick={deleteBudget}>Confirm</button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
+    {renderBudgetModals()}
+    </>
   );
 }
 

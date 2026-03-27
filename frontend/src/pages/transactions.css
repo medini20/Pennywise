@@ -8,6 +8,18 @@
   z-index: 1000;
 }
 
+.nestedCategoryOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(4, 10, 28, 0.58);
+  backdrop-filter: blur(8px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 18px;
+  z-index: 1400;
+}
+
 .modal {
   width: 455px;
   max-width: calc(100vw - 24px);
@@ -26,6 +38,19 @@
   width: min(455px, calc(100vw - 34px));
   max-width: calc(100vw - 34px);
   padding: 0 14px 14px;
+}
+
+.modal.small.nestedCategoryModal {
+  width: min(360px, calc(100vw - 36px));
+  max-width: calc(100vw - 36px);
+  max-height: min(78vh, 620px);
+  overflow-y: auto;
+  padding: 0 14px 14px;
+  background:
+    radial-gradient(circle at top right, rgba(81, 118, 224, 0.22), transparent 34%),
+    linear-gradient(180deg, #18213f 0%, #141b31 100%);
+  border: 1px solid rgba(90, 128, 214, 0.28);
+  box-shadow: 0 24px 54px rgba(0, 0, 0, 0.42);
 }
 
 .modalHeader {
@@ -378,35 +403,61 @@
   grid-template-columns: repeat(5, 1fr);
   gap: 10px;
   margin: 15px 0;
+  max-height: 240px;
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
 .iconBox {
-  background: #1c2c55;
+  background: #263965;
+  min-height: 64px;
   padding: 10px;
-  border-radius: 10px;
+  border-radius: 14px;
   text-align: center;
   cursor: pointer;
+  border: 1px solid transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.iconBox:hover {
+  background: #2d457c;
+  transform: translateY(-1px);
+}
+
+.iconBox.selected {
+  border-color: rgba(107, 154, 255, 0.9);
+  background: #315293;
+  box-shadow: inset 0 0 0 1px rgba(140, 181, 255, 0.28);
 }
 
 .buttons {
   display: flex;
   justify-content: space-between;
+  gap: 12px;
 }
 
 .cancel {
-  background: #ef4444;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 10px;
+  flex: 1;
+  background: #2b3557;
+  border: 1px solid rgba(91, 113, 170, 0.38);
+  padding: 12px 20px;
+  border-radius: 12px;
   color: white;
+  font-weight: 700;
 }
 
 .add {
-  background: #22c55e;
+  flex: 1;
+  background: linear-gradient(135deg, #4c84eb, #2ec5e8);
   border: none;
-  padding: 10px 20px;
-  border-radius: 10px;
+  padding: 12px 20px;
+  border-radius: 12px;
   color: white;
+  font-weight: 700;
 }
 
 @media (max-width: 768px) {

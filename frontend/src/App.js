@@ -33,7 +33,7 @@ const ALERT_STORAGE_KEY = "pennywise-triggered-alerts";
 const DISMISSED_ALERT_STORAGE_KEY = "pennywise-dismissed-triggered-alerts";
 const ALERTS_UPDATED_EVENT = "pennywise-alerts-updated";
 
-const formatCurrency = (value) => `₹${Number(value || 0).toLocaleString("en-IN")}`;
+const formatCurrency = (value) => `?${Number(value || 0).toLocaleString("en-IN")}`;
 const normalizeNotificationId = (value) => String(value ?? "");
 
 const mapTriggeredAlertsToNotifications = (summary) => {
@@ -438,9 +438,7 @@ function AppLayout() {
       <div 
         className="page-content" 
         style={{ 
-          flex: 1, 
-          // CRITICAL: 0px for login, sidebarWidth for app
-          marginLeft: isAuthRoute ? "0px" : sidebarWidth,
+          flex: 1,          marginLeft: isAuthRoute ? "0px" : sidebarWidth,
           transition: "margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
           width: isAuthRoute ? "100%" : `calc(100% - ${sidebarWidth})`,
           display: "flex",
@@ -494,3 +492,4 @@ function App() {
 }
 
 export default App;
+

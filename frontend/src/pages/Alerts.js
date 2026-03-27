@@ -21,6 +21,7 @@ import "./Alerts.css";
 const API_BASE_URL = "http://localhost:5001";
 const INR_SYMBOL = "\u20B9";
 const DEFAULT_BUDGET_COLOR = "#ffcc00";
+const ALERTS_CACHE_KEY_PREFIX = "pennywise-alerts-cache:";
 
 const formatCurrency = (value) =>
   `${INR_SYMBOL}${Number(value || 0).toLocaleString("en-IN")}`;
@@ -89,6 +90,25 @@ const notifyAlertStateChanged = () => {
   }
 };
 
+const getAlertsCacheKey = (userId) => `${ALERTS_CACHE_KEY_PREFIX}${userId}`;
+
+const readCachedAlertState = (userId) => {
+  try {
+    const rawValue = localStorage.getItem(getAlertsCacheKey(userId));
+    return rawValue ? JSON.parse(rawValue) : null;
+  } catch (error) {
+    return null;
+  }
+};
+
+const writeCachedAlertState = (userId, nextState) => {
+  try {
+    localStorage.setItem(getAlertsCacheKey(userId), JSON.stringify(nextState));
+  } catch (error) {
+    // Ignore cache write issues. Live data should still render.
+  }
+};
+
 export default function AlertsView() {
   const storedUser = getStoredUser();
   const userId = storedUser?.id ?? storedUser?.user_id ?? 1;
@@ -116,6 +136,43 @@ export default function AlertsView() {
   const [isSavingAlert, setIsSavingAlert] = useState(false);
   const [deletingAlertId, setDeletingAlertId] = useState(null);
 
+  const applyAlertState = useCallback((nextState) => {
+    if (!nextState) {
+      return;
+    }
+
+    const nextBudget = Number(nextState.budget) || 5000;
+    const nextBudgetId = Number(nextState.budget_id) || null;
+    const nextStartDate =
+      typeof nextState.start_date === "string" && nextState.start_date
+        ? nextState.start_date
+        : defaultMonthRange.startDate;
+    const nextEndDate =
+      typeof nextState.end_date === "string" && nextState.end_date
+        ? nextState.end_date
+        : defaultMonthRange.endDate;
+    const nextAlerts = (Array.isArray(nextState.alerts) ? nextState.alerts : []).map((alert) =>
+      withDefaultBudgetDateRange(alert)
+    );
+    const nextCategoryBudgets = (
+      Array.isArray(nextState.available_category_budgets)
+        ? nextState.available_category_budgets
+        : []
+    ).map((budgetItem) => withDefaultBudgetDateRange(budgetItem));
+
+    setBudget(nextBudget);
+    setBudgetId(nextBudgetId);
+    setBudgetStartDate(nextStartDate);
+    setBudgetEndDate(nextEndDate);
+    setTempBudget(nextBudget);
+    setTempBudgetStartDate(nextStartDate);
+    setTempBudgetEndDate(nextEndDate);
+    setCurrentSpending(Number(nextState.current_spending) || 0);
+    setAlerts(nextAlerts);
+    setCategoryBudgets(nextCategoryBudgets);
+    localStorage.setItem("totalBudget", String(nextBudget));
+  }, [defaultMonthRange.endDate, defaultMonthRange.startDate]);
+
   const loadAlertData = useCallback(async ({ clearStatus = true } = {}) => {
     setIsLoading(true);
 
@@ -138,19 +195,6 @@ export default function AlertsView() {
         throw new Error(data.error || "Unable to load alerts right now.");
       }
 
-      const nextBudget = Number(data.budget) || 5000;
-      const nextBudgetId = Number(data.budget_id) || null;
-      const nextStartDate =
-        typeof data.start_date === "string" && data.start_date
-          ? data.start_date
-          : defaultMonthRange.startDate;
-      const nextEndDate =
-        typeof data.end_date === "string" && data.end_date
-          ? data.end_date
-          : defaultMonthRange.endDate;
-      const nextAlerts = (Array.isArray(data.alerts) ? data.alerts : []).map((alert) =>
-        withDefaultBudgetDateRange(alert)
-      );
       const fallbackBudgetList = (
         Array.isArray(budgetsData) ? budgetsData : budgetsData.budgets || []
       ).map((budgetItem) => withDefaultBudgetDateRange(budgetItem));
@@ -158,28 +202,32 @@ export default function AlertsView() {
         data.available_category_budgets.length > 0
         ? data.available_category_budgets
         : fallbackBudgetList;
-      const nextCategoryBudgets = categoryBudgetSource.map((budgetItem) =>
-        withDefaultBudgetDateRange(budgetItem)
-      );
+      const nextState = {
+        ...data,
+        available_category_budgets: categoryBudgetSource
+      };
 
-      setBudget(nextBudget);
-      setBudgetId(nextBudgetId);
-      setBudgetStartDate(nextStartDate);
-      setBudgetEndDate(nextEndDate);
-      setTempBudget(nextBudget);
-      setTempBudgetStartDate(nextStartDate);
-      setTempBudgetEndDate(nextEndDate);
-      setCurrentSpending(Number(data.current_spending) || 0);
-      setAlerts(nextAlerts);
-      setCategoryBudgets(nextCategoryBudgets);
-      localStorage.setItem("totalBudget", String(nextBudget));
+      applyAlertState(nextState);
+      writeCachedAlertState(userId, nextState);
     } catch (error) {
-      setStatusMessage(error.message || "Unable to load alerts right now.");
+      const cachedState = readCachedAlertState(userId);
+
+      if (cachedState) {
+        applyAlertState(cachedState);
+        setStatusMessage("Could not refresh alerts right now. Showing your last saved data.");
+      } else {
+        setStatusMessage(
+          error.message === "Failed to fetch"
+            ? "Cannot reach the backend right now. Start the backend and refresh this page."
+            : error.message || "Unable to load alerts right now."
+        );
+      }
+
       setStatusTone("error");
     } finally {
       setIsLoading(false);
     }
-  }, [defaultMonthRange.endDate, defaultMonthRange.startDate, userId]);
+  }, [applyAlertState, userId]);
 
   useEffect(() => {
     loadAlertData();

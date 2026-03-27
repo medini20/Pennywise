@@ -4,6 +4,7 @@ require("dotenv").config({ quiet: true });
 const { ensureRuntimeSchema } = require("./config/runtimeSchema");
 const profileRoutes = require("./modules/profile/profileRoutes");
 const budgetRoutes = require("./modules/budget/budgetRoutes");
+const categoryRoutes = require("./modules/category/categoryRoutes");
 const userRoutes = require("./modules/user/userRoutes");
 const analyticsRoute = require("./modules/analytics/analyticsRoutes");
 const alertsRoutes = require("./modules/alerts/alertsRoutes");
@@ -24,6 +25,7 @@ app.use((req, res, next) => {
 // use routes
 app.use("/api/profile", profileRoutes);
 app.use("/budget", budgetRoutes);
+app.use("/api/categories", categoryRoutes);
 app.use("/auth", userRoutes);
 app.use("/api/analytics", analyticsRoute);
 app.use("/alerts", alertsRoutes);

@@ -93,15 +93,32 @@ const resolveCategoryId = async ({ userId, categoryName, categoryIcon, type }) =
     );
 
     categoryId = insertCategoryResult.insertId;
-  } else if (categoryIcon) {
-    await db.promise().query(
-      `
-        UPDATE categories
-        SET icon = COALESCE(icon, ?)
-        WHERE category_id = ?
-      `,
-      [categoryIcon, categoryId]
-    );
+  } else {
+    const updateFragments = [];
+    const updateValues = [];
+
+    if (categoryName) {
+      updateFragments.push("name = ?");
+      updateValues.push(categoryName);
+    }
+
+    if (categoryIcon) {
+      updateFragments.push("icon = ?");
+      updateValues.push(categoryIcon);
+    }
+
+    if (updateFragments.length > 0) {
+      updateValues.push(categoryId);
+
+      await db.promise().query(
+        `
+          UPDATE categories
+          SET ${updateFragments.join(", ")}
+          WHERE category_id = ?
+        `,
+        updateValues
+      );
+    }
   }
 
   return categoryId;
@@ -110,6 +127,7 @@ const resolveCategoryId = async ({ userId, categoryName, categoryIcon, type }) =
 const insertTransaction = async ({
   userId,
   categoryId,
+  categoryIcon,
   amount,
   type,
   description,
@@ -121,6 +139,7 @@ const insertTransaction = async ({
       INSERT INTO transactions (
         user_id,
         category_id,
+        category_icon,
         amount,
         type,
         description,
@@ -128,9 +147,9 @@ const insertTransaction = async ({
         created_at,
         recurring_payment_id
       )
-      VALUES (?, ?, ?, ?, ?, ?, NOW(), ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), ?)
     `,
-    [userId, categoryId, amount, type, description, transactionDate, recurringPaymentId]
+    [userId, categoryId, categoryIcon, amount, type, description, transactionDate, recurringPaymentId]
   );
 
   return result.insertId;
@@ -213,6 +232,7 @@ const processRecurringPayments = async (userId) => {
           await insertTransaction({
             userId: recurringPayment.user_id,
             categoryId: recurringPayment.category_id,
+            categoryIcon: recurringPayment.category_icon || null,
             amount: recurringPayment.amount,
             type: recurringPayment.type,
             description: recurringPayment.description,
@@ -312,6 +332,7 @@ exports.addTransaction = async (req, res) => {
           INSERT INTO recurring_payments (
             user_id,
             category_id,
+            category_icon,
             amount,
             type,
             description,
@@ -323,11 +344,12 @@ exports.addTransaction = async (req, res) => {
             is_active,
             created_at
           )
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NOW())
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NOW())
         `,
         [
           user_id,
           categoryId,
+          finalCategoryIcon,
           amount,
           type,
           finalDescription,
@@ -343,6 +365,7 @@ exports.addTransaction = async (req, res) => {
       const transactionId = await insertTransaction({
         userId: user_id,
         categoryId,
+        categoryIcon: finalCategoryIcon,
         amount,
         type,
         description: finalDescription,
@@ -377,6 +400,7 @@ exports.addTransaction = async (req, res) => {
     const transactionId = await insertTransaction({
       userId: user_id,
       categoryId,
+      categoryIcon: finalCategoryIcon,
       amount,
       type,
       description: finalDescription,
@@ -449,11 +473,30 @@ exports.updateTransaction = async (req, res) => {
     await db.promise().query(
       `
         UPDATE transactions
-        SET category_id = ?, amount = ?, type = ?, description = ?, transaction_date = ?
+        SET category_id = ?, category_icon = ?, amount = ?, type = ?, description = ?, transaction_date = ?
         WHERE transaction_id = ? AND user_id = ?
       `,
-      [categoryId, amount, type, finalDescription, finalTransactionDate, transactionId, user_id]
+      [categoryId, finalCategoryIcon, amount, type, finalDescription, finalTransactionDate, transactionId, user_id]
     );
+
+    if (existingTransaction.recurring_payment_id) {
+      await db.promise().query(
+        `
+          UPDATE recurring_payments
+          SET category_id = ?, category_icon = ?, amount = ?, type = ?, description = ?
+          WHERE recurring_payment_id = ? AND user_id = ?
+        `,
+        [
+          categoryId,
+          finalCategoryIcon,
+          amount,
+          type,
+          finalDescription,
+          existingTransaction.recurring_payment_id,
+          user_id
+        ]
+      );
+    }
 
     return res.json({
       message: "Transaction updated successfully",
@@ -524,7 +567,7 @@ exports.getTransactions = async (req, res) => {
         SELECT
           t.*,
           c.name AS category_name,
-          c.icon AS category_icon
+          COALESCE(t.category_icon, c.icon) AS category_icon
         FROM transactions t
         LEFT JOIN categories c
           ON c.category_id = t.category_id

@@ -417,6 +417,11 @@ function Profile() {
         className="profile-avatar"
       />
 
+      <div className="profile-hero">
+        <h1>{username || "Pennywise User"}</h1>
+        <p>{email || "No email added"}</p>
+      </div>
+
       <button
         className="change-btn"
         onClick={() => setShowOptions(true)}
@@ -533,7 +538,7 @@ function Profile() {
                 onClick={() => closePasswordReset()}
                 aria-label="Close reset password dialog"
               >
-                Ã—
+                ×
               </button>
             </div>
 
@@ -600,6 +605,7 @@ function Profile() {
 
       <div className="profile-card">
         <div className="profile-card-content">
+          <div className="profile-section-title">Account Details</div>
           <div className="label">Username</div>
           <div className="profile-field-row">
             {editUser ? (
@@ -655,12 +661,14 @@ function Profile() {
           <div className="label">Email</div>
           <div className="profile-field-row">
             <span className="value profile-inline-value">{email || "Not set"}</span>
+            <span className="profile-verified-pill">Verified</span>
           </div>
         </div>
       </div>
 
       <div className="profile-card">
         <div className="profile-card-content">
+          <div className="profile-section-title">Security</div>
           <div className="label">Security</div>
           <div className="profile-field-row">
             <span className="value profile-inline-value">Reset Password</span>
@@ -683,3 +691,4 @@ function Profile() {
 }
 
 export default Profile;
+

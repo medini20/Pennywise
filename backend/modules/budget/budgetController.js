@@ -341,6 +341,15 @@ exports.addBudget = async (req, res) => {
         `,
         [resolvedUserId, name, icon || null]
       );
+    } else if (icon) {
+      await db.promise().query(
+        `
+          UPDATE categories
+          SET icon = ?
+          WHERE category_id = ?
+        `,
+        [icon, existingCategories[0].category_id]
+      );
     }
 
     db.query(query, values, (err, result) => {

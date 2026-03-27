@@ -59,6 +59,36 @@ const normalizeAmountInput = (value) => {
   return `${wholeNumberPart}.${decimalParts.join("")}`;
 };
 
+const mergeCategories = (baseCategories, fetchedCategories) => {
+  const dedupedFetchedCategories = [];
+
+  fetchedCategories.forEach((category) => {
+    const normalizedName = category.name.trim().toLowerCase();
+    const alreadyIncluded = dedupedFetchedCategories.some(
+      (existingCategory) => existingCategory.name.trim().toLowerCase() === normalizedName
+    );
+
+    if (!alreadyIncluded) {
+      dedupedFetchedCategories.push(category);
+    }
+  });
+
+  const mergedCategories = [...dedupedFetchedCategories];
+
+  baseCategories.forEach((category) => {
+    const alreadyIncluded = mergedCategories.some(
+      (existingCategory) =>
+        existingCategory.name.trim().toLowerCase() === category.name.trim().toLowerCase()
+    );
+
+    if (!alreadyIncluded) {
+      mergedCategories.push(category);
+    }
+  });
+
+  return mergedCategories;
+};
+
 export default function Transactions({
   closeModal = () => {},
   addTransaction = () => {},
@@ -97,39 +127,35 @@ export default function Transactions({
   const [incomeCategories, setIncomeCategories] = useState(DEFAULT_INCOME_CATEGORIES);
 
   useEffect(() => {
-    fetch(`${API_BASE_URL}/budget/list?user_id=${userId}`)
+    if (!userId) {
+      setExpenseCategories(DEFAULT_EXPENSE_CATEGORIES);
+      setIncomeCategories(DEFAULT_INCOME_CATEGORIES);
+      return;
+    }
+
+    fetch(`${API_BASE_URL}/api/categories?user_id=${userId}`)
       .then((res) => res.json())
       .then((data) => {
-        const list = Array.isArray(data) ? data : data?.budgets || [];
+        const list = Array.isArray(data) ? data : [];
+        const expenseList = list
+          .filter((category) => category.type !== "income")
+          .map((category) => ({
+            name: category.name,
+            icon: category.icon || "\uD83D\uDCB0"
+          }));
+        const incomeList = list
+          .filter((category) => category.type === "income")
+          .map((category) => ({
+            name: category.name,
+            icon: category.icon || "\uD83D\uDCB5"
+          }));
 
-        if (list.length === 0) {
-          setExpenseCategories(DEFAULT_EXPENSE_CATEGORIES);
-          return;
-        }
-
-        const budgetCategories = list.map((budget) => ({
-          name: budget.name,
-          icon: budget.icon || "\uD83D\uDCB0"
-        }));
-
-        const mergedCategories = [...budgetCategories];
-
-        DEFAULT_EXPENSE_CATEGORIES.forEach((category) => {
-          const alreadyIncluded = mergedCategories.some(
-            (existingCategory) =>
-              existingCategory.name.trim().toLowerCase() === category.name.trim().toLowerCase()
-          );
-
-          if (!alreadyIncluded) {
-            mergedCategories.push(category);
-          }
-        });
-
-        setExpenseCategories(mergedCategories);
+        setExpenseCategories(mergeCategories(DEFAULT_EXPENSE_CATEGORIES, expenseList));
+        setIncomeCategories(mergeCategories(DEFAULT_INCOME_CATEGORIES, incomeList));
       })
       .catch(() => {
-        // Keep the local fallback categories if the backend is unavailable.
         setExpenseCategories(DEFAULT_EXPENSE_CATEGORIES);
+        setIncomeCategories(DEFAULT_INCOME_CATEGORIES);
       });
   }, [userId]);
 
@@ -149,9 +175,12 @@ export default function Transactions({
       return;
     }
 
+    const existingCategory = categories.find(
+      (category) => category.name.trim().toLowerCase() === selectedCategory.trim().toLowerCase()
+    );
     const categoryToInsert = {
       name: selectedCategory,
-      icon: initialCategoryIcon || "\uD83D\uDCB0"
+      icon: existingCategory?.icon || initialCategoryIcon || (type === "income" ? "\uD83D\uDCB5" : "\uD83D\uDCB0")
     };
 
     if (type === "income") {
@@ -172,7 +201,7 @@ export default function Transactions({
         ? currentCategories
         : [...currentCategories, categoryToInsert]
     );
-  }, [initialCategoryIcon, selectedCategory, type]);
+  }, [categories, initialCategoryIcon, selectedCategory, type]);
 
   const selectedCategoryDetails = categories.find(
     (category) => category.name === selectedCategory
@@ -303,6 +332,58 @@ export default function Transactions({
 
     if (wasSaved !== false) {
       closeModal();
+    }
+  };
+
+  const handleAddCategory = async (newCategory) => {
+    const normalizedCategory = {
+      name: typeof newCategory?.name === "string" ? newCategory.name.trim() : "",
+      icon: typeof newCategory?.icon === "string" ? newCategory.icon.trim() : ""
+    };
+
+    if (!normalizedCategory.name || !normalizedCategory.icon) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/categories`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          user_id: userId,
+          name: normalizedCategory.name,
+          type,
+          icon: normalizedCategory.icon
+        })
+      });
+
+      const result = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(result.error || "Unable to save category.");
+      }
+
+      const savedCategory = {
+        name: result.name || normalizedCategory.name,
+        icon: result.icon || normalizedCategory.icon
+      };
+
+      if (type === "income") {
+        setIncomeCategories((currentCategories) =>
+          mergeCategories(currentCategories, [savedCategory])
+        );
+      } else {
+        setExpenseCategories((currentCategories) =>
+          mergeCategories(currentCategories, [savedCategory])
+        );
+      }
+
+      setSelectedCategory(savedCategory.name);
+      setShowCategory(false);
+    } catch (error) {
+      alert(error.message || "Unable to save category.");
     }
   };
 
@@ -467,7 +548,7 @@ export default function Transactions({
                   className="recurringSaveButton"
                   onClick={handleSaveRecurringPayment}
                 >
-                  <span className="recurringSaveIcon">✓</span>
+                  <span className="recurringSaveIcon">?</span>
                   <span>Save Recurring Payment</span>
                 </button>
 
@@ -558,16 +639,10 @@ export default function Transactions({
       {showCategory && (
         <Category
           closeCategory={() => setShowCategory(false)}
-          addNewCategory={(newCategory) => {
-            if (type === "income") {
-              setIncomeCategories((currentCategories) => [...currentCategories, newCategory]);
-              return;
-            }
-
-            setExpenseCategories((currentCategories) => [...currentCategories, newCategory]);
-          }}
+          addNewCategory={handleAddCategory}
         />
       )}
     </div>
   );
 }
+

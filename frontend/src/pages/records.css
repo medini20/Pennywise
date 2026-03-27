@@ -1,5 +1,5 @@
 .records-page {
-  padding: 40px;
+  padding: 20px 28px 28px;
   color: white;
   font-family: system-ui, -apple-system, sans-serif;
   position: relative;
@@ -11,15 +11,21 @@
 .cards {
   display: flex;
   gap: 18px;
-  margin-bottom: 20px;
+  margin-bottom: 14px;
 }
 
 .card {
   flex: 1;
-  padding: 18px;
+  padding: 16px 18px;
   border-radius: 18px;
   color: white;
   cursor: pointer;
+  transition: transform 0.22s ease, box-shadow 0.22s ease, filter 0.22s ease;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  filter: brightness(1.03);
 }
 
 .cardTitle {
@@ -69,7 +75,7 @@
 }
 
 .monthDropdown {
-  margin: 20px 0;
+  margin: 10px 0 14px;
   padding: 10px 18px;
   border-radius: 12px;
   background: #1a2446;
@@ -83,7 +89,7 @@
   display: flex;
   justify-content: space-between;
   padding: 0 10px;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
   color: #9ca3af;
   font-size: 14px;
 }
@@ -92,7 +98,7 @@
   display: flex;
   flex-direction: column;
   gap: 15px;
-  margin-top: 10px;
+  margin-top: 4px;
 }
 
 .transaction {
