@@ -1,4 +1,4 @@
-const db = require("../../config/db");
+﻿const db = require("../../config/db");
 const bcrypt = require("bcrypt");
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
@@ -446,7 +446,7 @@ exports.changePassword = async (req, res) => {
 
     await runQuery(`UPDATE users SET ${updates.join(", ")} WHERE ${idColumn} = ?`, params);
 
-    return res.json({ message: "Password updated successfully" });
+    return res.json({ message: "Password changed successfully." });
   } catch (error) {
     console.error("changePassword error:", error.message);
     return res.status(500).json({ error: "Unable to update password right now" });
@@ -612,3 +612,4 @@ exports.googleLogin = async (req, res) => {
     return res.status(401).json({ error: "Invalid Google token" });
   }
 };
+

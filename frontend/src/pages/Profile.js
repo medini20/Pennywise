@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+﻿import React, { useEffect, useRef, useState } from "react";
 import "./Profile.css";
 import Webcam from "react-webcam";
 import { useNavigate } from "react-router-dom";
@@ -373,7 +373,7 @@ function Profile() {
       }
 
       closePasswordReset(true);
-      setStatusMessage(data.message || "Password updated successfully.");
+      setStatusMessage("Password changed successfully.");
     } catch (error) {
       if (error?.name === "TypeError") {
         setPasswordMessage(API_DOWN_MESSAGE);
@@ -691,4 +691,6 @@ function Profile() {
 }
 
 export default Profile;
+
+
 
