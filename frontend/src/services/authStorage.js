@@ -9,11 +9,10 @@ const readStorageValue = (key) => {
 
   const legacyLocalValue = localStorage.getItem(key);
   if (legacyLocalValue) {
-    sessionStorage.setItem(key, legacyLocalValue);
     localStorage.removeItem(key);
   }
 
-  return legacyLocalValue;
+  return null;
 };
 
 export const getStoredToken = () => readStorageValue(TOKEN_KEY);
