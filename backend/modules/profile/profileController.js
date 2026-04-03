@@ -37,7 +37,7 @@ const runFirstCompatibleQuery = async (queries) => {
   throw new Error("Unsupported users table schema");
 };
 
-const findProfileConflict = async ({ userId, name, email }) => {
+const findProfileConflict = async ({ userId, username, email }) => {
   const rows = await runFirstCompatibleQuery([
     {
       sql: `
@@ -46,12 +46,12 @@ const findProfileConflict = async ({ userId, name, email }) => {
         WHERE user_id <> ?
           AND (
             LOWER(name) = LOWER(?)
-            OR LOWER(name) = LOWER(?)
+            OR LOWER(username) = LOWER(?)
             OR LOWER(email) = LOWER(?)
           )
         LIMIT 1
       `,
-      params: [userId, name, name, email]
+      params: [userId, username, username, email]
     },
     {
       sql: `
@@ -64,7 +64,20 @@ const findProfileConflict = async ({ userId, name, email }) => {
           )
         LIMIT 1
       `,
-      params: [userId, name, email]
+      params: [userId, username, email]
+    },
+    {
+      sql: `
+        SELECT user_id AS conflict_user_id
+        FROM users
+        WHERE user_id <> ?
+          AND (
+            LOWER(username) = LOWER(?)
+            OR LOWER(email) = LOWER(?)
+          )
+        LIMIT 1
+      `,
+      params: [userId, username, email]
     },
     {
       sql: `
@@ -73,12 +86,25 @@ const findProfileConflict = async ({ userId, name, email }) => {
         WHERE id <> ?
           AND (
             LOWER(name) = LOWER(?)
-            OR LOWER(name) = LOWER(?)
+            OR LOWER(username) = LOWER(?)
             OR LOWER(email) = LOWER(?)
           )
         LIMIT 1
       `,
-      params: [userId, name, name, email]
+      params: [userId, username, username, email]
+    },
+    {
+      sql: `
+        SELECT id AS conflict_user_id
+        FROM users
+        WHERE id <> ?
+          AND (
+            LOWER(username) = LOWER(?)
+            OR LOWER(email) = LOWER(?)
+          )
+        LIMIT 1
+      `,
+      params: [userId, username, email]
     },
     {
       sql: `
@@ -91,15 +117,15 @@ const findProfileConflict = async ({ userId, name, email }) => {
           )
         LIMIT 1
       `,
-      params: [userId, name, email]
+      params: [userId, username, email]
     }
   ]);
 
   return rows.length > 0;
 };
 
-const createProfileToken = ({ userId, name }) =>
-  jwt.sign({ id: userId, name }, JWT_SECRET, { expiresIn: "1d" });
+const createProfileToken = ({ userId, username }) =>
+  jwt.sign({ id: userId, username }, JWT_SECRET, { expiresIn: "1d" });
 
 const resolveUserIdFromToken = async (user = {}) => {
   const directUserId = extractRequestUserId(user);
@@ -107,13 +133,13 @@ const resolveUserIdFromToken = async (user = {}) => {
     return directUserId;
   }
 
-  const tokenUsername = normalizeText(user.name || user.name);
+  const tokenUsername = normalizeText(user.username || user.name);
   const tokenEmail = normalizeText(user.email).toLowerCase();
   if (!tokenUsername && !tokenEmail) {
     return null;
   }
 
-  const nameQueries = tokenUsername
+  const usernameQueries = tokenUsername
     ? [
         {
           sql: `
@@ -137,7 +163,7 @@ const resolveUserIdFromToken = async (user = {}) => {
           sql: `
             SELECT user_id AS resolved_user_id
             FROM users
-            WHERE name = ?
+            WHERE username = ?
             LIMIT 1
           `,
           params: [tokenUsername]
@@ -146,7 +172,7 @@ const resolveUserIdFromToken = async (user = {}) => {
           sql: `
             SELECT id AS resolved_user_id
             FROM users
-            WHERE name = ?
+            WHERE username = ?
             LIMIT 1
           `,
           params: [tokenUsername]
@@ -177,7 +203,7 @@ const resolveUserIdFromToken = async (user = {}) => {
       ]
     : [];
 
-  const resolvedRows = await runFirstCompatibleQuery([...nameQueries, ...emailQueries]);
+  const resolvedRows = await runFirstCompatibleQuery([...usernameQueries, ...emailQueries]);
   if (!resolvedRows.length) {
     return null;
   }
@@ -196,7 +222,12 @@ exports.getProfile = async (req, res) => {
     const results = await runFirstCompatibleQuery([
       {
         sql: `
-          SELECT COALESCE(NULLIF(name, ''), name) AS name, email
+          SELECT COALESCE(
+            NULLIF(TRIM(name), ''),
+            NULLIF(TRIM(username), ''),
+            SUBSTRING_INDEX(email, '@', 1)
+          ) AS username,
+          email
           FROM users
           WHERE user_id = ?
           LIMIT 1
@@ -205,7 +236,7 @@ exports.getProfile = async (req, res) => {
       },
       {
         sql: `
-          SELECT name AS name, email
+          SELECT COALESCE(NULLIF(TRIM(name), ''), SUBSTRING_INDEX(email, '@', 1)) AS username, email
           FROM users
           WHERE user_id = ?
           LIMIT 1
@@ -214,7 +245,12 @@ exports.getProfile = async (req, res) => {
       },
       {
         sql: `
-          SELECT COALESCE(NULLIF(name, ''), name) AS name, email
+          SELECT COALESCE(
+            NULLIF(TRIM(name), ''),
+            NULLIF(TRIM(username), ''),
+            SUBSTRING_INDEX(email, '@', 1)
+          ) AS username,
+          email
           FROM users
           WHERE id = ?
           LIMIT 1
@@ -223,7 +259,7 @@ exports.getProfile = async (req, res) => {
       },
       {
         sql: `
-          SELECT name, email
+          SELECT COALESCE(NULLIF(TRIM(username), ''), SUBSTRING_INDEX(email, '@', 1)) AS username, email
           FROM users
           WHERE id = ?
           LIMIT 1
@@ -243,10 +279,10 @@ exports.getProfile = async (req, res) => {
 };
 
 exports.updateProfile = async (req, res) => {
-  const name = normalizeText(req.body?.name);
+  const username = normalizeText(req.body?.username || req.body?.name);
   const email = normalizeText(req.body?.email).toLowerCase();
 
-  if (!name || !email) {
+  if (!username || !email) {
     return res.status(400).json({ message: "Username and email are required" });
   }
 
@@ -256,7 +292,7 @@ exports.updateProfile = async (req, res) => {
       return res.status(401).json({ message: "Invalid user session" });
     }
 
-    const hasConflict = await findProfileConflict({ userId, name, email });
+    const hasConflict = await findProfileConflict({ userId, username, email });
     if (hasConflict) {
       return res.status(409).json({ message: "Username or email already in use" });
     }
@@ -265,10 +301,10 @@ exports.updateProfile = async (req, res) => {
       {
         sql: `
           UPDATE users
-          SET name = ?, name = ?, email = ?
+          SET name = ?, username = ?, email = ?
           WHERE user_id = ?
         `,
-        params: [name, name, email, userId]
+        params: [username, username, email, userId]
       },
       {
         sql: `
@@ -276,15 +312,31 @@ exports.updateProfile = async (req, res) => {
           SET name = ?, email = ?
           WHERE user_id = ?
         `,
-        params: [name, email, userId]
+        params: [username, email, userId]
       },
       {
         sql: `
           UPDATE users
-          SET name = ?, name = ?, email = ?
+          SET username = ?, email = ?
+          WHERE user_id = ?
+        `,
+        params: [username, email, userId]
+      },
+      {
+        sql: `
+          UPDATE users
+          SET name = ?, username = ?, email = ?
           WHERE id = ?
         `,
-        params: [name, name, email, userId]
+        params: [username, username, email, userId]
+      },
+      {
+        sql: `
+          UPDATE users
+          SET username = ?, email = ?
+          WHERE id = ?
+        `,
+        params: [username, email, userId]
       },
       {
         sql: `
@@ -292,7 +344,7 @@ exports.updateProfile = async (req, res) => {
           SET name = ?, email = ?
           WHERE id = ?
         `,
-        params: [name, email, userId]
+        params: [username, email, userId]
       }
     ]);
 
@@ -300,13 +352,13 @@ exports.updateProfile = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    const refreshedToken = createProfileToken({ userId, name });
+    const refreshedToken = createProfileToken({ userId, username });
     return res.json({
       message: "Profile updated successfully",
       token: refreshedToken,
       user: {
         id: userId,
-        name,
+        username,
         email
       }
     });

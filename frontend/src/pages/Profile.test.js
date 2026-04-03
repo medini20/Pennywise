@@ -155,6 +155,7 @@ describe("Profile page", () => {
     expect(setStoredToken).toHaveBeenCalledWith("fresh-token");
     expect(updateStoredUser).toHaveBeenLastCalledWith({
       username: "Edited User",
+      name: "Edited User",
       email: "edited@example.com"
     });
   });

@@ -15,6 +15,24 @@ const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:500
 const API_DOWN_MESSAGE = `Cannot reach backend server (${API_BASE_URL}). Start backend and try again.`;
 const DEFAULT_PROFILE_IMAGE = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png";
 const PROFILE_IMAGE_KEY_PREFIX = "profile_image";
+const normalizeProfileText = (value) =>
+  typeof value === "string" ? value.trim() : "";
+const deriveUsernameFromEmail = (email) => {
+  const normalizedEmail = normalizeProfileText(email).toLowerCase();
+  if (!normalizedEmail.includes("@")) {
+    return "";
+  }
+
+  return normalizedEmail.split("@")[0];
+};
+const resolveUsername = (value, email = "") => {
+  const normalizedValue = normalizeProfileText(value);
+  if (normalizedValue) {
+    return normalizedValue;
+  }
+
+  return deriveUsernameFromEmail(email);
+};
 const buildProfileImageStorageKey = (user) => {
   const userId = user?.id ?? user?.user_id;
   if (userId) {
@@ -55,8 +73,8 @@ function Profile() {
   );
 
   const sessionUsername = typeof sessionUserRef.current?.username === "string"
-    ? sessionUserRef.current.username.trim()
-    : "";
+    ? resolveUsername(sessionUserRef.current.username, sessionUserRef.current?.email)
+    : resolveUsername(sessionUserRef.current?.name, sessionUserRef.current?.email);
   const sessionEmail = typeof sessionUserRef.current?.email === "string"
     ? sessionUserRef.current.email.trim()
     : "";
@@ -80,6 +98,7 @@ function Profile() {
   const updateSavedUser = (nextUsername, nextEmail) => {
     syncStoredUser({
       username: nextUsername,
+      name: nextUsername,
       email: nextEmail
     });
   };
@@ -155,10 +174,10 @@ function Profile() {
           );
         }
 
-        const apiUsername = (data.username || "").trim();
-        const apiEmail = (data.email || "").trim();
-        const nextUsername = apiUsername || sessionUsername;
+        const apiEmail = normalizeProfileText(data.email);
+        const apiUsername = resolveUsername(data.username || data.name, apiEmail);
         const nextEmail = apiEmail || sessionEmail;
+        const nextUsername = apiUsername || resolveUsername(sessionUsername, nextEmail);
 
         setUsername(nextUsername);
         setEmail(nextEmail);
@@ -168,6 +187,7 @@ function Profile() {
           username: nextUsername,
           email: nextEmail
         });
+        setStatusMessage("");
       } catch (error) {
         if (error?.name === "TypeError") {
           setStatusMessage(API_DOWN_MESSAGE);
@@ -274,7 +294,10 @@ function Profile() {
         return;
       }
 
-      const savedUsername = (data?.user?.username || trimmedUsername).trim();
+      const savedUsername = resolveUsername(
+        data?.user?.username || data?.user?.name || trimmedUsername,
+        data?.user?.email || trimmedEmail
+      );
       const savedEmail = (data?.user?.email || trimmedEmail).trim().toLowerCase();
       setUsername(savedUsername);
       setEmail(savedEmail);
