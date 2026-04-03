@@ -106,7 +106,9 @@ exports.sendOTP = async (email, otp) => {
         <div style="background: #f0f4ff; padding: 16px; border-radius: 8px; text-align: center; margin: 16px 0;">
           <span style="font-size: 32px; font-weight: bold; letter-spacing: 6px; color: #0066ff;">${otp}</span>
         </div>
-        <p style="color: #666; font-size: 14px;">This code will expire in 5 minutes.</p>
+        <div style="background: #fff4e5; color: #8a4b00; border: 1px solid #ffd199; padding: 12px 14px; border-radius: 8px; margin-top: 14px; font-size: 14px; font-weight: 600;">
+          OTP expires in 5 minutes.
+        </div>
       </div>
     `
   };

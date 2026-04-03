@@ -214,10 +214,6 @@ exports.signup = async (req, res) => {
 
     try {
       const delivery = await emailService.sendOTP(email, otp);
-      const shouldExposeOtp =
-        isLocalOtpFallbackEnabled &&
-        (Boolean(delivery.previewUrl) || emailService.isEmailPreviewMode());
-
       if (delivery.sent) {
         return res
           .status(201)
@@ -227,32 +223,15 @@ exports.signup = async (req, res) => {
       console.error("OTP email send failed for:", email, delivery.reason || "Unknown error");
 
       const responsePayload = {
-        message: shouldExposeOtp
-          ? "User registered. Email preview mode is active, so the OTP has been filled in below."
-          : isLocalOtpFallbackEnabled
-            ? "User registered. Email delivery failed, so the OTP has been filled in below for local development."
-          : "User registered but email delivery failed. Please try again later."
+        message: "User registered but email delivery failed. Please try again later."
       };
-
-      if (isLocalOtpFallbackEnabled) {
-        responsePayload.otp = otp;
-
-        if (delivery.previewUrl) {
-          responsePayload.previewUrl = delivery.previewUrl;
-        }
-      }
 
       return res.status(201).json(responsePayload);
     } catch (emailError) {
       console.error("OTP email exception:", emailError.message);
-      return res.status(201).json(
-        isLocalOtpFallbackEnabled
-          ? {
-              message: "User registered. Email delivery failed, so the OTP has been filled in below for local development.",
-              otp
-            }
-          : { message: "User registered but email delivery failed. Please try again later." }
-      );
+      return res.status(201).json({
+        message: "User registered but email delivery failed. Please try again later."
+      });
     }
   } catch (error) {
     console.error("signup error:", error.message);
@@ -485,29 +464,13 @@ exports.forgotPassword = async (req, res) => {
     );
 
     const delivery = await emailService.sendOTP(email, otp);
-    const shouldExposeOtp =
-      isLocalOtpFallbackEnabled &&
-      (Boolean(delivery.previewUrl) || emailService.isEmailPreviewMode());
-
     if (delivery.sent) {
       return res.json({ message: "OTP sent to email for password reset." });
     }
 
     const responsePayload = {
-      message: shouldExposeOtp
-        ? "OTP generated. Email preview mode is active, so the code has been filled in below."
-        : isLocalOtpFallbackEnabled
-          ? "OTP generated. Email delivery failed, so the code has been filled in below for local development."
-        : "OTP generated, but email delivery failed. Please try again later."
+      message: "OTP generated, but email delivery failed. Please try again later."
     };
-
-    if (isLocalOtpFallbackEnabled) {
-      responsePayload.otp = otp;
-
-      if (delivery.previewUrl) {
-        responsePayload.previewUrl = delivery.previewUrl;
-      }
-    }
 
     return res.json(responsePayload);
   } catch (error) {

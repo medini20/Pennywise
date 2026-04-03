@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { FaTimes } from "react-icons/fa";
 import AestheticDatePicker from "../components/AestheticDatePicker";
 import { getStoredUser } from "../services/authStorage";
 import { getCurrentMonthDateRange } from "../utils/budgetDates";
@@ -128,7 +129,9 @@ export default function Category({ closeCategory, addNewCategory }) {
           <>
             <div className="category-modal-header">
               <h3 style={{ margin: 0, fontSize: "16px", fontWeight: "600" }}>Add Category</h3>
-              <span className="close-x" onClick={closeCategory}>×</span>
+              <button type="button" className="close-x" onClick={closeCategory} aria-label="Close add category dialog">
+                <FaTimes />
+              </button>
             </div>
 
             <div className="predefined-grid">
@@ -155,7 +158,9 @@ export default function Category({ closeCategory, addNewCategory }) {
             <div className="category-modal-header">
               <span className="nav-text" onClick={() => setView("select")}>Back</span>
               <h3 style={{ margin: 0, fontSize: "16px", fontWeight: "600" }}>Add Category</h3>
-              <span className="close-x" onClick={closeCategory}>×</span>
+              <button type="button" className="close-x" onClick={closeCategory} aria-label="Close add category dialog">
+                <FaTimes />
+              </button>
             </div>
 
             <div className="category-body">

@@ -88,38 +88,39 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 16px;
-  margin: 0 0 28px;
+  gap: 12px;
+  margin: 0 0 18px;
 }
 
 .budget-detail-left {
   display: flex;
   align-items: flex-start;
-  gap: 16px;
+  gap: 12px;
   flex: 1;
   min-width: 0;
 }
 
 .detail-icon-btn {
-  width: 42px;
-  height: 42px;
+  width: 40px;
+  height: 40px;
   border: 1px solid rgba(82, 123, 244, 0.32);
-  border-radius: 12px;
+  border-radius: 11px;
   background: #15265e;
   color: #71a0ff;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  font-size: 16px;
+  font-size: 15px;
+  flex-shrink: 0;
 }
 
 .action-edit-btn,
 .action-delete-btn {
-  width: 44px;
-  height: 44px;
-  border-radius: 14px;
-  font-size: 18px;
+  width: 42px;
+  height: 42px;
+  border-radius: 13px;
+  font-size: 17px;
 }
 
 .detail-icon-btn.danger {
@@ -129,64 +130,66 @@
 }
 
 .detail-category-icon {
-  width: 46px;
-  height: 46px;
-  border-radius: 14px;
+  width: 44px;
+  height: 44px;
+  border-radius: 13px;
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .detail-budget-meta h2 {
-  margin: 0 0 4px;
-  font-size: 22px;
+  margin: 0;
+  font-size: 19px;
   font-weight: 700;
+  line-height: 1.15;
 }
 
 .detail-budget-meta span {
   color: #98a5c3;
-  font-size: 16px;
+  font-size: 15px;
 }
 
 .detail-budget-meta {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
   min-width: 0;
 }
 
 .detail-budget-title-row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
 .detail-budget-stats {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 10px;
   flex-wrap: wrap;
-  margin-top: 8px;
+  margin-top: 5px;
   color: #98a5c3;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
 }
 
 .detail-date-pill {
-  margin: 8px 0 4px;
+  margin: 4px 0 2px;
 }
 
 .budget-detail-actions {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   margin-left: auto;
 }
 
 .budget-summary-card,
 .budget-history-card {
   width: 100%;
-  padding: 14px 18px;
+  padding: 12px 16px;
   background: #101b43;
   border: 1px solid rgba(88, 108, 177, 0.18);
   border-radius: 16px;
@@ -194,25 +197,25 @@
 }
 
 .budget-summary-card {
-  margin-bottom: 14px;
+  margin-bottom: 12px;
 }
 
 .budget-summary-head {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 16px;
-  margin-bottom: 14px;
+  gap: 12px;
+  margin-bottom: 12px;
 }
 
 .summary-label {
   color: #98a5c3;
-  font-size: 15px;
+  font-size: 14px;
 }
 
 .budget-summary-head h3 {
-  margin: 8px 0 0;
-  font-size: 28px;
+  margin: 6px 0 0;
+  font-size: 24px;
   font-weight: 800;
 }
 
@@ -230,7 +233,7 @@
 }
 
 .detail-progress-meta {
-  margin-top: 8px;
+  margin-top: 7px;
   display: flex;
   justify-content: space-between;
   color: #98a5c3;
@@ -238,8 +241,8 @@
 }
 
 .budget-history-card h3 {
-  margin: 0 0 16px;
-  font-size: 18px;
+  margin: 0 0 12px;
+  font-size: 17px;
   font-weight: 800;
 }
 
