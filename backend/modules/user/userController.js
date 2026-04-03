@@ -226,13 +226,13 @@ exports.signup = async (req, res) => {
 
     try {
       const delivery = await emailService.sendOTP(email, otp);
-      if (delivery.sent) {
+      if (delivery) {
         return res
           .status(201)
           .json({ message: "User registered. Please check email for OTP." });
       }
 
-      console.error("OTP email send failed for:", email, delivery.reason || "Unknown error");
+      console.error("OTP email send failed for:", email);
 
       const responsePayload = {
         message: "User registered but email delivery failed. Please try again later."
