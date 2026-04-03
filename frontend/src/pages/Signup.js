@@ -371,9 +371,11 @@ const styles = {
   container: {
     display: "flex",
     minHeight: "100vh",
+    height: "100vh",
     background: "#080c24",
     fontFamily: "'Inter', 'Segoe UI', sans-serif",
     color: "#ffffff",
+    overflow: "hidden",
   },
   leftPanel: {
     flex: 1,
@@ -382,6 +384,7 @@ const styles = {
     alignItems: "center",
     background: "#080c24",
     padding: "40px",
+    minHeight: "100vh",
   },
   brandWrapper: {
     display: "flex",
@@ -412,11 +415,13 @@ const styles = {
     flex: 1,
     display: "flex",
     flexDirection: "column",
-    justifyContent: "center",
+    justifyContent: "flex-start",
     alignItems: "center",
-    padding: "40px",
+    padding: "48px 40px",
     background: "#0a0e27",
     overflowY: "auto",
+    minHeight: "100vh",
+    boxSizing: "border-box",
   },
   title: {
     fontSize: "36px",

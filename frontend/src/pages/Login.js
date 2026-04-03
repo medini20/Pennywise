@@ -29,7 +29,11 @@ function Login() {
         saveStoredSession({ user: data.user, token: data.token });
         navigate("/");
       } else {
-        setError(data.error || "Login failed");
+        const details =
+          typeof data.details === "string" && data.details.trim()
+            ? ` (${data.details})`
+            : "";
+        setError((data.error || "Login failed") + details);
       }
     } catch {
       setError(API_DOWN_MESSAGE);
