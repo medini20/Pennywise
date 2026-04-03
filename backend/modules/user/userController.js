@@ -474,7 +474,7 @@ exports.forgotPassword = async (req, res) => {
     );
 
     const delivery = await emailService.sendOTP(email, otp);
-    if (delivery.sent) {
+    if (delivery) {
       return res.json({ message: "OTP sent to email for password reset." });
     }
 
