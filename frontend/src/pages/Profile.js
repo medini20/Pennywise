@@ -26,9 +26,9 @@ const buildProfileImageStorageKey = (user) => {
     return `${PROFILE_IMAGE_KEY_PREFIX}:email:${email}`;
   }
 
-  const username = typeof user?.username === "string" ? user.username.trim().toLowerCase() : "";
-  if (username) {
-    return `${PROFILE_IMAGE_KEY_PREFIX}:username:${username}`;
+  const name = typeof user?.name === "string" ? user.name.trim().toLowerCase() : "";
+  if (name) {
+    return `${PROFILE_IMAGE_KEY_PREFIX}:name:${name}`;
   }
 
   return `${PROFILE_IMAGE_KEY_PREFIX}:default`;
@@ -48,20 +48,20 @@ const sanitizeProfileMessage = (message, fallbackMessage) => {
 function Profile() {
   const navigate = useNavigate();
   const webcamRef = useRef(null);
-  const usernameInputRef = useRef(null);
+  const nameInputRef = useRef(null);
   const sessionUserRef = useRef(getStoredUser());
   const profileImageStorageKeyRef = useRef(
     buildProfileImageStorageKey(sessionUserRef.current)
   );
 
-  const sessionUsername = typeof sessionUserRef.current?.username === "string"
-    ? sessionUserRef.current.username.trim()
+  const sessionUsername = typeof sessionUserRef.current?.name === "string"
+    ? sessionUserRef.current.name.trim()
     : "";
   const sessionEmail = typeof sessionUserRef.current?.email === "string"
     ? sessionUserRef.current.email.trim()
     : "";
 
-  const [username, setUsername] = useState(sessionUsername);
+  const [name, setUsername] = useState(sessionUsername);
   const [email, setEmail] = useState(sessionEmail);
   const [tempUser, setTempUser] = useState(sessionUsername);
   const [tempEmail, setTempEmail] = useState(sessionEmail);
@@ -79,7 +79,7 @@ function Profile() {
 
   const updateSavedUser = (nextUsername, nextEmail) => {
     syncStoredUser({
-      username: nextUsername,
+      name: nextUsername,
       email: nextEmail
     });
   };
@@ -155,7 +155,7 @@ function Profile() {
           );
         }
 
-        const apiUsername = (data.username || "").trim();
+        const apiUsername = (data.name || "").trim();
         const apiEmail = (data.email || "").trim();
         const nextUsername = apiUsername || sessionUsername;
         const nextEmail = apiEmail || sessionEmail;
@@ -165,7 +165,7 @@ function Profile() {
         setTempUser(nextUsername);
         setTempEmail(nextEmail);
         syncStoredUser({
-          username: nextUsername,
+          name: nextUsername,
           email: nextEmail
         });
       } catch (error) {
@@ -184,14 +184,14 @@ function Profile() {
   }, [navigate, sessionEmail, sessionUsername]);
 
   useEffect(() => {
-    if (editUser && usernameInputRef.current) {
-      usernameInputRef.current.focus();
-      usernameInputRef.current.select();
+    if (editUser && nameInputRef.current) {
+      nameInputRef.current.focus();
+      nameInputRef.current.select();
     }
   }, [editUser]);
 
   const resetUsernameEdit = () => {
-    setTempUser(username);
+    setTempUser(name);
     setEditUser(false);
   };
 
@@ -252,7 +252,7 @@ function Profile() {
           Authorization: `Bearer ${token}`
         },
         body: JSON.stringify({
-          username: trimmedUsername,
+          name: trimmedUsername,
           email: trimmedEmail
         })
       });
@@ -274,7 +274,7 @@ function Profile() {
         return;
       }
 
-      const savedUsername = (data?.user?.username || trimmedUsername).trim();
+      const savedUsername = (data?.user?.name || trimmedUsername).trim();
       const savedEmail = (data?.user?.email || trimmedEmail).trim().toLowerCase();
       setUsername(savedUsername);
       setEmail(savedEmail);
@@ -418,7 +418,7 @@ function Profile() {
       />
 
       <div className="profile-hero">
-        <h1>{username || "Pennywise User"}</h1>
+        <h1>{name || "Pennywise User"}</h1>
         <p>{email || "No email added"}</p>
       </div>
 
@@ -538,7 +538,7 @@ function Profile() {
                 onClick={() => closePasswordReset()}
                 aria-label="Close reset password dialog"
               >
-                ×
+                ï¿½
               </button>
             </div>
 
@@ -611,7 +611,7 @@ function Profile() {
             {editUser ? (
               <>
                 <input
-                  ref={usernameInputRef}
+                  ref={nameInputRef}
                   className="input-box profile-inline-input"
                   value={tempUser}
                   onChange={(e) => setTempUser(e.target.value)}
@@ -625,28 +625,28 @@ function Profile() {
                       resetUsernameEdit();
                     }
                   }}
-                  placeholder="Enter username"
+                  placeholder="Enter name"
                 />
                 <button
                   className="icon-btn save-icon-btn"
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={saveProfile}
-                  aria-label="Save username"
+                  aria-label="Save name"
                 >
                   <FaCheck />
                 </button>
               </>
             ) : (
               <>
-                <span className="value profile-inline-value">{username || "Not set"}</span>
+                <span className="value profile-inline-value">{name || "Not set"}</span>
                 <button
                   className="icon-btn edit-icon-btn"
                   onClick={() => {
-                    setTempUser(username);
+                    setTempUser(name);
                     setEditUser(true);
                     setStatusMessage("");
                   }}
-                  aria-label="Edit username"
+                  aria-label="Edit name"
                 >
                   <FaPen />
                 </button>

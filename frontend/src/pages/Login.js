@@ -6,7 +6,7 @@ const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:500
 const API_DOWN_MESSAGE = `Cannot reach backend server (${API_BASE_URL}). Start backend with 'cd backend && npm start' or run 'start-dev.cmd'.`;
 
 function Login() {
-  const [username, setUsername] = useState("");
+  const [name, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const navigate = useNavigate();
@@ -22,7 +22,7 @@ function Login() {
       const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ name, password }),
       });
       const data = await response.json();
       if (response.ok) {
@@ -62,7 +62,7 @@ function Login() {
           <input
             type="text"
             placeholder="Username or Email"
-            value={username}
+            value={name}
             onChange={(e) => setUsername(e.target.value)}
             style={styles.input}
             required

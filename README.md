@@ -8,7 +8,7 @@ Pennywise is a personal finance management system built for academic coursework.
 - Monthly and category-wise budget planning
 - Alert thresholds for overall and category budgets
 - Analytics dashboards and spending summaries
-- Profile management with username, password, and photo updates
+- Profile management with name, password, and photo updates
 
 ## Local Setup
 

@@ -47,7 +47,7 @@ const isBcryptHash = (value) =>
   typeof value === "string" && /^\$2[aby]\$\d{2}\$/.test(value);
 
 const getUserId = (user) => user?.user_id ?? user?.id;
-const getUserName = (user) => user?.name ?? user?.username ?? "";
+const getUserName = (user) => user?.name ?? user?.name ?? "";
 const getUserEmail = (user) => user?.email ?? "";
 const getPasswordValue = (user) => user?.password_hash ?? user?.password ?? "";
 const getPasswordColumn = (user) =>
@@ -71,14 +71,14 @@ const getRequestUserId = (requestUser) => {
 
 const createToken = (user) =>
   jwt.sign(
-    { id: getUserId(user), username: getUserName(user) },
+    { id: getUserId(user), name: getUserName(user) },
     process.env.JWT_SECRET || "secret",
     { expiresIn: "1d" }
   );
 
 const toPublicUser = (user) => ({
   id: getUserId(user),
-  username: getUserName(user),
+  name: getUserName(user),
   email: getUserEmail(user)
 });
 
@@ -94,11 +94,11 @@ const getUserByEmail = async (email) => {
   }
 };
 
-const insertUser = async ({ username, email, passwordHash, isVerified }) => {
+const insertUser = async ({ name, email, passwordHash, isVerified }) => {
   try {
     return await runQuery(
-      "INSERT INTO users (username, email, password_hash, is_verified) VALUES (?, ?, ?, ?)",
-      [username, email, passwordHash, isVerified ? 1 : 0]
+      "INSERT INTO users (name, email, password_hash, is_verified) VALUES (?, ?, ?, ?)",
+      [name, email, passwordHash, isVerified ? 1 : 0]
     );
   } catch (error) {
     if (!/Unknown column/i.test(error.message)) {
@@ -106,8 +106,8 @@ const insertUser = async ({ username, email, passwordHash, isVerified }) => {
     }
 
     return runQuery(
-      "INSERT INTO users (username, email, password_hash, is_verified) VALUES (?, ?, ?, ?)",
-      [username, email, passwordHash, isVerified ? 1 : 0]
+      "INSERT INTO users (name, email, password_hash, is_verified) VALUES (?, ?, ?, ?)",
+      [name, email, passwordHash, isVerified ? 1 : 0]
     );
   }
 };
@@ -133,7 +133,7 @@ const buildUniqueUsername = async (seed, suffixSeed = "") => {
     const suffix =
       counter === 0 ? "" : counter === 1 ? `_${stableSuffix}` : `_${stableSuffix}_${counter}`;
     const candidate = `${base}${suffix}`.slice(0, 100);
-    const rows = await runQuery("SELECT 1 FROM users WHERE username = ? LIMIT 1", [candidate]);
+    const rows = await runQuery("SELECT 1 FROM users WHERE name = ? LIMIT 1", [candidate]);
 
     if (rows.length === 0) {
       return candidate;
@@ -144,16 +144,16 @@ const buildUniqueUsername = async (seed, suffixSeed = "") => {
 };
 
 exports.checkUsername = async (req, res) => {
-  const username = normalizeUsername(req.body?.username);
+  const name = normalizeUsername(req.body?.name);
 
-  if (!username) {
+  if (!name) {
     return res.status(400).json({ error: "Username is required" });
   }
 
   try {
     const rows = await runQuery(
-      "SELECT 1 FROM users WHERE username = ? AND is_verified = 1 LIMIT 1",
-      [username]
+      "SELECT 1 FROM users WHERE name = ? AND is_verified = 1 LIMIT 1",
+      [name]
     );
 
     if (rows.length > 0) {
@@ -168,11 +168,11 @@ exports.checkUsername = async (req, res) => {
 };
 
 exports.signup = async (req, res) => {
-  const username = normalizeUsername(req.body?.username);
+  const name = normalizeUsername(req.body?.name);
   const email = normalizeEmail(req.body?.email);
   const password = req.body?.password;
 
-  if (!username || !email || !password) {
+  if (!name || !email || !password) {
     return res
       .status(400)
       .json({ error: "Username, email, and password are required" });
@@ -189,8 +189,8 @@ exports.signup = async (req, res) => {
     }
 
     const verifiedUserRows = await runQuery(
-      "SELECT 1 FROM users WHERE username = ? AND is_verified = 1 LIMIT 1",
-      [username]
+      "SELECT 1 FROM users WHERE name = ? AND is_verified = 1 LIMIT 1",
+      [name]
     );
 
     if (verifiedUserRows.length > 0) {
@@ -199,12 +199,12 @@ exports.signup = async (req, res) => {
 
     await runQuery("DELETE FROM otps WHERE email = ?", [email]);
     await runQuery(
-      "DELETE FROM users WHERE (email = ? OR username = ?) AND is_verified = 0",
-      [email, username]
+      "DELETE FROM users WHERE (email = ? OR name = ?) AND is_verified = 0",
+      [email, name]
     );
 
     const passwordHash = await bcrypt.hash(password, 10);
-    await insertUser({ username, email, passwordHash, isVerified: false });
+    await insertUser({ name, email, passwordHash, isVerified: false });
 
     const otp = generateOTP();
     await runQuery(
@@ -293,28 +293,28 @@ exports.verifyOtp = async (req, res) => {
 };
 
 exports.login = async (req, res) => {
-  const username = normalizeUsername(req.body?.username);
+  const name = normalizeUsername(req.body?.name);
   const password = req.body?.password;
 
-  if (!username || !password) {
+  if (!name || !password) {
     return res.status(400).json({ error: "Username and password are required" });
   }
 
   try {
-    const isEmail = username.includes("@");
-    const identifier = isEmail ? normalizeEmail(username) : username;
-    const hasUsername = await hasUsersColumn("username");
+    const isEmail = name.includes("@");
+    const identifier = isEmail ? normalizeEmail(name) : name;
+    const hasUsername = await hasUsersColumn("name");
     const rows = await runQuery(
       isEmail
         ? "SELECT * FROM users WHERE LOWER(email) = LOWER(?)"
         : hasUsername
-          ? "SELECT * FROM users WHERE LOWER(username) = LOWER(?)"
-          : "SELECT * FROM users WHERE LOWER(username) = LOWER(?)",
+          ? "SELECT * FROM users WHERE LOWER(name) = LOWER(?)"
+          : "SELECT * FROM users WHERE LOWER(name) = LOWER(?)",
       [identifier]
     );
 
     if (rows.length === 0) {
-      return res.status(400).json({ error: "Invalid username or password" });
+      return res.status(400).json({ error: "Invalid name or password" });
     }
 
     let matchedUser = null;
@@ -346,7 +346,7 @@ exports.login = async (req, res) => {
           .status(403)
           .json({ error: "Account not verified. Please verify your OTP." });
       }
-      return res.status(400).json({ error: "Invalid username or password" });
+      return res.status(400).json({ error: "Invalid name or password" });
     }
 
     const user = matchedUser;
@@ -612,11 +612,11 @@ exports.googleLogin = async (req, res) => {
       });
     }
 
-    const username = await buildUniqueUsername(displayName, googleId);
+    const name = await buildUniqueUsername(displayName, googleId);
     const randomPassword = crypto.randomBytes(32).toString("hex");
     const passwordHash = await bcrypt.hash(randomPassword, 10);
     const result = await insertUser({
-      username,
+      name,
       email,
       passwordHash,
       isVerified: true
@@ -624,7 +624,7 @@ exports.googleLogin = async (req, res) => {
 
     const user = {
       user_id: result.insertId,
-      name: username,
+      name: name,
       email
     };
     const token = createToken(user);

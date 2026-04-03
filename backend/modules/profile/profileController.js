@@ -37,7 +37,7 @@ const runFirstCompatibleQuery = async (queries) => {
   throw new Error("Unsupported users table schema");
 };
 
-const findProfileConflict = async ({ userId, username, email }) => {
+const findProfileConflict = async ({ userId, name, email }) => {
   const rows = await runFirstCompatibleQuery([
     {
       sql: `
@@ -46,12 +46,12 @@ const findProfileConflict = async ({ userId, username, email }) => {
         WHERE user_id <> ?
           AND (
             LOWER(name) = LOWER(?)
-            OR LOWER(username) = LOWER(?)
+            OR LOWER(name) = LOWER(?)
             OR LOWER(email) = LOWER(?)
           )
         LIMIT 1
       `,
-      params: [userId, username, username, email]
+      params: [userId, name, name, email]
     },
     {
       sql: `
@@ -64,7 +64,7 @@ const findProfileConflict = async ({ userId, username, email }) => {
           )
         LIMIT 1
       `,
-      params: [userId, username, email]
+      params: [userId, name, email]
     },
     {
       sql: `
@@ -73,12 +73,12 @@ const findProfileConflict = async ({ userId, username, email }) => {
         WHERE id <> ?
           AND (
             LOWER(name) = LOWER(?)
-            OR LOWER(username) = LOWER(?)
+            OR LOWER(name) = LOWER(?)
             OR LOWER(email) = LOWER(?)
           )
         LIMIT 1
       `,
-      params: [userId, username, username, email]
+      params: [userId, name, name, email]
     },
     {
       sql: `
@@ -86,20 +86,20 @@ const findProfileConflict = async ({ userId, username, email }) => {
         FROM users
         WHERE id <> ?
           AND (
-            LOWER(username) = LOWER(?)
+            LOWER(name) = LOWER(?)
             OR LOWER(email) = LOWER(?)
           )
         LIMIT 1
       `,
-      params: [userId, username, email]
+      params: [userId, name, email]
     }
   ]);
 
   return rows.length > 0;
 };
 
-const createProfileToken = ({ userId, username }) =>
-  jwt.sign({ id: userId, username }, JWT_SECRET, { expiresIn: "1d" });
+const createProfileToken = ({ userId, name }) =>
+  jwt.sign({ id: userId, name }, JWT_SECRET, { expiresIn: "1d" });
 
 const resolveUserIdFromToken = async (user = {}) => {
   const directUserId = extractRequestUserId(user);
@@ -107,13 +107,13 @@ const resolveUserIdFromToken = async (user = {}) => {
     return directUserId;
   }
 
-  const tokenUsername = normalizeText(user.username || user.name);
+  const tokenUsername = normalizeText(user.name || user.name);
   const tokenEmail = normalizeText(user.email).toLowerCase();
   if (!tokenUsername && !tokenEmail) {
     return null;
   }
 
-  const usernameQueries = tokenUsername
+  const nameQueries = tokenUsername
     ? [
         {
           sql: `
@@ -137,7 +137,7 @@ const resolveUserIdFromToken = async (user = {}) => {
           sql: `
             SELECT user_id AS resolved_user_id
             FROM users
-            WHERE username = ?
+            WHERE name = ?
             LIMIT 1
           `,
           params: [tokenUsername]
@@ -146,7 +146,7 @@ const resolveUserIdFromToken = async (user = {}) => {
           sql: `
             SELECT id AS resolved_user_id
             FROM users
-            WHERE username = ?
+            WHERE name = ?
             LIMIT 1
           `,
           params: [tokenUsername]
@@ -177,7 +177,7 @@ const resolveUserIdFromToken = async (user = {}) => {
       ]
     : [];
 
-  const resolvedRows = await runFirstCompatibleQuery([...usernameQueries, ...emailQueries]);
+  const resolvedRows = await runFirstCompatibleQuery([...nameQueries, ...emailQueries]);
   if (!resolvedRows.length) {
     return null;
   }
@@ -196,7 +196,7 @@ exports.getProfile = async (req, res) => {
     const results = await runFirstCompatibleQuery([
       {
         sql: `
-          SELECT COALESCE(NULLIF(name, ''), username) AS username, email
+          SELECT COALESCE(NULLIF(name, ''), name) AS name, email
           FROM users
           WHERE user_id = ?
           LIMIT 1
@@ -205,7 +205,7 @@ exports.getProfile = async (req, res) => {
       },
       {
         sql: `
-          SELECT name AS username, email
+          SELECT name AS name, email
           FROM users
           WHERE user_id = ?
           LIMIT 1
@@ -214,7 +214,7 @@ exports.getProfile = async (req, res) => {
       },
       {
         sql: `
-          SELECT COALESCE(NULLIF(name, ''), username) AS username, email
+          SELECT COALESCE(NULLIF(name, ''), name) AS name, email
           FROM users
           WHERE id = ?
           LIMIT 1
@@ -223,7 +223,7 @@ exports.getProfile = async (req, res) => {
       },
       {
         sql: `
-          SELECT username, email
+          SELECT name, email
           FROM users
           WHERE id = ?
           LIMIT 1
@@ -243,10 +243,10 @@ exports.getProfile = async (req, res) => {
 };
 
 exports.updateProfile = async (req, res) => {
-  const username = normalizeText(req.body?.username);
+  const name = normalizeText(req.body?.name);
   const email = normalizeText(req.body?.email).toLowerCase();
 
-  if (!username || !email) {
+  if (!name || !email) {
     return res.status(400).json({ message: "Username and email are required" });
   }
 
@@ -256,7 +256,7 @@ exports.updateProfile = async (req, res) => {
       return res.status(401).json({ message: "Invalid user session" });
     }
 
-    const hasConflict = await findProfileConflict({ userId, username, email });
+    const hasConflict = await findProfileConflict({ userId, name, email });
     if (hasConflict) {
       return res.status(409).json({ message: "Username or email already in use" });
     }
@@ -265,10 +265,10 @@ exports.updateProfile = async (req, res) => {
       {
         sql: `
           UPDATE users
-          SET name = ?, username = ?, email = ?
+          SET name = ?, name = ?, email = ?
           WHERE user_id = ?
         `,
-        params: [username, username, email, userId]
+        params: [name, name, email, userId]
       },
       {
         sql: `
@@ -276,23 +276,23 @@ exports.updateProfile = async (req, res) => {
           SET name = ?, email = ?
           WHERE user_id = ?
         `,
-        params: [username, email, userId]
+        params: [name, email, userId]
       },
       {
         sql: `
           UPDATE users
-          SET name = ?, username = ?, email = ?
+          SET name = ?, name = ?, email = ?
           WHERE id = ?
         `,
-        params: [username, username, email, userId]
+        params: [name, name, email, userId]
       },
       {
         sql: `
           UPDATE users
-          SET username = ?, email = ?
+          SET name = ?, email = ?
           WHERE id = ?
         `,
-        params: [username, email, userId]
+        params: [name, email, userId]
       }
     ]);
 
@@ -300,13 +300,13 @@ exports.updateProfile = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    const refreshedToken = createProfileToken({ userId, username });
+    const refreshedToken = createProfileToken({ userId, name });
     return res.json({
       message: "Profile updated successfully",
       token: refreshedToken,
       user: {
         id: userId,
-        username,
+        name,
         email
       }
     });

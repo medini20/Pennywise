@@ -28,14 +28,14 @@ const getPasswordStrength = (password) => {
 };
 
 function Signup() {
-  const [formData, setFormData] = useState({ username: "", email: "", password: "" });
+  const [formData, setFormData] = useState({ name: "", email: "", password: "" });
   const [confirmPassword, setConfirmPassword] = useState("");
   const [otpCode, setOtpCode] = useState("");
   const [step, setStep] = useState(1);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
-  const [usernameStatus, setUsernameStatus] = useState(null);
+  const [nameStatus, setUsernameStatus] = useState(null);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const navigate = useNavigate();
   const googleBtnRef = useRef(null);
@@ -83,18 +83,18 @@ function Signup() {
     }
   };
 
-  // Debounced username availability check
-  const checkUsername = useCallback(async (username) => {
-    if (username.length < 3) {
+  // Debounced name availability check
+  const checkUsername = useCallback(async (name) => {
+    if (name.length < 3) {
       setUsernameStatus(null);
       return;
     }
     setUsernameStatus("checking");
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/check-username`, {
+      const response = await fetch(`${API_BASE_URL}/auth/check-name`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username }),
+        body: JSON.stringify({ name }),
       });
       const data = await response.json();
       setUsernameStatus(data.available ? "available" : "taken");
@@ -105,10 +105,10 @@ function Signup() {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (formData.username) checkUsername(formData.username);
+      if (formData.name) checkUsername(formData.name);
     }, 500);
     return () => clearTimeout(timer);
-  }, [formData.username, checkUsername]);
+  }, [formData.name, checkUsername]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -124,7 +124,7 @@ function Signup() {
       return;
     }
 
-    if (usernameStatus === "taken") {
+    if (nameStatus === "taken") {
       setError("Username is already taken. Please choose another.");
       setLoading(false);
       return;
@@ -181,11 +181,11 @@ function Signup() {
     }
   };
 
-  const usernameIndicator = () => {
-    if (!formData.username || formData.username.length < 3) return null;
-    if (usernameStatus === "checking") return <span style={{ color: "#9ca3af", fontSize: "12px" }}>⏳ Checking...</span>;
-    if (usernameStatus === "available") return <span style={{ color: "#22c55e", fontSize: "12px" }}>✅ Username available</span>;
-    if (usernameStatus === "taken") return <span style={{ color: "#ef4444", fontSize: "12px" }}>❌ Username already taken</span>;
+  const nameIndicator = () => {
+    if (!formData.name || formData.name.length < 3) return null;
+    if (nameStatus === "checking") return <span style={{ color: "#9ca3af", fontSize: "12px" }}>⏳ Checking...</span>;
+    if (nameStatus === "available") return <span style={{ color: "#22c55e", fontSize: "12px" }}>✅ Username available</span>;
+    if (nameStatus === "taken") return <span style={{ color: "#ef4444", fontSize: "12px" }}>❌ Username already taken</span>;
     return null;
   };
 
@@ -213,13 +213,13 @@ function Signup() {
             <div>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
                 <span style={styles.label}>Username</span>
-                {usernameIndicator()}
+                {nameIndicator()}
               </div>
               <input
                 type="text"
-                name="username"
-                placeholder="Choose a username"
-                value={formData.username}
+                name="name"
+                placeholder="Choose a name"
+                value={formData.name}
                 onChange={handleChange}
                 style={styles.input}
                 required

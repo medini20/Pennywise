@@ -39,6 +39,71 @@ const ensureBudgetSchema = async () => {
     return;
   }
 
+  if (!(await hasColumn("budgets", "name"))) {
+    await db.promise().query(
+      `
+        ALTER TABLE budgets
+        ADD COLUMN name VARCHAR(255) NOT NULL DEFAULT 'Monthly Budget'
+      `
+    );
+
+    if (await hasColumn("budgets", "category_id")) {
+      await db.promise().query(
+        `
+          UPDATE budgets b
+          LEFT JOIN categories c ON c.category_id = b.category_id
+          SET b.name = COALESCE(NULLIF(TRIM(b.name), ''), c.name, 'Monthly Budget')
+        `
+      );
+    }
+
+    console.log("Added missing budgets.name column");
+  }
+
+  if (!(await hasColumn("budgets", "icon"))) {
+    await db.promise().query(
+      `
+        ALTER TABLE budgets
+        ADD COLUMN icon VARCHAR(50) NULL
+      `
+    );
+
+    if (await hasColumn("budgets", "category_id")) {
+      await db.promise().query(
+        `
+          UPDATE budgets b
+          LEFT JOIN categories c ON c.category_id = b.category_id
+          SET b.icon = COALESCE(NULLIF(TRIM(b.icon), ''), c.icon)
+          WHERE b.icon IS NULL OR TRIM(b.icon) = ''
+        `
+      );
+    }
+
+    console.log("Added missing budgets.icon column");
+  }
+
+  if (!(await hasColumn("budgets", "spent"))) {
+    await db.promise().query(
+      `
+        ALTER TABLE budgets
+        ADD COLUMN spent DECIMAL(10,2) NOT NULL DEFAULT 0
+      `
+    );
+
+    console.log("Added missing budgets.spent column");
+  }
+
+  if (!(await hasColumn("budgets", "color"))) {
+    await db.promise().query(
+      `
+        ALTER TABLE budgets
+        ADD COLUMN color VARCHAR(7) NOT NULL DEFAULT '#ffcc00'
+      `
+    );
+
+    console.log("Added missing budgets.color column");
+  }
+
   if (!(await hasColumn("budgets", "is_system_generated"))) {
     await db.promise().query(
       `

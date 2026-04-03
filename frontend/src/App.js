@@ -115,7 +115,7 @@ const PrivateRoute = ({ children }) => {
 function TopBar({ notifications, refreshNotifications }) {
   const navigate = useNavigate();
   const storedUser = getStoredUser();
-  const profileLabel = storedUser?.name || storedUser?.username || storedUser?.email || "Profile";
+  const profileLabel = storedUser?.name || storedUser?.name || storedUser?.email || "Profile";
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [isLogoutOpen, setIsLogoutOpen] = useState(false);
   const [isRefreshingNotifications, setIsRefreshingNotifications] = useState(false);
