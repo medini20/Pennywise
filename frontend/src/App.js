@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { BrowserRouter, Routes, Route, useLocation, Navigate, useNavigate } from "react-router-dom";
 import { Bell, CircleUserRound, LogOut } from "lucide-react";
 import { clearStoredSession, getStoredUser, hasValidSession } from "./services/authStorage";
+import useIsMobile from "./hooks/useIsMobile";
 import "./App.css";
 
 // Components
@@ -322,6 +323,7 @@ function AppLayout() {
   const storedUser = getStoredUser();
   const userId = storedUser?.id ?? storedUser?.user_id ?? null;
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const isMobile = useIsMobile();
   const [notifications, setNotifications] = useState(readStoredNotifications);
   const [dismissedNotificationIds, setDismissedNotificationIds] = useState(
     readStoredDismissedNotificationIds
@@ -332,7 +334,8 @@ function AppLayout() {
   const isAuthRoute = ["/login", "/signup", "/forgot-password"].includes(location.pathname);
 
   // Define sidebar width to match your CSS exactly
-  const sidebarWidth = isCollapsed ? "70px" : "260px";
+  const effectiveCollapsed = isMobile ? true : isCollapsed;
+  const sidebarWidth = effectiveCollapsed ? "70px" : "260px";
 
   const refreshNotifications = useCallback(async () => {
     if (!userId) {
@@ -444,13 +447,14 @@ function AppLayout() {
     <div style={{ display: "flex", backgroundColor: "#050a15", minHeight: "100vh", width: "100%" }}>
       {/* Sidebar only shows on app pages */}
       {!isAuthRoute && (
-        <Sidebar isCollapsed={isCollapsed} setIsCollapsed={setIsCollapsed} />
+        <Sidebar isCollapsed={effectiveCollapsed} setIsCollapsed={setIsCollapsed} />
       )}
 
       <div 
         className="page-content" 
         style={{ 
-          flex: 1,          marginLeft: isAuthRoute ? "0px" : sidebarWidth,
+          flex: 1,
+          marginLeft: isAuthRoute ? "0px" : sidebarWidth,
           transition: "margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
           width: isAuthRoute ? "100%" : `calc(100% - ${sidebarWidth})`,
           display: "flex",

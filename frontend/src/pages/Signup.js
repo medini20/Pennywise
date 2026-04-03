@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { saveStoredSession } from "../services/authStorage";
+import useIsMobile from "../hooks/useIsMobile";
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:5001";
 
@@ -39,6 +40,7 @@ function Signup() {
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const navigate = useNavigate();
   const googleBtnRef = useRef(null);
+  const isMobile = useIsMobile();
 
   const passwordStrength = getPasswordStrength(formData.password);
 
@@ -188,28 +190,28 @@ function Signup() {
   };
 
   return (
-    <div style={styles.container}>
+    <div style={{ ...styles.container, ...(isMobile ? mobileStyles.container : {}) }}>
       {/* Left Panel - Branding */}
-      <div style={styles.leftPanel}>
+      <div style={{ ...styles.leftPanel, ...(isMobile ? mobileStyles.leftPanel : {}) }}>
         <div style={styles.brandWrapper}>
-          <img src="/pennywise-logo.jpeg" alt="Pennywise" style={styles.logo} />
+          <img src="/pennywise-logo.jpeg" alt="Pennywise" style={{ ...styles.logo, ...(isMobile ? mobileStyles.logo : {}) }} />
         </div>
       </div>
 
       {/* Divider */}
-      <div style={styles.dividerLine}></div>
+      <div style={{ ...styles.dividerLine, ...(isMobile ? mobileStyles.dividerLine : {}) }}></div>
 
       {/* Right Panel - Form */}
-      <div style={styles.rightPanel}>
-        <h2 style={styles.title}>{step === 1 ? "Create Account" : "Verify Email"}</h2>
+      <div style={{ ...styles.rightPanel, ...(isMobile ? mobileStyles.rightPanel : {}) }}>
+        <h2 style={{ ...styles.title, ...(isMobile ? mobileStyles.title : {}) }}>{step === 1 ? "Create Account" : "Verify Email"}</h2>
 
         {step === 1 ? (
-          <form onSubmit={handleSignup} style={styles.form}>
-            {error && <div style={styles.errorBanner}>{error}</div>}
-            {message && <div style={styles.successBanner}>{message}</div>}
+          <form onSubmit={handleSignup} style={{ ...styles.form, ...(isMobile ? mobileStyles.form : {}) }}>
+            {error && <div style={{ ...styles.errorBanner, ...(isMobile ? mobileStyles.banner : {}) }}>{error}</div>}
+            {message && <div style={{ ...styles.successBanner, ...(isMobile ? mobileStyles.banner : {}) }}>{message}</div>}
 
             <div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: isMobile ? "flex-start" : "center", flexDirection: isMobile ? "column" : "row", gap: isMobile ? "6px" : "0", marginBottom: "6px" }}>
                 <span style={styles.label}>Username</span>
                 {nameIndicator()}
               </div>
@@ -219,7 +221,7 @@ function Signup() {
                 placeholder="Choose a name"
                 value={formData.name}
                 onChange={handleChange}
-                style={styles.input}
+                style={{ ...styles.input, ...(isMobile ? mobileStyles.input : {}) }}
                 required
               />
             </div>
@@ -232,13 +234,13 @@ function Signup() {
                 placeholder="Enter your email"
                 value={formData.email}
                 onChange={handleChange}
-                style={styles.input}
+                style={{ ...styles.input, ...(isMobile ? mobileStyles.input : {}) }}
                 required
               />
             </div>
 
             <div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: isMobile ? "flex-start" : "center", flexDirection: isMobile ? "column" : "row", gap: isMobile ? "6px" : "0", marginBottom: "6px" }}>
                 <span style={styles.label}>Password</span>
                 {formData.password && (
                   <span style={{ color: passwordStrength.color, fontSize: "12px", fontWeight: "600" }}>
@@ -252,7 +254,7 @@ function Signup() {
                 placeholder="Create a password"
                 value={formData.password}
                 onChange={handleChange}
-                style={styles.input}
+                style={{ ...styles.input, ...(isMobile ? mobileStyles.input : {}) }}
                 required
               />
               {formData.password && (
@@ -271,7 +273,7 @@ function Signup() {
             </div>
 
             <div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: isMobile ? "flex-start" : "center", flexDirection: isMobile ? "column" : "row", gap: isMobile ? "6px" : "0", marginBottom: "6px" }}>
                 <span style={styles.label}>Re-enter Password</span>
                 {confirmPassword && formData.password !== confirmPassword && (
                   <span style={{ color: "#ef4444", fontSize: "12px", fontWeight: "600" }}>
@@ -290,7 +292,7 @@ function Signup() {
                 placeholder="Re-enter your password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                style={styles.input}
+                style={{ ...styles.input, ...(isMobile ? mobileStyles.input : {}) }}
                 required
               />
             </div>
@@ -311,6 +313,7 @@ function Signup() {
               type="submit"
               style={{
                 ...styles.button,
+                ...(isMobile ? mobileStyles.button : {}),
                 opacity: !agreedToTerms || loading ? 0.5 : 1,
                 cursor: !agreedToTerms || loading ? "not-allowed" : "pointer"
               }}
@@ -327,7 +330,7 @@ function Signup() {
             </div>
 
             {GOOGLE_CLIENT_ID ? (
-              <div ref={googleBtnRef} style={{ display: "flex", justifyContent: "center" }}></div>
+              <div ref={googleBtnRef} style={{ display: "flex", justifyContent: "center", width: "100%" }}></div>
             ) : (
               <p style={{ textAlign: "center", fontSize: "12px", color: "#6b7280" }}>
                 Google Sign-In not configured.
@@ -335,20 +338,20 @@ function Signup() {
             )}
           </form>
         ) : (
-          <form onSubmit={handleVerifyOtp} style={styles.form}>
-            {error && <div style={styles.errorBanner}>{error}</div>}
-            {message && <div style={styles.successBanner}>{message}</div>}
+          <form onSubmit={handleVerifyOtp} style={{ ...styles.form, ...(isMobile ? mobileStyles.form : {}) }}>
+            {error && <div style={{ ...styles.errorBanner, ...(isMobile ? mobileStyles.banner : {}) }}>{error}</div>}
+            {message && <div style={{ ...styles.successBanner, ...(isMobile ? mobileStyles.banner : {}) }}>{message}</div>}
 
             <input
               type="text"
               placeholder="Enter OTP code"
               value={otpCode}
               onChange={(e) => setOtpCode(e.target.value)}
-              style={styles.input}
+              style={{ ...styles.input, ...(isMobile ? mobileStyles.input : {}) }}
               required
             />
 
-            <button type="submit" style={styles.button} disabled={loading}>
+            <button type="submit" style={{ ...styles.button, ...(isMobile ? mobileStyles.button : {}) }} disabled={loading}>
               {loading ? "Verifying..." : "Verify"}
             </button>
           </form>
@@ -524,6 +527,50 @@ const styles = {
     cursor: "pointer",
     flexShrink: 0,
   },
+};
+
+const mobileStyles = {
+  container: {
+    flexDirection: "column",
+    minHeight: "100dvh",
+    height: "auto",
+    overflow: "auto"
+  },
+  leftPanel: {
+    flex: "0 0 auto",
+    minHeight: "auto",
+    padding: "24px 20px 8px"
+  },
+  logo: {
+    width: "min(60vw, 220px)",
+    height: "min(60vw, 220px)"
+  },
+  dividerLine: {
+    width: "100%",
+    height: "1px",
+    background: "linear-gradient(to right, transparent, rgba(0, 180, 255, 0.3), transparent)"
+  },
+  rightPanel: {
+    padding: "26px 18px 34px",
+    minHeight: "auto"
+  },
+  title: {
+    fontSize: "30px",
+    marginBottom: "22px",
+    textAlign: "center"
+  },
+  form: {
+    maxWidth: "100%"
+  },
+  input: {
+    fontSize: "16px"
+  },
+  button: {
+    width: "100%"
+  },
+  banner: {
+    width: "100%"
+  }
 };
 
 export default Signup;

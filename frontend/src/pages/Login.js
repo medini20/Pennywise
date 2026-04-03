@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { hasValidSession, saveStoredSession } from "../services/authStorage";
+import useIsMobile from "../hooks/useIsMobile";
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:5001";
 const API_DOWN_MESSAGE = `Cannot reach backend server (${API_BASE_URL}). Start backend with 'cd backend && npm start' or run 'start-dev.cmd'.`;
@@ -10,6 +11,7 @@ function Login() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     if (hasValidSession()) navigate("/");
@@ -41,34 +43,34 @@ function Login() {
   };
 
   return (
-    <div style={styles.container}>
+    <div style={{ ...styles.container, ...(isMobile ? mobileStyles.container : {}) }}>
       {/* Left Panel - Branding */}
-      <div style={styles.leftPanel}>
+      <div style={{ ...styles.leftPanel, ...(isMobile ? mobileStyles.leftPanel : {}) }}>
         <div style={styles.brandWrapper}>
           <img
             src="/pennywise-logo.jpeg"
             alt="Pennywise"
-            style={styles.logo}
+            style={{ ...styles.logo, ...(isMobile ? mobileStyles.logo : {}) }}
           />
         </div>
       </div>
 
       {/* Divider */}
-      <div style={styles.dividerLine}></div>
+      <div style={{ ...styles.dividerLine, ...(isMobile ? mobileStyles.dividerLine : {}) }}></div>
 
       {/* Right Panel - Form */}
-      <div style={styles.rightPanel}>
-        <h2 style={styles.title}>Login</h2>
+      <div style={{ ...styles.rightPanel, ...(isMobile ? mobileStyles.rightPanel : {}) }}>
+        <h2 style={{ ...styles.title, ...(isMobile ? mobileStyles.title : {}) }}>Login</h2>
 
-        <form onSubmit={handleLogin} style={styles.form}>
-          {error && <div style={styles.errorBanner}>{error}</div>}
+        <form onSubmit={handleLogin} style={{ ...styles.form, ...(isMobile ? mobileStyles.form : {}) }}>
+          {error && <div style={{ ...styles.errorBanner, ...(isMobile ? mobileStyles.errorBanner : {}) }}>{error}</div>}
 
           <input
             type="text"
             placeholder="Username or Email"
             value={name}
             onChange={(e) => setUsername(e.target.value)}
-            style={styles.input}
+            style={{ ...styles.input, ...(isMobile ? mobileStyles.input : {}) }}
             required
           />
 
@@ -77,16 +79,16 @@ function Login() {
             placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            style={styles.input}
+            style={{ ...styles.input, ...(isMobile ? mobileStyles.input : {}) }}
             required
           />
 
-          <button type="submit" style={styles.button}>
+          <button type="submit" style={{ ...styles.button, ...(isMobile ? mobileStyles.button : {}) }}>
             Login
           </button>
         </form>
 
-        <div style={styles.linksRow}>
+        <div style={{ ...styles.linksRow, ...(isMobile ? mobileStyles.linksRow : {}) }}>
           <Link to="/forgot-password" style={styles.link}>
             Forgot password?
           </Link>
@@ -207,6 +209,53 @@ const styles = {
     fontWeight: "500",
     transition: "color 0.2s",
   },
+};
+
+const mobileStyles = {
+  container: {
+    flexDirection: "column",
+    minHeight: "100dvh"
+  },
+  leftPanel: {
+    flex: "0 0 auto",
+    padding: "28px 20px 12px",
+    minHeight: "auto"
+  },
+  logo: {
+    width: "min(60vw, 220px)",
+    height: "min(60vw, 220px)"
+  },
+  dividerLine: {
+    width: "100%",
+    height: "1px",
+    background: "linear-gradient(to right, transparent, rgba(0, 180, 255, 0.3), transparent)"
+  },
+  rightPanel: {
+    padding: "28px 18px 36px",
+    justifyContent: "flex-start"
+  },
+  title: {
+    fontSize: "30px",
+    marginBottom: "24px"
+  },
+  form: {
+    maxWidth: "100%"
+  },
+  input: {
+    fontSize: "16px"
+  },
+  button: {
+    width: "100%"
+  },
+  errorBanner: {
+    width: "100%"
+  },
+  linksRow: {
+    flexDirection: "column",
+    alignItems: "center",
+    gap: "12px",
+    maxWidth: "100%"
+  }
 };
 
 export default Login;
