@@ -36,13 +36,25 @@ const ALERTS_UPDATED_EVENT = "pennywise-alerts-updated";
 const formatCurrency = (value) => `?${Number(value || 0).toLocaleString("en-IN")}`;
 const normalizeNotificationId = (value) => String(value ?? "");
 
-const mapTriggeredAlertsToNotifications = (summary) => {
+const getNotificationSpendingValue = (alert, summary) =>
+  Number(
+    alert?.scope === "category"
+      ? alert?.current_spending
+      : alert?.current_spending ?? summary?.current_spending
+  ) || 0;
+
+export const buildNotificationInstanceId = (alert, summary) =>
+  normalizeNotificationId(
+    `${alert?.id ?? ""}:${getNotificationSpendingValue(alert, summary).toFixed(2)}`
+  );
+
+export const mapTriggeredAlertsToNotifications = (summary) => {
   const triggeredAlerts = Array.isArray(summary?.triggered_alerts)
     ? summary.triggered_alerts
     : [];
 
   return triggeredAlerts.map((alert) => ({
-    id: normalizeNotificationId(alert.id),
+    id: buildNotificationInstanceId(alert, summary),
     percentage: alert.percentage,
     message:
       alert.scope === "category"
@@ -51,7 +63,7 @@ const mapTriggeredAlertsToNotifications = (summary) => {
     detail:
       alert.scope === "category"
         ? `${formatCurrency(alert.current_spending)} spent out of ${formatCurrency(alert.budget_amount)}`
-        : `${formatCurrency(summary.current_spending)} spent out of ${formatCurrency(summary.budget)}`
+        : `${formatCurrency(getNotificationSpendingValue(alert, summary))} spent out of ${formatCurrency(summary.budget)}`
   }));
 };
 

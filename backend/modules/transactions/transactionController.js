@@ -68,17 +68,15 @@ const calculateNextOccurrenceDate = (dateValue, frequency, customIntervalDays) =
 const resolveCategoryId = async ({ userId, categoryName, categoryIcon, type }) => {
   const [existingCategories] = await db.promise().query(
     `
-      SELECT category_id
+      SELECT category_id, icon
       FROM categories
       WHERE user_id = ?
         AND type = ?
-        AND (
-          (? IS NOT NULL AND icon = ?)
-          OR LOWER(TRIM(name)) = LOWER(TRIM(?))
-        )
+        AND LOWER(TRIM(name)) = LOWER(TRIM(?))
+      ORDER BY category_id DESC
       LIMIT 1
     `,
-    [userId, type, categoryIcon, categoryIcon, categoryName]
+    [userId, type, categoryName]
   );
 
   let categoryId = existingCategories[0]?.category_id;
