@@ -99,16 +99,16 @@ exports.sendOTP = async (email, otp) => {
     from: `"Pennywise" <${fromAddress}>`,
     to: email,
     subject: "Pennywise - Your OTP Code",
+    text: `Your Pennywise OTP is ${otp}. It expires in 5 minutes.`,
     html: `
-      <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 400px; margin: 0 auto;">
+      <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 420px; margin: 0 auto; color: #111827;">
         <h2 style="color: #0066ff;">Pennywise</h2>
-        <p>Your OTP code is:</p>
+        <p>Use this verification code to finish creating your account:</p>
         <div style="background: #f0f4ff; padding: 16px; border-radius: 8px; text-align: center; margin: 16px 0;">
           <span style="font-size: 32px; font-weight: bold; letter-spacing: 6px; color: #0066ff;">${otp}</span>
         </div>
-        <div style="background: #fff4e5; color: #8a4b00; border: 1px solid #ffd199; padding: 12px 14px; border-radius: 8px; margin-top: 14px; font-size: 14px; font-weight: 600;">
-          OTP expires in 5 minutes.
-        </div>
+        <p style="margin: 0 0 10px;">This code expires in 5 minutes.</p>
+        <p style="margin: 0; color: #6b7280; font-size: 13px;">If you did not request this, you can ignore this email.</p>
       </div>
     `
   };
