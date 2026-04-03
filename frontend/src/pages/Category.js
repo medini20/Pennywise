@@ -5,6 +5,8 @@ import { getStoredUser } from "../services/authStorage";
 import { getCurrentMonthDateRange } from "../utils/budgetDates";
 import "./Category.css";
 
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:5001";
+
 const getMonthNumberFromDate = (value) => {
   if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
     return new Date().getMonth() + 1;
@@ -100,7 +102,7 @@ export default function Category({ closeCategory, addNewCategory }) {
       end_date: endDate
     };
 
-    fetch("http://localhost:5001/budget/add", {
+    fetch(`${API_BASE_URL}/budget/add`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(budgetData)

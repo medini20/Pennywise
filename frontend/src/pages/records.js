@@ -5,7 +5,7 @@ import Notifications from "../components/Notifications";
 import { getStoredUser } from "../services/authStorage";
 import "./records.css";
 
-const API_BASE_URL = "http://localhost:5001";
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:5001";
 const INR = "\u20B9";
 const MONTH_OPTIONS = [
   "Jan", "Feb", "Mar", "Apr", "May", "Jun",

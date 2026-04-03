@@ -97,6 +97,10 @@ function Signup() {
         body: JSON.stringify({ name }),
       });
       const data = await response.json();
+      if (!response.ok || typeof data.available !== "boolean") {
+        setUsernameStatus(null);
+        return;
+      }
       setUsernameStatus(data.available ? "available" : "taken");
     } catch {
       setUsernameStatus(null);

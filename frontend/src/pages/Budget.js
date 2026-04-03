@@ -19,7 +19,7 @@ import {
 import "./Budget.css";
 import Category from "./Category";
 
-const API_BASE_URL = "http://localhost:5001";
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:5001";
 const INR = "\u20B9";
 
 const normalizeCategoryName = (value) =>

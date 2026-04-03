@@ -1,0 +1,48 @@
+services:
+  - name: pennywise-backend
+    type: web
+    runtime: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: 22
+      - key: JWT_SECRET
+        sync: false
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_NAME
+        sync: false
+      - key: EMAIL_USER
+        sync: false
+      - key: EMAIL_PASS
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+
+  - name: pennywise-frontend
+    type: web
+    runtime: static
+    plan: free
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: build
+    envVars:
+      - key: NODE_VERSION
+        value: 22
+      - key: REACT_APP_API_BASE_URL
+        sync: false
+      - key: REACT_APP_GOOGLE_CLIENT_ID
+        sync: false
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

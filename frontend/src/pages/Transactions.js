@@ -4,7 +4,7 @@ import { getStoredUser } from "../services/authStorage";
 import "./transactions.css";
 import Category from "./category1";
 
-const API_BASE_URL = "http://localhost:5001";
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:5001";
 const DEFAULT_EXPENSE_CATEGORIES = [
   { icon: "\uD83D\uDED2", name: "Shopping" },
   { icon: "\uD83C\uDF7D\uFE0F", name: "Food" },
