@@ -1,5 +1,6 @@
 
 import React, { useState } from "react";
+import { createPortal } from "react-dom";
 
 export default function Category({ closeCategory, addNewCategory }) {
   const [name, setName] = useState("");
@@ -12,9 +13,9 @@ export default function Category({ closeCategory, addNewCategory }) {
     "\uD83C\uDF81", "\u2702\uFE0F", "\uD83D\uDCDA"
   ];
 
-  return (
-    <div className="overlay">
-      <div className="modal small">
+  return createPortal(
+    <div className="nestedCategoryOverlay" onClick={closeCategory}>
+      <div className="modal small nestedCategoryModal" onClick={(event) => event.stopPropagation()}>
         <div className="modalHeader">
           <span onClick={closeCategory}>Cancel</span>
           <h3>Add Category</h3>
@@ -64,6 +65,7 @@ export default function Category({ closeCategory, addNewCategory }) {
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

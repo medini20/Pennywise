@@ -3,15 +3,15 @@
   flex-direction: column;
   align-items: center;
   position: relative;
-  padding: 40px;
+  padding: 28px 40px 34px;
   color: white;
-  width: min(920px, 100%);
-  min-height: calc(100vh - 90px);
-  margin: 12px auto 0;
-  border-radius: 28px;
-  border: 1px solid rgba(49, 122, 210, 0.35);
-  background: linear-gradient(140deg, rgba(22, 34, 74, 0.95) 0%, rgba(17, 30, 66, 0.95) 55%, rgba(14, 27, 60, 0.95) 100%);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 22px 46px rgba(2, 8, 24, 0.45);
+  width: min(900px, 100%);
+  min-height: calc(100vh - 76px);
+  margin: 8px auto 0;
+  border-radius: 24px;
+  border: 1px solid rgba(49, 122, 210, 0.24);
+  background: linear-gradient(140deg, rgba(19, 31, 74, 0.96) 0%, rgba(16, 27, 64, 0.96) 58%, rgba(12, 22, 54, 0.96) 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03), 0 18px 36px rgba(2, 8, 24, 0.32);
   box-sizing: border-box;
   overflow: hidden;
 }
@@ -44,41 +44,66 @@
 }
 
 .profile-avatar {
-  width: 140px;
-  height: 140px;
+  width: 118px;
+  height: 118px;
   border-radius: 50%;
-  border: 4px solid #3b82f6;
-  box-shadow: 0 0 25px rgba(59, 130, 246, 0.8);
+  border: 4px solid rgba(59, 130, 246, 0.88);
+  box-shadow: 0 0 0 8px rgba(59, 130, 246, 0.12);
   object-fit: cover;
-  margin-bottom: 20px;
+  margin-bottom: 14px;
+}
+
+.profile-hero {
+  text-align: center;
+  margin-bottom: 12px;
+}
+
+.profile-hero h1 {
+  margin: 0;
+  font-size: 30px;
+  font-weight: 800;
+}
+
+.profile-hero p {
+  margin: 8px 0 0;
+  color: #98a7cb;
+  font-size: 16px;
 }
 
 .change-btn {
-  background: #2f5be7;
+  background: linear-gradient(135deg, #284fbe, #2b63dc);
   color: white;
   border: none;
-  padding: 10px 22px;
-  border-radius: 10px;
-  font-size: 16px;
+  padding: 10px 20px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 700;
   cursor: pointer;
-  margin-bottom: 30px;
+  margin-bottom: 18px;
 }
 
 .profile-card {
-  background: #141c3c;
+  background: rgba(20, 30, 64, 0.86);
   width: 100%;
-  padding: 20px 25px;
-  border-radius: 14px;
+  padding: 18px 22px;
+  border-radius: 18px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 25px;
-  border: 1px solid rgba(59, 130, 246, 0.16);
-  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.3);
+  margin-bottom: 16px;
+  border: 1px solid rgba(59, 130, 246, 0.12);
+  box-shadow: 0 10px 18px rgba(0, 0, 0, 0.14);
 }
 
 .profile-card-content {
   flex: 1;
+}
+
+.profile-section-title {
+  margin-bottom: 12px;
+  color: #ffffff;
+  font-size: 18px;
+  font-weight: 800;
 }
 
 .profile-field-row,
@@ -86,16 +111,17 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  min-height: 42px;
-  background: #0d1430;
-  border: 1px solid rgba(59, 130, 246, 0.2);
-  border-radius: 8px;
-  padding: 10px 12px;
+  min-height: 54px;
+  background: #101937;
+  border: 1px solid rgba(82, 113, 186, 0.24);
+  border-radius: 18px;
+  padding: 12px 16px;
 }
 
 .profile-inline-value,
 .username-inline-value {
-  font-size: 20px;
+  font-size: 17px;
+  font-weight: 700;
   flex: 1;
   word-break: break-word;
 }
@@ -109,10 +135,10 @@
 }
 
 .icon-btn {
-  width: 34px;
-  height: 34px;
+  width: 38px;
+  height: 38px;
   border: none;
-  border-radius: 50%;
+  border-radius: 12px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -132,8 +158,9 @@
 
 .label {
   color: #9aa4c6;
-  font-size: 14px;
-  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 8px;
 }
 
 .value {
@@ -160,24 +187,28 @@
 }
 
 .profile-action-btn {
-  background: #2f5be7;
+  background: linear-gradient(135deg, #203667, #1d2f5c);
+  border: 1px solid rgba(82, 113, 186, 0.24);
   border: none;
   color: #ffffff;
-  padding: 8px 18px;
-  border-radius: 8px;
-  font-size: 15px;
-  font-weight: 600;
+  padding: 10px 18px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 700;
   cursor: pointer;
 }
 
 .logout-btn {
-  margin-top: 30px;
-  border: 2px solid red;
-  background: transparent;
-  color: red;
-  padding: 10px 30px;
-  border-radius: 10px;
+  margin-top: 10px;
+  border: none;
+  background: linear-gradient(135deg, #ff5b57, #ef4444);
+  color: #ffffff;
+  padding: 14px 34px;
+  border-radius: 16px;
   cursor: pointer;
+  font-size: 16px;
+  font-weight: 800;
+  box-shadow: 0 14px 28px rgba(239, 68, 68, 0.26);
 }
 
 .add-email-btn {
@@ -198,7 +229,7 @@
   color: #dbeafe;
   border-radius: 12px;
   padding: 12px 16px;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
 /* POPUPS & MODALS - Higher z-index to stay above sidebar */
@@ -208,7 +239,8 @@
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0,0,0,0.6);
+  background: rgba(5, 10, 28, 0.62);
+  backdrop-filter: blur(8px);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -216,21 +248,26 @@
 }
 
 .popup-box {
-  background: #141c3c;
-  padding: 30px;
-  border-radius: 12px;
+  background: linear-gradient(180deg, #182349 0%, #141d3a 100%);
+  padding: 18px;
+  border-radius: 18px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
+  min-width: 280px;
+  border: 1px solid rgba(84, 113, 185, 0.24);
+  box-shadow: 0 18px 38px rgba(0, 0, 0, 0.34);
 }
 
 .popup-box button {
-  border: 1px solid #25356f;
-  background: #0d1430;
+  border: 1px solid rgba(84, 113, 185, 0.24);
+  background: #101937;
   color: #dbeafe;
-  border-radius: 8px;
-  padding: 10px 14px;
+  border-radius: 14px;
+  padding: 12px 14px;
   cursor: pointer;
+  font-size: 15px;
+  font-weight: 700;
 }
 
 .popup-box button:hover {
@@ -238,20 +275,21 @@
 }
 
 .profile-password-modal {
-  width: 520px;
+  width: 470px;
   max-width: calc(100vw - 40px);
-  background: #141c3c;
-  border: 1px solid #22306a;
-  border-radius: 14px;
-  padding: 24px;
+  background: linear-gradient(180deg, #182349 0%, #141d3a 100%);
+  border: 1px solid rgba(84, 113, 185, 0.24);
+  border-radius: 20px;
+  padding: 18px 18px 20px;
   box-sizing: border-box;
+  box-shadow: 0 22px 48px rgba(0, 0, 0, 0.36);
 }
 
 .profile-password-header {
   display: flex;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 18px;
+  margin-bottom: 14px;
 }
 
 .profile-password-heading {
@@ -262,19 +300,19 @@
 
 .profile-password-heading h3 {
   margin: 0;
-  font-size: 30px;
+  font-size: 18px;
   line-height: 1.1;
 }
 
 .profile-password-heading p {
   margin: 4px 0 0;
   color: #9aa4c6;
-  font-size: 15px;
+  font-size: 13px;
 }
 
 .profile-password-icon {
-  width: 48px;
-  height: 48px;
+  width: 40px;
+  height: 40px;
   border-radius: 12px;
   background: rgba(59, 130, 246, 0.2);
   color: #60a5fa;
@@ -287,7 +325,7 @@
   background: transparent;
   border: none;
   color: #9aa4c6;
-  font-size: 34px;
+  font-size: 24px;
   line-height: 1;
   cursor: pointer;
 }
@@ -295,12 +333,12 @@
 .profile-password-form {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .profile-password-label {
   color: #c3cce8;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 600;
   margin-top: 4px;
 }
@@ -311,9 +349,9 @@
   background: #0d1430;
   border: 1px solid #2a3b7e;
   color: #ffffff;
-  border-radius: 10px;
+  border-radius: 14px;
   padding: 12px 14px;
-  font-size: 16px;
+  font-size: 15px;
   outline: none;
 }
 
@@ -333,10 +371,10 @@
 
 .profile-password-submit {
   width: 100%;
-  margin: 14px 0 0;
-  font-size: 22px;
+  margin: 10px 0 0;
+  font-size: 16px;
   font-weight: 700;
-  padding: 14px 20px;
+  padding: 14px 18px;
 }
 
 .profile-password-submit:disabled {
@@ -350,7 +388,7 @@
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0,0,0,0.8);
+  background: rgba(5, 10, 28, 0.72);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -359,12 +397,25 @@
   z-index: 2001; 
 }
 
+.profile-verified-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: rgba(12, 114, 153, 0.22);
+  color: #22d3ee;
+  font-size: 13px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
 @media (max-width: 620px) {
   .profile-wrapper {
     min-height: auto;
     margin: 0;
     border-radius: 16px;
-    padding: 28px 14px 34px;
+    padding: 24px 14px 28px;
   }
 
   .profile-card,
@@ -377,10 +428,10 @@
   }
 
   .profile-password-heading h3 {
-    font-size: 24px;
+    font-size: 17px;
   }
 
   .profile-password-submit {
-    font-size: 18px;
+    font-size: 15px;
   }
 }

@@ -97,8 +97,8 @@ const getUserByEmail = async (email) => {
 const insertUser = async ({ username, email, passwordHash, isVerified }) => {
   try {
     return await runQuery(
-      "INSERT INTO users (name, username, email, password_hash, password, is_verified) VALUES (?, ?, ?, ?, ?, ?)",
-      [username, username, email, passwordHash, passwordHash, isVerified ? 1 : 0]
+      "INSERT INTO users (username, email, password_hash, is_verified) VALUES (?, ?, ?, ?)",
+      [username, email, passwordHash, isVerified ? 1 : 0]
     );
   } catch (error) {
     if (!/Unknown column/i.test(error.message)) {
@@ -106,7 +106,7 @@ const insertUser = async ({ username, email, passwordHash, isVerified }) => {
     }
 
     return runQuery(
-      "INSERT INTO users (name, email, password_hash, is_verified) VALUES (?, ?, ?, ?)",
+      "INSERT INTO users (username, email, password_hash, is_verified) VALUES (?, ?, ?, ?)",
       [username, email, passwordHash, isVerified ? 1 : 0]
     );
   }
@@ -133,7 +133,7 @@ const buildUniqueUsername = async (seed, suffixSeed = "") => {
     const suffix =
       counter === 0 ? "" : counter === 1 ? `_${stableSuffix}` : `_${stableSuffix}_${counter}`;
     const candidate = `${base}${suffix}`.slice(0, 100);
-    const rows = await runQuery("SELECT 1 FROM users WHERE name = ? LIMIT 1", [candidate]);
+    const rows = await runQuery("SELECT 1 FROM users WHERE username = ? LIMIT 1", [candidate]);
 
     if (rows.length === 0) {
       return candidate;
@@ -152,7 +152,7 @@ exports.checkUsername = async (req, res) => {
 
   try {
     const rows = await runQuery(
-      "SELECT 1 FROM users WHERE name = ? AND is_verified = 1 LIMIT 1",
+      "SELECT 1 FROM users WHERE username = ? AND is_verified = 1 LIMIT 1",
       [username]
     );
 
@@ -189,7 +189,7 @@ exports.signup = async (req, res) => {
     }
 
     const verifiedUserRows = await runQuery(
-      "SELECT 1 FROM users WHERE name = ? AND is_verified = 1 LIMIT 1",
+      "SELECT 1 FROM users WHERE username = ? AND is_verified = 1 LIMIT 1",
       [username]
     );
 
@@ -199,7 +199,7 @@ exports.signup = async (req, res) => {
 
     await runQuery("DELETE FROM otps WHERE email = ?", [email]);
     await runQuery(
-      "DELETE FROM users WHERE (email = ? OR name = ?) AND is_verified = 0",
+      "DELETE FROM users WHERE (email = ? OR username = ?) AND is_verified = 0",
       [email, username]
     );
 
@@ -308,9 +308,9 @@ exports.login = async (req, res) => {
       isEmail
         ? "SELECT * FROM users WHERE LOWER(email) = LOWER(?)"
         : hasUsername
-          ? "SELECT * FROM users WHERE LOWER(name) = LOWER(?) OR LOWER(username) = LOWER(?)"
-          : "SELECT * FROM users WHERE LOWER(name) = LOWER(?)",
-      isEmail ? [identifier] : hasUsername ? [identifier, identifier] : [identifier]
+          ? "SELECT * FROM users WHERE LOWER(username) = LOWER(?)"
+          : "SELECT * FROM users WHERE LOWER(username) = LOWER(?)",
+      [identifier]
     );
 
     if (rows.length === 0) {

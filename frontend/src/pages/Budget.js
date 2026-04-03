@@ -281,11 +281,14 @@ function Budget() {
 
   const computedBudgets = useMemo(() => {
     return budgets.map((budget) => {
-      const budgetIcon = typeof budget.icon === "string" ? budget.icon.trim() : "";
-      const budgetName = normalizeCategoryName(budget.name);
-      const budgetStartDate = formatBudgetDateValue(budget.start_date);
-      const budgetEndDate = formatBudgetDateValue(budget.end_date);
-      const expired = isBudgetExpired(budget);
+      const budgetWithDates = withDefaultBudgetDateRange(budget);
+      const budgetIcon =
+        typeof budgetWithDates.icon === "string" ? budgetWithDates.icon.trim() : "";
+      const budgetName = normalizeCategoryName(budgetWithDates.name);
+      const budgetStartDate = formatBudgetDateValue(budgetWithDates.start_date);
+      const budgetEndDate = formatBudgetDateValue(budgetWithDates.end_date);
+      const budgetCategoryId = Number(budgetWithDates.category_id || 0);
+      const expired = isBudgetExpired(budgetWithDates);
 
       const spent = transactions.reduce((sum, transaction) => {
         if (transaction.type !== "expense") {
@@ -303,23 +306,32 @@ function Budget() {
         }
 
         const transactionIcon = getTransactionIcon(transaction);
+        const transactionCategoryId = Number(transaction.category_id || transaction.categoryId || 0);
+        const matchesByCategoryId =
+          budgetCategoryId > 0 &&
+          transactionCategoryId > 0 &&
+          budgetCategoryId === transactionCategoryId;
         const matchesByIcon =
+          budgetCategoryId <= 0 &&
           Boolean(budgetIcon) &&
           Boolean(transactionIcon) &&
           budgetIcon === transactionIcon;
 
         const matchesByName =
-          normalizeCategoryName(transaction.category_name) === budgetName ||
-          normalizeCategoryName(transaction.category) === budgetName ||
-          normalizeCategoryName(transaction.description) === budgetName;
+          budgetCategoryId <= 0 &&
+          (
+            normalizeCategoryName(transaction.category_name) === budgetName ||
+            normalizeCategoryName(transaction.category) === budgetName ||
+            normalizeCategoryName(transaction.description) === budgetName
+          );
 
-        return matchesByIcon || matchesByName
+        return matchesByCategoryId || matchesByIcon || matchesByName
           ? sum + Number(transaction.amount || 0)
           : sum;
       }, 0);
 
       return {
-        ...budget,
+        ...budgetWithDates,
         spent: expired ? 0 : spent,
         expired
       };
@@ -460,17 +472,15 @@ function Budget() {
         throw new Error(data.error || "Unable to save budget changes.");
       }
 
-      if (data.budget) {
-        mergeUpdatedBudget(data.budget);
-      } else {
-        const refreshedBudgets = await loadBudgets();
-        const refreshedBudget = refreshedBudgets.find(
-          (budget) => budget.budget_id === selectedBudget.budget_id
-        );
+      const refreshedBudgets = await loadBudgets();
+      const refreshedBudget = refreshedBudgets.find(
+        (budget) => budget.budget_id === selectedBudget.budget_id
+      );
 
-        if (refreshedBudget) {
-          setSelectedBudget(refreshedBudget);
-        }
+      if (refreshedBudget) {
+        setSelectedBudget(refreshedBudget);
+      } else if (data.budget) {
+        mergeUpdatedBudget(data.budget);
       }
 
       setEditOpen(false);
@@ -496,11 +506,29 @@ function Budget() {
       return [];
     }
 
-    const selectedName = normalizeCategoryName(selectedBudget.name);
+    const selectedBudgetWithDates = withDefaultBudgetDateRange(selectedBudget);
+    const selectedName = normalizeCategoryName(selectedBudgetWithDates.name);
     const selectedIcon =
-      typeof selectedBudget.icon === "string" ? selectedBudget.icon.trim() : "";
+      typeof selectedBudgetWithDates.icon === "string"
+        ? selectedBudgetWithDates.icon.trim()
+        : "";
+    const selectedCategoryId = Number(selectedBudgetWithDates.category_id || 0);
 
     return transactions.filter((transaction) => {
+      const transactionDate = formatBudgetDateValue(transaction.transaction_date);
+      const isBeforeStartDate =
+        Boolean(selectedBudgetWithDates.start_date) &&
+        Boolean(transactionDate) &&
+        transactionDate < formatBudgetDateValue(selectedBudgetWithDates.start_date);
+      const isAfterEndDate =
+        Boolean(selectedBudgetWithDates.end_date) &&
+        Boolean(transactionDate) &&
+        transactionDate > formatBudgetDateValue(selectedBudgetWithDates.end_date);
+
+      if (isBeforeStartDate || isAfterEndDate) {
+        return false;
+      }
+
       const transactionIcon =
         typeof transaction.category_icon === "string"
           ? transaction.category_icon.trim()
@@ -512,23 +540,142 @@ function Budget() {
         inferIconFromText(transaction.category_name) ||
         inferIconFromText(transaction.description) ||
         inferIconFromText(transaction.category);
+      const transactionCategoryId = Number(transaction.category_id || transaction.categoryId || 0);
+      const matchesByCategoryId =
+        selectedCategoryId > 0 &&
+        transactionCategoryId > 0 &&
+        selectedCategoryId === transactionCategoryId;
 
       const matchesByIcon =
+        selectedCategoryId <= 0 &&
         Boolean(selectedIcon) &&
         Boolean(inferredTransactionIcon) &&
         inferredTransactionIcon === selectedIcon;
 
       const matchesByName =
-        normalizeCategoryName(transaction.category_name) === selectedName ||
-        normalizeCategoryName(transaction.description) === selectedName ||
-        normalizeCategoryName(transaction.category) === selectedName;
+        selectedCategoryId <= 0 &&
+        (
+          normalizeCategoryName(transaction.category_name) === selectedName ||
+          normalizeCategoryName(transaction.description) === selectedName ||
+          normalizeCategoryName(transaction.category) === selectedName
+        );
 
-      return transaction.type === "expense" && (matchesByIcon || matchesByName);
+      return transaction.type === "expense" && (matchesByCategoryId || matchesByIcon || matchesByName);
     });
   }, [selectedBudget, transactions]);
 
   const totalCategories = computedBudgets.length;
   const activeCategories = computedBudgets.filter((budget) => isBudgetActive(budget)).length;
+
+  const renderBudgetModals = () => (
+    <>
+      {isCategoryModalOpen && (
+        <Category
+          closeCategory={() => setIsCategoryModalOpen(false)}
+          addNewCategory={loadBudgets}
+        />
+      )}
+
+      {editOpen && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <div className="modal-header">
+              <h2>Edit Budget</h2>
+              <FaTimes className="close-icon" onClick={() => setEditOpen(false)} />
+            </div>
+
+            <div className="category-header-box">
+              <div
+                className="ch-icon"
+                style={{ background: `${selectedBudget?.color || "#20c4d8"}20` }}
+              >
+                {renderIcon(selectedBudget?.icon, selectedBudget?.color || "#20c4d8")}
+              </div>
+              <div className="ch-details">
+                <h4>{selectedBudget?.name}</h4>
+                <span>Current: {INR}{selectedBudget?.amount}</span>
+              </div>
+            </div>
+
+            {editErrorMessage && (
+              <div className="modal-error-banner">
+                {editErrorMessage}
+              </div>
+            )}
+
+            <div className="input-group">
+              <label>Category Name</label>
+              <input
+                className="styled-input"
+                type="text"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+              />
+            </div>
+
+            <div className="input-group">
+              <label>Monthly Budget ({INR})</label>
+              <input
+                className="styled-input"
+                type="number"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+              />
+            </div>
+
+            <div className="budget-modal-date-grid">
+              <div className="input-group">
+                <label>Start Date</label>
+                <AestheticDatePicker
+                  value={editStartDate}
+                  onChange={handleEditStartDateChange}
+                />
+              </div>
+
+              <div className="input-group">
+                <label>End Date</label>
+                <AestheticDatePicker
+                  value={editEndDate}
+                  onChange={handleEditEndDateChange}
+                  align="right"
+                />
+              </div>
+            </div>
+
+            <div className="modal-buttons">
+              <button className="btn-cancel" onClick={() => setEditOpen(false)}>Cancel</button>
+              <button className="btn-save" onClick={saveBudget}>Save Changes</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deleteOpen && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <div className="modal-header">
+              <h2>Delete Category</h2>
+              <FaTimes className="close-icon" onClick={() => setDeleteOpen(false)} />
+            </div>
+
+            <div className="warning-box">
+              <p className="delete-main">
+                Are you sure you want to delete <b>{selectedBudget?.name}</b>?
+              </p>
+              <p className="delete-sub">
+                This action cannot be undone. All transactions in this category will be permanently deleted.
+              </p>
+            </div>
+
+            <div className="modal-buttons">
+              <button className="btn-cancel" onClick={() => setDeleteOpen(false)}>Cancel</button>
+              <button className="btn-confirm" onClick={deleteBudget}>Confirm</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
 
   if (isDetailOpen && selectedBudget) {
     const detailBudget = withDefaultBudgetDateRange(selectedBudget);
@@ -541,6 +688,7 @@ function Budget() {
     const expired = isBudgetExpired(detailBudget);
 
     return (
+      <>
       <div className="budget-container budget-detail-container">
         <div className="budget-detail-topbar">
           <div className="budget-detail-left">
@@ -663,10 +811,13 @@ function Budget() {
           )}
         </div>
       </div>
+      {renderBudgetModals()}
+      </>
     );
   }
 
   return (
+    <>
     <div className="budget-container">
       <div className="budget-page-head">
         <h2 className="budget-title">Budget Categories</h2>
@@ -783,112 +934,9 @@ function Budget() {
         </div>
       </div>
 
-      {isCategoryModalOpen && (
-        <Category
-          closeCategory={() => setIsCategoryModalOpen(false)}
-          addNewCategory={loadBudgets}
-        />
-      )}
-
-      {editOpen && (
-        <div className="modal-overlay">
-          <div className="modal">
-            <div className="modal-header">
-              <h2>Edit Budget</h2>
-              <FaTimes className="close-icon" onClick={() => setEditOpen(false)} />
-            </div>
-
-            <div className="category-header-box">
-              <div
-                className="ch-icon"
-                style={{ background: `${selectedBudget?.color || "#20c4d8"}20` }}
-              >
-                {renderIcon(selectedBudget?.icon, selectedBudget?.color || "#20c4d8")}
-              </div>
-              <div className="ch-details">
-                <h4>{selectedBudget?.name}</h4>
-                <span>Current: {INR}{selectedBudget?.amount}</span>
-              </div>
-            </div>
-
-            {editErrorMessage && (
-              <div className="modal-error-banner">
-                {editErrorMessage}
-              </div>
-            )}
-
-            <div className="input-group">
-              <label>Category Name</label>
-              <input
-                className="styled-input"
-                type="text"
-                value={editName}
-                onChange={(e) => setEditName(e.target.value)}
-              />
-            </div>
-
-            <div className="input-group">
-              <label>Monthly Budget ({INR})</label>
-              <input
-                className="styled-input"
-                type="number"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-              />
-            </div>
-
-            <div className="budget-modal-date-grid">
-              <div className="input-group">
-                <label>Start Date</label>
-                <AestheticDatePicker
-                  value={editStartDate}
-                  onChange={handleEditStartDateChange}
-                />
-              </div>
-
-              <div className="input-group">
-                <label>End Date</label>
-                <AestheticDatePicker
-                  value={editEndDate}
-                  onChange={handleEditEndDateChange}
-                  align="right"
-                />
-              </div>
-            </div>
-
-            <div className="modal-buttons">
-              <button className="btn-cancel" onClick={() => setEditOpen(false)}>Cancel</button>
-              <button className="btn-save" onClick={saveBudget}>Save Changes</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {deleteOpen && (
-        <div className="modal-overlay">
-          <div className="modal">
-            <div className="modal-header">
-              <h2>Delete Category</h2>
-              <FaTimes className="close-icon" onClick={() => setDeleteOpen(false)} />
-            </div>
-
-            <div className="warning-box">
-              <p className="delete-main">
-                Are you sure you want to delete <b>{selectedBudget?.name}</b>?
-              </p>
-              <p className="delete-sub">
-                This action cannot be undone. All transactions in this category will be permanently deleted.
-              </p>
-            </div>
-
-            <div className="modal-buttons">
-              <button className="btn-cancel" onClick={() => setDeleteOpen(false)}>Cancel</button>
-              <button className="btn-confirm" onClick={deleteBudget}>Confirm</button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
+    {renderBudgetModals()}
+    </>
   );
 }
 

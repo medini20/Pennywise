@@ -128,7 +128,7 @@ export default function Category({ closeCategory, addNewCategory }) {
           <>
             <div className="category-modal-header">
               <h3 style={{ margin: 0, fontSize: "16px", fontWeight: "600" }}>Add Category</h3>
-              <span className="close-x" onClick={closeCategory}>Ã—</span>
+              <span className="close-x" onClick={closeCategory}>×</span>
             </div>
 
             <div className="predefined-grid">
@@ -155,7 +155,7 @@ export default function Category({ closeCategory, addNewCategory }) {
             <div className="category-modal-header">
               <span className="nav-text" onClick={() => setView("select")}>Back</span>
               <h3 style={{ margin: 0, fontSize: "16px", fontWeight: "600" }}>Add Category</h3>
-              <span className="close-x" onClick={closeCategory}>Ã—</span>
+              <span className="close-x" onClick={closeCategory}>×</span>
             </div>
 
             <div className="category-body">
@@ -246,3 +246,4 @@ export default function Category({ closeCategory, addNewCategory }) {
     </div>
   );
 }
+

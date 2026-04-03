@@ -3,6 +3,7 @@ const db = require("../../config/db");
 const DEFAULT_USER_ID = 1;
 const DEFAULT_BUDGET_NAME = "Monthly Budget";
 const DEFAULT_BUDGET_COLOR = "#ffcc00";
+let budgetCategoryIdColumnExists = null;
 
 const runQuery = (sql, params = []) =>
   new Promise((resolve, reject) => {
@@ -203,54 +204,174 @@ const getUserId = (req) => {
     : DEFAULT_USER_ID;
 };
 
+const hasBudgetCategoryIdColumn = async () => {
+  if (budgetCategoryIdColumnExists !== null) {
+    return budgetCategoryIdColumnExists;
+  }
+
+  try {
+    const databaseName = process.env.DB_NAME || "expense_tracker";
+    const [rows] = await db.promise().query(
+      `
+        SELECT COLUMN_NAME
+        FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = ?
+          AND TABLE_NAME = 'budgets'
+          AND COLUMN_NAME = 'category_id'
+        LIMIT 1
+      `,
+      [databaseName]
+    );
+
+    budgetCategoryIdColumnExists = rows.length > 0;
+  } catch (error) {
+    budgetCategoryIdColumnExists = false;
+  }
+
+  return budgetCategoryIdColumnExists;
+};
+
+const findOrCreateExpenseCategory = async (userId, name, icon) => {
+  const [existingCategories] = await db.promise().query(
+    `
+      SELECT category_id
+      FROM categories
+      WHERE user_id = ?
+        AND LOWER(TRIM(name)) = LOWER(TRIM(?))
+      ORDER BY category_id DESC
+      LIMIT 1
+    `,
+    [userId, name]
+  );
+
+  if (existingCategories.length > 0) {
+    if (icon) {
+      await db.promise().query(
+        `
+          UPDATE categories
+          SET icon = ?
+          WHERE category_id = ?
+        `,
+        [icon, existingCategories[0].category_id]
+      );
+    }
+
+    return existingCategories[0].category_id;
+  }
+
+  const [insertResult] = await db.promise().query(
+    `
+      INSERT INTO categories (user_id, name, type, icon)
+      VALUES (?, ?, 'expense', ?)
+    `,
+    [userId, name, icon || null]
+  );
+
+  return insertResult.insertId;
+};
+
 exports.getBudgets = async (req, res) => {
   const userId = getUserId(req);
 
   try {
     await syncBudgetLifecycle(userId);
+    const hasCategoryIdColumn = await hasBudgetCategoryIdColumn();
 
-    const query = `
-      SELECT
-        b.budget_id,
-        b.user_id,
-        b.name,
-        b.icon,
-        b.amount,
-        CASE
-          WHEN b.end_date IS NOT NULL AND CURDATE() > b.end_date THEN 0
-          ELSE COALESCE((
-            SELECT SUM(t.amount)
-            FROM transactions t
-            LEFT JOIN categories c
-              ON c.category_id = t.category_id
-            WHERE t.user_id = b.user_id
-              AND t.type = 'expense'
-              AND (b.start_date IS NULL OR DATE(t.transaction_date) >= b.start_date)
-              AND (b.end_date IS NULL OR DATE(t.transaction_date) <= b.end_date)
-              AND (
-                (
-                  b.icon IS NOT NULL
-                  AND TRIM(b.icon) <> ''
-                  AND c.icon IS NOT NULL
-                  AND TRIM(c.icon) <> ''
-                  AND TRIM(c.icon) = TRIM(b.icon)
-                )
-                OR LOWER(TRIM(COALESCE(c.name, ''))) = LOWER(TRIM(b.name))
-                OR LOWER(TRIM(COALESCE(t.description, ''))) = LOWER(TRIM(b.name))
-              )
-          ), 0)
-        END AS spent,
-        b.month,
-        b.color,
-        b.start_date,
-        b.end_date,
-        b.is_system_generated
-      FROM budgets b
-      WHERE b.user_id = ?
-        AND COALESCE(b.is_system_generated, 0) = 0
-        AND LOWER(TRIM(b.name)) <> LOWER(TRIM(?))
-      ORDER BY b.budget_id DESC
-    `;
+    const query = hasCategoryIdColumn
+      ? `
+          SELECT
+            b.budget_id,
+            b.user_id,
+            b.category_id,
+            b.name,
+            b.icon,
+            b.amount,
+            CASE
+              WHEN b.end_date IS NOT NULL AND CURDATE() > b.end_date THEN 0
+              ELSE COALESCE((
+                SELECT SUM(t.amount)
+                FROM transactions t
+                LEFT JOIN categories c
+                  ON c.category_id = t.category_id
+                WHERE t.user_id = b.user_id
+                  AND t.type = 'expense'
+                  AND (b.start_date IS NULL OR DATE(t.transaction_date) >= b.start_date)
+                  AND (b.end_date IS NULL OR DATE(t.transaction_date) <= b.end_date)
+                  AND (
+                    (
+                      b.category_id IS NOT NULL
+                      AND t.category_id = b.category_id
+                    )
+                    OR (
+                      b.category_id IS NULL
+                      AND (
+                        (
+                          b.icon IS NOT NULL
+                          AND TRIM(b.icon) <> ''
+                          AND c.icon IS NOT NULL
+                          AND TRIM(c.icon) <> ''
+                          AND TRIM(c.icon) = TRIM(b.icon)
+                        )
+                        OR LOWER(TRIM(COALESCE(c.name, ''))) = LOWER(TRIM(b.name))
+                        OR LOWER(TRIM(COALESCE(t.description, ''))) = LOWER(TRIM(b.name))
+                      )
+                    )
+                  )
+              ), 0)
+            END AS spent,
+            b.month,
+            b.color,
+            b.start_date,
+            b.end_date,
+            b.is_system_generated
+          FROM budgets b
+          WHERE b.user_id = ?
+            AND COALESCE(b.is_system_generated, 0) = 0
+            AND LOWER(TRIM(b.name)) <> LOWER(TRIM(?))
+          ORDER BY b.budget_id DESC
+        `
+      : `
+          SELECT
+            b.budget_id,
+            b.user_id,
+            b.name,
+            b.icon,
+            b.amount,
+            CASE
+              WHEN b.end_date IS NOT NULL AND CURDATE() > b.end_date THEN 0
+              ELSE COALESCE((
+                SELECT SUM(t.amount)
+                FROM transactions t
+                LEFT JOIN categories c
+                  ON c.category_id = t.category_id
+                WHERE t.user_id = b.user_id
+                  AND t.type = 'expense'
+                  AND (b.start_date IS NULL OR DATE(t.transaction_date) >= b.start_date)
+                  AND (b.end_date IS NULL OR DATE(t.transaction_date) <= b.end_date)
+                  AND (
+                    (
+                      b.icon IS NOT NULL
+                      AND TRIM(b.icon) <> ''
+                      AND c.icon IS NOT NULL
+                      AND TRIM(c.icon) <> ''
+                      AND TRIM(c.icon) = TRIM(b.icon)
+                    )
+                    OR LOWER(TRIM(COALESCE(c.name, ''))) = LOWER(TRIM(b.name))
+                    OR LOWER(TRIM(COALESCE(t.description, ''))) = LOWER(TRIM(b.name))
+                  )
+              ), 0)
+            END AS spent,
+            b.month,
+            b.color,
+            b.start_date,
+            b.end_date,
+            b.is_system_generated
+          FROM budgets b
+          WHERE b.user_id = ?
+            AND COALESCE(b.is_system_generated, 0) = 0
+            AND LOWER(TRIM(b.name)) <> LOWER(TRIM(?))
+          ORDER BY b.budget_id DESC
+        `;
 
     db.query(query, [userId, DEFAULT_BUDGET_NAME], (err, result) => {
       if (err) {
@@ -295,53 +416,63 @@ exports.addBudget = async (req, res) => {
   try {
     const resolvedDates = getResolvedDateRange(start_date, end_date);
     const resolvedMonth = Number(month) > 0 ? Number(month) : getMonthNumberFromDate(resolvedDates.startDate);
-    const query = `
-      INSERT INTO budgets (
-        name,
-        amount,
-        icon,
-        user_id,
-        month,
-        spent,
-        color,
-        start_date,
-        end_date,
-        is_system_generated
-      )
-      VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, 0)
-    `;
-
-    const values = [
-      name,
-      amount,
-      icon,
-      resolvedUserId,
-      resolvedMonth,
-      color || DEFAULT_BUDGET_COLOR,
-      resolvedDates.startDate,
-      resolvedDates.endDate
-    ];
-
-    const [existingCategories] = await db.promise().query(
-      `
-        SELECT category_id
-        FROM categories
-        WHERE user_id = ?
-          AND LOWER(TRIM(name)) = LOWER(TRIM(?))
-        LIMIT 1
-      `,
-      [resolvedUserId, name]
-    );
-
-    if (existingCategories.length === 0) {
-      await db.promise().query(
+    const hasCategoryIdColumn = await hasBudgetCategoryIdColumn();
+    const categoryId = await findOrCreateExpenseCategory(resolvedUserId, name, icon);
+    const query = hasCategoryIdColumn
+      ? `
+          INSERT INTO budgets (
+            name,
+            amount,
+            icon,
+            user_id,
+            category_id,
+            month,
+            spent,
+            color,
+            start_date,
+            end_date,
+            is_system_generated
+          )
+          VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, 0)
         `
-          INSERT INTO categories (user_id, name, type, icon)
-          VALUES (?, ?, 'expense', ?)
-        `,
-        [resolvedUserId, name, icon || null]
-      );
-    }
+      : `
+          INSERT INTO budgets (
+            name,
+            amount,
+            icon,
+            user_id,
+            month,
+            spent,
+            color,
+            start_date,
+            end_date,
+            is_system_generated
+          )
+          VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, 0)
+        `;
+
+    const values = hasCategoryIdColumn
+      ? [
+          name,
+          amount,
+          icon,
+          resolvedUserId,
+          categoryId,
+          resolvedMonth,
+          color || DEFAULT_BUDGET_COLOR,
+          resolvedDates.startDate,
+          resolvedDates.endDate
+        ]
+      : [
+          name,
+          amount,
+          icon,
+          resolvedUserId,
+          resolvedMonth,
+          color || DEFAULT_BUDGET_COLOR,
+          resolvedDates.startDate,
+          resolvedDates.endDate
+        ];
 
     db.query(query, values, (err, result) => {
       if (err) {
@@ -368,6 +499,7 @@ exports.addBudget = async (req, res) => {
 
 exports.editBudget = async (req, res) => {
   try {
+    const userId = getUserId(req);
     const { budget_id, amount, name, start_date, end_date } = req.body;
     const updates = [];
     const values = [];
@@ -401,6 +533,16 @@ exports.editBudget = async (req, res) => {
 
     if (!Number.isInteger(parsedBudgetId) || parsedBudgetId <= 0 || updates.length === 0) {
       return res.status(400).json({ error: "budget_id and at least one field are required" });
+    }
+
+    if (name !== undefined) {
+      const hasCategoryIdColumn = await hasBudgetCategoryIdColumn();
+      const categoryId = await findOrCreateExpenseCategory(userId, name, null);
+
+      if (hasCategoryIdColumn) {
+        updates.push("category_id = ?");
+        values.push(categoryId);
+      }
     }
 
     const query = `UPDATE budgets SET ${updates.join(", ")} WHERE budget_id = ?`;

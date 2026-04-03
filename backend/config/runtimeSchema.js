@@ -143,18 +143,119 @@ const ensureTransactionSchema = async () => {
     return;
   }
 
-  if (await hasColumn("transactions", "created_at")) {
+  if (!(await hasColumn("transactions", "created_at"))) {
+    await db.promise().query(
+      `
+        ALTER TABLE transactions
+        ADD COLUMN created_at DATETIME NULL
+      `
+    );
+
+    console.log("Added missing transactions.created_at column");
+  }
+
+  if (!(await hasColumn("transactions", "category_icon"))) {
+    await db.promise().query(
+      `
+        ALTER TABLE transactions
+        ADD COLUMN category_icon VARCHAR(50) NULL
+      `
+    );
+
+    await db.promise().query(
+      `
+        UPDATE transactions t
+        LEFT JOIN categories c ON c.category_id = t.category_id
+        SET t.category_icon = COALESCE(c.icon, t.category_icon)
+        WHERE t.category_icon IS NULL OR TRIM(t.category_icon) = ''
+      `
+    );
+
+    console.log("Added missing transactions.category_icon column");
+  }
+};
+
+const ensureRecurringSchema = async () => {
+  if (!(await hasTable("transactions"))) {
+    console.log("Skipping recurring schema update: transactions table not found");
     return;
   }
 
-  await db.promise().query(
-    `
-      ALTER TABLE transactions
-      ADD COLUMN created_at DATETIME NULL
-    `
-  );
+  if (!(await hasColumn("transactions", "recurring_payment_id"))) {
+    await db.promise().query(
+      `
+        ALTER TABLE transactions
+        ADD COLUMN recurring_payment_id INT(11) NULL
+      `
+    );
 
-  console.log("Added missing transactions.created_at column");
+    console.log("Added missing transactions.recurring_payment_id column");
+  }
+
+  if (!(await hasTable("recurring_payments"))) {
+    await db.promise().query(
+      `
+        CREATE TABLE recurring_payments (
+          recurring_payment_id INT(11) NOT NULL AUTO_INCREMENT,
+          user_id INT(11) NOT NULL,
+          category_id INT(11) NOT NULL,
+          category_icon VARCHAR(50) NULL,
+          amount DECIMAL(10,2) NOT NULL,
+          type ENUM('income','expense') NOT NULL,
+          description VARCHAR(255) NULL,
+          frequency VARCHAR(20) NOT NULL,
+          custom_interval_days INT(11) NULL,
+          start_date DATE NOT NULL,
+          end_date DATE NULL,
+          next_run_date DATE NOT NULL,
+          is_active TINYINT(1) NOT NULL DEFAULT 1,
+          created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          PRIMARY KEY (recurring_payment_id),
+          KEY idx_recurring_user (user_id),
+          KEY idx_recurring_next_run (next_run_date)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+      `
+    );
+
+    console.log("Created missing recurring_payments table");
+  }
+
+  if (!(await hasColumn("recurring_payments", "category_icon"))) {
+    await db.promise().query(
+      `
+        ALTER TABLE recurring_payments
+        ADD COLUMN category_icon VARCHAR(50) NULL
+      `
+    );
+
+    await db.promise().query(
+      `
+        UPDATE recurring_payments rp
+        LEFT JOIN categories c ON c.category_id = rp.category_id
+        SET rp.category_icon = COALESCE(c.icon, rp.category_icon)
+        WHERE rp.category_icon IS NULL OR TRIM(rp.category_icon) = ''
+      `
+    );
+
+    console.log("Added missing recurring_payments.category_icon column");
+  }
+
+  if (!(await hasTable("recurring_payment_exceptions"))) {
+    await db.promise().query(
+      `
+        CREATE TABLE recurring_payment_exceptions (
+          recurring_payment_exception_id INT(11) NOT NULL AUTO_INCREMENT,
+          recurring_payment_id INT(11) NOT NULL,
+          occurrence_date DATE NOT NULL,
+          created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          PRIMARY KEY (recurring_payment_exception_id),
+          UNIQUE KEY uniq_recurring_occurrence (recurring_payment_id, occurrence_date)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+      `
+    );
+
+    console.log("Created missing recurring_payment_exceptions table");
+  }
 };
 
 const ensureRuntimeSchema = async () => {
@@ -164,6 +265,7 @@ const ensureRuntimeSchema = async () => {
     await ensureOtpSchema();
     await ensureCategorySchema();
     await ensureTransactionSchema();
+    await ensureRecurringSchema();
   } catch (error) {
     console.error("Runtime schema check failed:", error.message);
     throw error;

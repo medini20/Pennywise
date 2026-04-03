@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 import {
   formatAsDateValue,
@@ -47,6 +48,7 @@ export default function AestheticDatePicker({
   const normalizedMin = normalizeBudgetDateValue(min);
   const normalizedMax = normalizeBudgetDateValue(max);
   const [isOpen, setIsOpen] = useState(false);
+  const [popoverStyle, setPopoverStyle] = useState({});
   const [viewDate, setViewDate] = useState(() => {
     const today = new Date();
     const initialDate = selectedDate || today;
@@ -89,6 +91,43 @@ export default function AestheticDatePicker({
     const baseDate = nextSelectedDate || new Date();
     setViewDate(new Date(baseDate.getFullYear(), baseDate.getMonth(), 1));
   }, [value]);
+
+  useEffect(() => {
+    if (!isOpen || !triggerRef.current) {
+      return;
+    }
+
+    const updatePopoverPosition = () => {
+      if (!triggerRef.current) {
+        return;
+      }
+
+      const rect = triggerRef.current.getBoundingClientRect();
+      const estimatedWidth = Math.min(280, window.innerWidth - 24);
+      const estimatedHeight = 300;
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const openAbove = spaceBelow < estimatedHeight && rect.top > estimatedHeight;
+
+      let left = align === "right" ? rect.right - estimatedWidth : rect.left;
+      left = Math.max(12, Math.min(left, window.innerWidth - estimatedWidth - 12));
+
+      setPopoverStyle({
+        position: "fixed",
+        top: openAbove ? Math.max(12, rect.top - estimatedHeight - 8) : Math.min(rect.bottom + 8, window.innerHeight - estimatedHeight - 12),
+        left,
+        width: estimatedWidth
+      });
+    };
+
+    updatePopoverPosition();
+    window.addEventListener("resize", updatePopoverPosition);
+    window.addEventListener("scroll", updatePopoverPosition, true);
+
+    return () => {
+      window.removeEventListener("resize", updatePopoverPosition);
+      window.removeEventListener("scroll", updatePopoverPosition, true);
+    };
+  }, [align, isOpen]);
 
   const calendarDays = useMemo(() => {
     const monthStart = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1);
@@ -148,12 +187,11 @@ export default function AestheticDatePicker({
         <CalendarDays size={18} />
       </button>
 
-      {isOpen && (
+      {isOpen && createPortal(
         <div
           ref={popoverRef}
-          className={`pwDatePickerPopover ${
-            align === "right" ? "pwDatePickerPopoverRight" : ""
-          }`}
+          className="pwDatePickerPopover"
+          style={popoverStyle}
         >
           <div className="pwDatePickerHeader">
             <button
@@ -224,7 +262,8 @@ export default function AestheticDatePicker({
               Today
             </button>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
