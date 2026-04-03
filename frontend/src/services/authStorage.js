@@ -1,13 +1,29 @@
 const USER_KEY = "user";
 const TOKEN_KEY = "token";
 
-export const getStoredToken = () => localStorage.getItem(TOKEN_KEY);
+const readStorageValue = (key) => {
+  const sessionValue = sessionStorage.getItem(key);
+  if (sessionValue) {
+    return sessionValue;
+  }
+
+  const legacyLocalValue = localStorage.getItem(key);
+  if (legacyLocalValue) {
+    sessionStorage.setItem(key, legacyLocalValue);
+    localStorage.removeItem(key);
+  }
+
+  return legacyLocalValue;
+};
+
+export const getStoredToken = () => readStorageValue(TOKEN_KEY);
 export const setStoredToken = (token) => {
   if (typeof token !== "string" || !token.trim()) {
     return;
   }
 
-  localStorage.setItem(TOKEN_KEY, token);
+  sessionStorage.setItem(TOKEN_KEY, token);
+  localStorage.removeItem(TOKEN_KEY);
 };
 
 const parseJwtPayload = (token) => {
@@ -34,7 +50,7 @@ const isTokenExpired = (token) => {
 };
 
 export const getStoredUser = () => {
-  const rawUser = localStorage.getItem(USER_KEY);
+  const rawUser = readStorageValue(USER_KEY);
 
   if (!rawUser) {
     return null;
@@ -49,6 +65,8 @@ export const getStoredUser = () => {
 };
 
 export const clearStoredSession = () => {
+  sessionStorage.removeItem(USER_KEY);
+  sessionStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(USER_KEY);
   localStorage.removeItem(TOKEN_KEY);
 };
@@ -61,7 +79,7 @@ export const hasValidSession = () => {
     return true;
   }
 
-  if (token || localStorage.getItem(USER_KEY)) {
+  if (token || readStorageValue(USER_KEY)) {
     clearStoredSession();
   }
 
@@ -69,8 +87,10 @@ export const hasValidSession = () => {
 };
 
 export const saveStoredSession = ({ user, token }) => {
-  localStorage.setItem(USER_KEY, JSON.stringify(user));
-  localStorage.setItem(TOKEN_KEY, token);
+  sessionStorage.setItem(USER_KEY, JSON.stringify(user));
+  sessionStorage.setItem(TOKEN_KEY, token);
+  localStorage.removeItem(USER_KEY);
+  localStorage.removeItem(TOKEN_KEY);
 };
 
 export const updateStoredUser = (nextFields) => {
@@ -80,11 +100,12 @@ export const updateStoredUser = (nextFields) => {
     return;
   }
 
-  localStorage.setItem(
+  sessionStorage.setItem(
     USER_KEY,
     JSON.stringify({
       ...currentUser,
       ...nextFields
     })
   );
+  localStorage.removeItem(USER_KEY);
 };
