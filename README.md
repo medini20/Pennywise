@@ -25,8 +25,10 @@ Pennywise is a personal finance management system built for academic coursework.
 ## Local Setup
 1. Install dependencies in both `frontend/` and `backend/`.
 2. Create a local `backend/.env` file with your own environment values.
-3. Start the backend with `cd backend && node server.js`.
-4. Start the frontend with `cd frontend && npm start`.
+3. Import `database/expense_tracker.sql` into a MySQL database named `expense_tracker`.
+4. Make sure `backend/.env` points to that same database, typically with `DB_HOST=127.0.0.1`, `DB_PORT=3306`, and `DB_NAME=expense_tracker`.
+5. Start the backend with `cd backend && node server.js`.
+6. Start the frontend with `cd frontend && npm start`.
 
 You can also run `start-dev.cmd` from the project root.
 
