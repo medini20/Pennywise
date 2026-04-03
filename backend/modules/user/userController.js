@@ -34,6 +34,18 @@ const hasUsersColumn = async (columnName) => {
   return rows.length > 0;
 };
 
+const getUsersNameColumn = async () => {
+  if (await hasUsersColumn("username")) {
+    return "username";
+  }
+
+  if (await hasUsersColumn("name")) {
+    return "name";
+  }
+
+  return "username";
+};
+
 const normalizeUsername = (value) =>
   typeof value === "string" ? value.trim() : "";
 
@@ -47,7 +59,7 @@ const isBcryptHash = (value) =>
   typeof value === "string" && /^\$2[aby]\$\d{2}\$/.test(value);
 
 const getUserId = (user) => user?.user_id ?? user?.id;
-const getUserName = (user) => user?.name ?? user?.name ?? "";
+const getUserName = (user) => user?.name ?? user?.username ?? "";
 const getUserEmail = (user) => user?.email ?? "";
 const getPasswordValue = (user) => user?.password_hash ?? user?.password ?? "";
 const getPasswordColumn = (user) =>
@@ -282,13 +294,11 @@ exports.login = async (req, res) => {
   try {
     const isEmail = name.includes("@");
     const identifier = isEmail ? normalizeEmail(name) : name;
-    const hasUsername = await hasUsersColumn("name");
+    const nameColumn = await getUsersNameColumn();
     const rows = await runQuery(
       isEmail
         ? "SELECT * FROM users WHERE LOWER(email) = LOWER(?)"
-        : hasUsername
-          ? "SELECT * FROM users WHERE LOWER(name) = LOWER(?)"
-          : "SELECT * FROM users WHERE LOWER(name) = LOWER(?)",
+        : `SELECT * FROM users WHERE LOWER(${nameColumn}) = LOWER(?)`,
       [identifier]
     );
 
