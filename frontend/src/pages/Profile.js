@@ -273,6 +273,7 @@ function Profile() {
         },
         body: JSON.stringify({
           username: trimmedUsername,
+          name: trimmedUsername,
           email: trimmedEmail
         })
       });

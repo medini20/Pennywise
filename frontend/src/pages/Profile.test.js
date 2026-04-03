@@ -149,6 +149,7 @@ describe("Profile page", () => {
     expect(updateCall[1].method).toBe("PUT");
     expect(JSON.parse(updateCall[1].body)).toEqual({
       username: "Edited User",
+      name: "Edited User",
       email: "server@example.com"
     });
 
