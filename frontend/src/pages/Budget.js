@@ -281,11 +281,14 @@ function Budget() {
 
   const computedBudgets = useMemo(() => {
     return budgets.map((budget) => {
-      const budgetIcon = typeof budget.icon === "string" ? budget.icon.trim() : "";
-      const budgetName = normalizeCategoryName(budget.name);
-      const budgetStartDate = formatBudgetDateValue(budget.start_date);
-      const budgetEndDate = formatBudgetDateValue(budget.end_date);
-      const expired = isBudgetExpired(budget);
+      const budgetWithDates = withDefaultBudgetDateRange(budget);
+      const budgetIcon =
+        typeof budgetWithDates.icon === "string" ? budgetWithDates.icon.trim() : "";
+      const budgetName = normalizeCategoryName(budgetWithDates.name);
+      const budgetStartDate = formatBudgetDateValue(budgetWithDates.start_date);
+      const budgetEndDate = formatBudgetDateValue(budgetWithDates.end_date);
+      const budgetCategoryId = Number(budgetWithDates.category_id || 0);
+      const expired = isBudgetExpired(budgetWithDates);
 
       const spent = transactions.reduce((sum, transaction) => {
         if (transaction.type !== "expense") {
@@ -303,23 +306,32 @@ function Budget() {
         }
 
         const transactionIcon = getTransactionIcon(transaction);
+        const transactionCategoryId = Number(transaction.category_id || transaction.categoryId || 0);
+        const matchesByCategoryId =
+          budgetCategoryId > 0 &&
+          transactionCategoryId > 0 &&
+          budgetCategoryId === transactionCategoryId;
         const matchesByIcon =
+          budgetCategoryId <= 0 &&
           Boolean(budgetIcon) &&
           Boolean(transactionIcon) &&
           budgetIcon === transactionIcon;
 
         const matchesByName =
-          normalizeCategoryName(transaction.category_name) === budgetName ||
-          normalizeCategoryName(transaction.category) === budgetName ||
-          normalizeCategoryName(transaction.description) === budgetName;
+          budgetCategoryId <= 0 &&
+          (
+            normalizeCategoryName(transaction.category_name) === budgetName ||
+            normalizeCategoryName(transaction.category) === budgetName ||
+            normalizeCategoryName(transaction.description) === budgetName
+          );
 
-        return matchesByIcon || matchesByName
+        return matchesByCategoryId || matchesByIcon || matchesByName
           ? sum + Number(transaction.amount || 0)
           : sum;
       }, 0);
 
       return {
-        ...budget,
+        ...budgetWithDates,
         spent: expired ? 0 : spent,
         expired
       };
@@ -494,11 +506,29 @@ function Budget() {
       return [];
     }
 
-    const selectedName = normalizeCategoryName(selectedBudget.name);
+    const selectedBudgetWithDates = withDefaultBudgetDateRange(selectedBudget);
+    const selectedName = normalizeCategoryName(selectedBudgetWithDates.name);
     const selectedIcon =
-      typeof selectedBudget.icon === "string" ? selectedBudget.icon.trim() : "";
+      typeof selectedBudgetWithDates.icon === "string"
+        ? selectedBudgetWithDates.icon.trim()
+        : "";
+    const selectedCategoryId = Number(selectedBudgetWithDates.category_id || 0);
 
     return transactions.filter((transaction) => {
+      const transactionDate = formatBudgetDateValue(transaction.transaction_date);
+      const isBeforeStartDate =
+        Boolean(selectedBudgetWithDates.start_date) &&
+        Boolean(transactionDate) &&
+        transactionDate < formatBudgetDateValue(selectedBudgetWithDates.start_date);
+      const isAfterEndDate =
+        Boolean(selectedBudgetWithDates.end_date) &&
+        Boolean(transactionDate) &&
+        transactionDate > formatBudgetDateValue(selectedBudgetWithDates.end_date);
+
+      if (isBeforeStartDate || isAfterEndDate) {
+        return false;
+      }
+
       const transactionIcon =
         typeof transaction.category_icon === "string"
           ? transaction.category_icon.trim()
@@ -510,18 +540,27 @@ function Budget() {
         inferIconFromText(transaction.category_name) ||
         inferIconFromText(transaction.description) ||
         inferIconFromText(transaction.category);
+      const transactionCategoryId = Number(transaction.category_id || transaction.categoryId || 0);
+      const matchesByCategoryId =
+        selectedCategoryId > 0 &&
+        transactionCategoryId > 0 &&
+        selectedCategoryId === transactionCategoryId;
 
       const matchesByIcon =
+        selectedCategoryId <= 0 &&
         Boolean(selectedIcon) &&
         Boolean(inferredTransactionIcon) &&
         inferredTransactionIcon === selectedIcon;
 
       const matchesByName =
-        normalizeCategoryName(transaction.category_name) === selectedName ||
-        normalizeCategoryName(transaction.description) === selectedName ||
-        normalizeCategoryName(transaction.category) === selectedName;
+        selectedCategoryId <= 0 &&
+        (
+          normalizeCategoryName(transaction.category_name) === selectedName ||
+          normalizeCategoryName(transaction.description) === selectedName ||
+          normalizeCategoryName(transaction.category) === selectedName
+        );
 
-      return transaction.type === "expense" && (matchesByIcon || matchesByName);
+      return transaction.type === "expense" && (matchesByCategoryId || matchesByIcon || matchesByName);
     });
   }, [selectedBudget, transactions]);
 
