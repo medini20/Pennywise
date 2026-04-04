@@ -25,6 +25,8 @@ services:
         sync: false
       - key: EMAIL_PASS
         sync: false
+      - key: ALLOW_OTP_PREVIEW
+        value: "true"
       - key: GOOGLE_CLIENT_ID
         sync: false
 
@@ -39,7 +41,7 @@ services:
       - key: NODE_VERSION
         value: 22
       - key: REACT_APP_API_BASE_URL
-        sync: false
+        value: https://pennywise-backend.onrender.com
       - key: REACT_APP_GOOGLE_CLIENT_ID
         sync: false
     routes:

@@ -10,8 +10,7 @@ import {
   setStoredToken,
   updateStoredUser as syncStoredUser
 } from "../services/authStorage";
-
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:5001";
+import { API_BASE_URL } from "../config/api";
 const API_DOWN_MESSAGE = `Cannot reach backend server (${API_BASE_URL}). Start backend and try again.`;
 const DEFAULT_PROFILE_IMAGE = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png";
 const PROFILE_IMAGE_KEY_PREFIX = "profile_image";

@@ -2,8 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { hasValidSession, saveStoredSession } from "../services/authStorage";
 import useIsMobile from "../hooks/useIsMobile";
-
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:5001";
+import { API_BASE_URL } from "../config/api";
 const API_DOWN_MESSAGE = `Cannot reach backend server (${API_BASE_URL}). Start backend with 'cd backend && npm start' or run 'start-dev.cmd'.`;
 
 function Login() {

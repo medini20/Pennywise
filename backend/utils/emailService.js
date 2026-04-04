@@ -47,6 +47,12 @@ const isEmailPreviewMode = () => {
   return isPlaceholderEmailConfig(emailUser, emailPass);
 };
 
+const hasConfiguredSmtpCredentials = () => {
+  const emailUser = normalizeEnvValue(process.env.EMAIL_USER);
+  const emailPass = normalizeEnvValue(process.env.EMAIL_PASS);
+  return !isPlaceholderEmailConfig(emailUser, emailPass);
+};
+
 const getTransporter = async () => {
   if (transporter) {
     return transporter;
@@ -193,22 +199,6 @@ exports.sendOTP = async (email, otp) => {
         </div>
       `;
 
-  try {
-    if (await sendViaSendGrid({ to: email, subject, text, html })) {
-      return true;
-    }
-  } catch (error) {
-    console.error("SendGrid send failed:", error.message);
-  }
-
-  try {
-    if (await sendViaResend({ to: email, subject, text, html })) {
-      return true;
-    }
-  } catch (error) {
-    console.error("Resend send failed:", error.message);
-  }
-
   const sendOtpMail = async () => {
     const mailTransporter = await getTransporter();
     if (!mailTransporter) {
@@ -239,6 +229,34 @@ exports.sendOTP = async (email, otp) => {
 
     return true;
   };
+
+  if (hasConfiguredSmtpCredentials()) {
+    try {
+      if (await sendOtpMail()) {
+        return true;
+      }
+    } catch (error) {
+      console.error("SMTP email send failed:", error.message);
+      transporter = null;
+      etherealAccount = null;
+    }
+  }
+
+  try {
+    if (await sendViaSendGrid({ to: email, subject, text, html })) {
+      return true;
+    }
+  } catch (error) {
+    console.error("SendGrid send failed:", error.message);
+  }
+
+  try {
+    if (await sendViaResend({ to: email, subject, text, html })) {
+      return true;
+    }
+  } catch (error) {
+    console.error("Resend send failed:", error.message);
+  }
 
   try {
     return await sendOtpMail();

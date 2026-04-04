@@ -1,8 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import useIsMobile from "../hooks/useIsMobile";
-
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:5001";
+import { API_BASE_URL } from "../config/api";
 
 function ForgotPassword() {
   const [email, setEmail] = useState("");
@@ -14,6 +13,7 @@ function ForgotPassword() {
   const [message, setMessage] = useState("");
   const [otpPreview, setOtpPreview] = useState("");
   const [otpPreviewMessage, setOtpPreviewMessage] = useState("");
+  const [deliveryConfirmed, setDeliveryConfirmed] = useState(true);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const isMobile = useIsMobile();
@@ -24,6 +24,7 @@ function ForgotPassword() {
     setMessage("");
     setOtpPreview("");
     setOtpPreviewMessage("");
+    setDeliveryConfirmed(true);
     setLoading(true);
 
     try {
@@ -38,6 +39,7 @@ function ForgotPassword() {
         setMessage(data.message);
         setOtpPreview(data.otpPreview || "");
         setOtpPreviewMessage(data.otpPreviewMessage || "");
+        setDeliveryConfirmed(Boolean(data.deliveryConfirmed));
         setStep(2);
       } else {
         setError(data.error || "Request failed");
@@ -105,7 +107,16 @@ function ForgotPassword() {
         <h2 style={{ ...styles.title, ...(isMobile ? mobileStyles.title : {}) }}>Forgot Password</h2>
 
         {error && <div style={{ ...styles.errorBanner, ...(isMobile ? mobileStyles.banner : {}) }}>{error}</div>}
-        {message && <div style={{ ...styles.successBanner, ...(isMobile ? mobileStyles.banner : {}) }}>{message}</div>}
+        {message && (
+          <div
+            style={{
+              ...(deliveryConfirmed ? styles.successBanner : styles.previewBanner),
+              ...(isMobile ? mobileStyles.banner : {})
+            }}
+          >
+            {message}
+          </div>
+        )}
         {otpPreview && (
           <div style={{ ...styles.previewBanner, ...(isMobile ? mobileStyles.banner : {}) }}>
             <div style={styles.previewLabel}>{otpPreviewMessage || "Use this OTP if the email has not arrived yet."}</div>
@@ -171,7 +182,16 @@ function ForgotPassword() {
                 placeholder="Enter OTP"
                 required
               />
-              <span style={{ ...styles.otpSentBadge, ...(isMobile ? mobileStyles.otpSentBadge : {}) }}>Sent</span>
+              <span
+                style={{
+                  ...styles.otpSentBadge,
+                  ...(isMobile ? mobileStyles.otpSentBadge : {}),
+                  backgroundColor: deliveryConfirmed ? "rgba(34, 197, 94, 0.14)" : "rgba(245, 158, 11, 0.16)",
+                  color: deliveryConfirmed ? "#22c55e" : "#f59e0b"
+                }}
+              >
+                {deliveryConfirmed ? "Sent" : "Unconfirmed"}
+              </span>
             </div>
 
             <div>

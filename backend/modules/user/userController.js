@@ -9,9 +9,7 @@ require("dotenv").config({ quiet: true });
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 const OTP_EXPIRY_MINUTES = 5;
-const isOtpPreviewEnabled =
-  process.env.ALLOW_OTP_PREVIEW === "true" &&
-  !process.env.SENDGRID_API_KEY;
+const isOtpPreviewEnabled = process.env.ALLOW_OTP_PREVIEW === "true";
 
 const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
 
@@ -125,12 +123,18 @@ const sendOtpWithTimeout = async (email, otp) => {
 };
 
 const buildOtpResponse = (message, otp, deliveryConfirmed) => {
-  const response = { message };
+  const response = {
+    message: deliveryConfirmed
+      ? message
+      : "OTP was generated, but email delivery could not be confirmed. Check Spam or Promotions, or try again in a moment.",
+    deliveryConfirmed: Boolean(deliveryConfirmed)
+  };
 
-  if (!deliveryConfirmed && isOtpPreviewEnabled) {
+  if (isOtpPreviewEnabled) {
     response.otpPreview = otp;
-    response.otpPreviewMessage =
-      "Email delivery is not fully configured yet, so your OTP is shown here to keep the site working.";
+    response.otpPreviewMessage = deliveryConfirmed
+      ? "Development preview: your OTP is shown here as well."
+      : "Email delivery is not fully configured yet, so your OTP is shown here to keep the site working.";
   }
 
   return response;

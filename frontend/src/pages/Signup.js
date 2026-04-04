@@ -2,8 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { saveStoredSession } from "../services/authStorage";
 import useIsMobile from "../hooks/useIsMobile";
-
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:5001";
+import { API_BASE_URL } from "../config/api";
 
 const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID;
 const SHOW_GOOGLE_SIGNIN = false;
@@ -38,6 +37,7 @@ function Signup() {
   const [message, setMessage] = useState("");
   const [otpPreview, setOtpPreview] = useState("");
   const [otpPreviewMessage, setOtpPreviewMessage] = useState("");
+  const [deliveryConfirmed, setDeliveryConfirmed] = useState(true);
   const [loading, setLoading] = useState(false);
   const [nameStatus, setUsernameStatus] = useState(null);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
@@ -125,7 +125,7 @@ function Signup() {
 
   const handleSignup = async (e) => {
     e.preventDefault();
-    setError(""); setMessage(""); setOtpPreview(""); setOtpPreviewMessage(""); setLoading(true);
+    setError(""); setMessage(""); setOtpPreview(""); setOtpPreviewMessage(""); setDeliveryConfirmed(true); setLoading(true);
 
     if (formData.password !== confirmPassword) {
       setError("Passwords do not match.");
@@ -151,6 +151,7 @@ function Signup() {
         setMessage(data.message);
         setOtpPreview(data.otpPreview || "");
         setOtpPreviewMessage(data.otpPreviewMessage || "");
+        setDeliveryConfirmed(Boolean(data.deliveryConfirmed));
         setStep(2);
       } else {
         setError(data.error || "Signup failed");
@@ -213,7 +214,16 @@ function Signup() {
         {step === 1 ? (
           <form onSubmit={handleSignup} style={{ ...styles.form, ...(isMobile ? mobileStyles.form : {}) }}>
             {error && <div style={{ ...styles.errorBanner, ...(isMobile ? mobileStyles.banner : {}) }}>{error}</div>}
-            {message && <div style={{ ...styles.successBanner, ...(isMobile ? mobileStyles.banner : {}) }}>{message}</div>}
+            {message && (
+              <div
+                style={{
+                  ...(deliveryConfirmed ? styles.successBanner : styles.previewBanner),
+                  ...(isMobile ? mobileStyles.banner : {})
+                }}
+              >
+                {message}
+              </div>
+            )}
 
             <div>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: isMobile ? "flex-start" : "center", flexDirection: isMobile ? "column" : "row", gap: isMobile ? "6px" : "0", marginBottom: "6px" }}>
@@ -344,8 +354,17 @@ function Signup() {
           </form>
         ) : (
           <form onSubmit={handleVerifyOtp} style={{ ...styles.form, ...(isMobile ? mobileStyles.form : {}) }}>
-            {error && <div style={{ ...styles.errorBanner, ...(isMobile ? mobileStyles.banner : {}) }}>{error}</div>}
-            {message && <div style={{ ...styles.successBanner, ...(isMobile ? mobileStyles.banner : {}) }}>{message}</div>}
+          {error && <div style={{ ...styles.errorBanner, ...(isMobile ? mobileStyles.banner : {}) }}>{error}</div>}
+          {message && (
+            <div
+              style={{
+                ...(deliveryConfirmed ? styles.successBanner : styles.previewBanner),
+                ...(isMobile ? mobileStyles.banner : {})
+              }}
+            >
+              {message}
+            </div>
+          )}
             {otpPreview && (
               <div style={{ ...styles.previewBanner, ...(isMobile ? mobileStyles.banner : {}) }}>
                 <div style={styles.previewLabel}>{otpPreviewMessage || "Use this OTP if the email has not arrived yet."}</div>

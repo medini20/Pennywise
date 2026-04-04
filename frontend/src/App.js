@@ -4,6 +4,7 @@ import { Bell, CircleUserRound, LogOut } from "lucide-react";
 import { clearStoredSession, getStoredUser, hasValidSession } from "./services/authStorage";
 import useIsMobile from "./hooks/useIsMobile";
 import "./App.css";
+import { API_BASE_URL } from "./config/api";
 
 // Components
 import Sidebar from "./components/Sidebar";
@@ -28,7 +29,6 @@ import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import ForgotPassword from "./pages/ForgotPassword";
 
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:5001";
 const CURRENT_SPENDING_KEY = "currentSpending";
 const ALERT_STORAGE_KEY = "pennywise-triggered-alerts";
 const DISMISSED_ALERT_STORAGE_KEY = "pennywise-dismissed-triggered-alerts";

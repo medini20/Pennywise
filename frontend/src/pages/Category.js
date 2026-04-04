@@ -4,8 +4,7 @@ import AestheticDatePicker from "../components/AestheticDatePicker";
 import { getStoredUser } from "../services/authStorage";
 import { getCurrentMonthDateRange } from "../utils/budgetDates";
 import "./Category.css";
-
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:5001";
+import { API_BASE_URL } from "../config/api";
 
 const getMonthNumberFromDate = (value) => {
   if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {

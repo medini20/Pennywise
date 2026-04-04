@@ -17,8 +17,7 @@ import {
   withDefaultBudgetDateRange
 } from "../utils/budgetDates";
 import "./Alerts.css";
-
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:5001";
+import { API_BASE_URL } from "../config/api";
 const INR_SYMBOL = "\u20B9";
 const DEFAULT_BUDGET_COLOR = "#ffcc00";
 const ALERTS_CACHE_KEY_PREFIX = "pennywise-alerts-cache:";
