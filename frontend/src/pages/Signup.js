@@ -32,9 +32,12 @@ const getPasswordStrength = (password) => {
 function Signup() {
   const [formData, setFormData] = useState({ name: "", email: "", password: "" });
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [otpCode, setOtpCode] = useState("");
   const [step, setStep] = useState(1);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [otpPreview, setOtpPreview] = useState("");
+  const [otpPreviewMessage, setOtpPreviewMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [nameStatus, setUsernameStatus] = useState(null);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
@@ -122,7 +125,7 @@ function Signup() {
 
   const handleSignup = async (e) => {
     e.preventDefault();
-    setError(""); setMessage(""); setLoading(true);
+    setError(""); setMessage(""); setOtpPreview(""); setOtpPreviewMessage(""); setLoading(true);
 
     if (formData.password !== confirmPassword) {
       setError("Passwords do not match.");
@@ -146,9 +149,35 @@ function Signup() {
 
       if (response.ok) {
         setMessage(data.message);
+        setOtpPreview(data.otpPreview || "");
+        setOtpPreviewMessage(data.otpPreviewMessage || "");
         setStep(2);
       } else {
         setError(data.error || "Signup failed");
+      }
+    } catch (err) {
+      setError("Network error. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async (e) => {
+    e.preventDefault();
+    setError(""); setMessage(""); setLoading(true);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/verify-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: formData.email, otpCode }),
+      });
+      const data = await response.json();
+
+      if (response.ok) {
+        navigate("/login");
+      } else {
+        setError(data.error || "Verification failed");
       }
     } catch (err) {
       setError("Network error. Please try again.");
@@ -179,7 +208,7 @@ function Signup() {
 
       {/* Right Panel - Form */}
       <div style={{ ...styles.rightPanel, ...(isMobile ? mobileStyles.rightPanel : {}) }}>
-        <h2 style={{ ...styles.title, ...(isMobile ? mobileStyles.title : {}) }}>{step === 1 ? "Create Account" : "Check Your Email"}</h2>
+        <h2 style={{ ...styles.title, ...(isMobile ? mobileStyles.title : {}) }}>{step === 1 ? "Create Account" : "Verify Email"}</h2>
 
         {step === 1 ? (
           <form onSubmit={handleSignup} style={{ ...styles.form, ...(isMobile ? mobileStyles.form : {}) }}>
@@ -314,26 +343,29 @@ function Signup() {
             )}
           </form>
         ) : (
-          <div style={{ ...styles.form, ...(isMobile ? mobileStyles.form : {}) }}>
+          <form onSubmit={handleVerifyOtp} style={{ ...styles.form, ...(isMobile ? mobileStyles.form : {}) }}>
             {error && <div style={{ ...styles.errorBanner, ...(isMobile ? mobileStyles.banner : {}) }}>{error}</div>}
             {message && <div style={{ ...styles.successBanner, ...(isMobile ? mobileStyles.banner : {}) }}>{message}</div>}
-            <div style={styles.infoCard}>
-              <p style={styles.infoText}>
-                We sent a verification link to <strong>{formData.email}</strong>.
-              </p>
-              <p style={styles.infoText}>
-                Open that email, click the verification link, then come back and sign in.
-              </p>
-            </div>
+            {otpPreview && (
+              <div style={{ ...styles.previewBanner, ...(isMobile ? mobileStyles.banner : {}) }}>
+                <div style={styles.previewLabel}>{otpPreviewMessage || "Use this OTP if the email has not arrived yet."}</div>
+                <div style={styles.previewCode}>{otpPreview}</div>
+              </div>
+            )}
 
-            <button
-              type="button"
-              style={{ ...styles.button, ...(isMobile ? mobileStyles.button : {}) }}
-              onClick={() => navigate("/login")}
-            >
-              Back to Login
+            <input
+              type="text"
+              placeholder="Enter OTP code"
+              value={otpCode}
+              onChange={(e) => setOtpCode(e.target.value)}
+              style={{ ...styles.input, ...(isMobile ? mobileStyles.input : {}) }}
+              required
+            />
+
+            <button type="submit" style={{ ...styles.button, ...(isMobile ? mobileStyles.button : {}) }} disabled={loading}>
+              {loading ? "Verifying..." : "Verify"}
             </button>
-          </div>
+          </form>
         )}
 
         <div style={styles.footer}>
@@ -470,17 +502,24 @@ const styles = {
     borderRadius: "4px",
     fontSize: "14px",
   },
-  infoCard: {
-    background: "rgba(0, 204, 255, 0.08)",
-    borderLeft: "4px solid #00ccff",
-    color: "#bfdbfe",
-    padding: "14px",
+  previewBanner: {
+    background: "rgba(250, 204, 21, 0.08)",
+    borderLeft: "4px solid #facc15",
+    color: "#fde68a",
+    padding: "12px",
     borderRadius: "4px",
     fontSize: "14px",
   },
-  infoText: {
-    margin: "0 0 10px",
-    lineHeight: "1.5"
+  previewLabel: {
+    marginBottom: "8px",
+    lineHeight: "1.5",
+  },
+  previewCode: {
+    fontSize: "28px",
+    fontWeight: "700",
+    letterSpacing: "6px",
+    color: "#ffffff",
+    textAlign: "center",
   },
   orDivider: {
     display: "flex",

@@ -2,19 +2,18 @@
 const bcrypt = require("bcrypt");
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
+const emailService = require("../../utils/emailService");
 const { OAuth2Client } = require("google-auth-library");
 
 require("dotenv").config({ quiet: true });
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
-const FIREBASE_API_KEY =
-  process.env.FIREBASE_API_KEY ||
-  process.env.REACT_APP_FIREBASE_API_KEY ||
-  "AIzaSyDq7gXLTGdezx3SCyjJ1VCeHYF4E4Ce3t4";
-const FIREBASE_CONTINUE_URL =
-  process.env.FIREBASE_CONTINUE_URL ||
-  process.env.FRONTEND_URL ||
-  "https://pennywise-frontend-rnxv.onrender.com/login";
+const OTP_EXPIRY_MINUTES = 5;
+const isOtpPreviewEnabled =
+  process.env.ALLOW_OTP_PREVIEW === "true" ||
+  /resend\.dev/i.test(process.env.RESEND_FROM_EMAIL || "");
+
+const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
 
 const runQuery = async (sql, params = []) => {
   const [rows] = await db.promise().query(sql, params);
@@ -55,16 +54,23 @@ const normalizeUsername = (value) =>
 const normalizeEmail = (value) =>
   typeof value === "string" ? value.trim().toLowerCase() : "";
 
+const createExpiryDate = () =>
+  new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
+const EMAIL_SEND_TIMEOUT_MS = 20000;
+
 const isBcryptHash = (value) =>
   typeof value === "string" && /^\$2[aby]\$\d{2}\$/.test(value);
 
 const getUserId = (user) => user?.user_id ?? user?.id;
 const getUserName = (user) => user?.name ?? user?.username ?? "";
 const getUserEmail = (user) => user?.email ?? "";
+const getPasswordValue = (user) => user?.password_hash ?? user?.password ?? "";
 const getPasswordColumn = (user) =>
   Object.prototype.hasOwnProperty.call(user, "password_hash") ? "password_hash" : "password";
 const getUserIdColumn = (user) =>
   Object.prototype.hasOwnProperty.call(user, "user_id") ? "user_id" : "id";
+const isUserVerified = (user) =>
+  Object.prototype.hasOwnProperty.call(user, "is_verified") ? Boolean(user.is_verified) : true;
 const getRequestUserId = (requestUser) => {
   const candidates = [requestUser?.id, requestUser?.user_id];
 
@@ -103,81 +109,31 @@ const getUserByEmail = async (email) => {
   }
 };
 
-const firebaseRequest = async (endpoint, payload) => {
-  const response = await fetch(
-    `https://identitytoolkit.googleapis.com/v1/${endpoint}?key=${FIREBASE_API_KEY}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    }
-  );
-  const data = await response.json();
+const sendOtpWithTimeout = async (email, otp) => {
+  try {
+    const result = await Promise.race([
+      emailService.sendOTP(email, otp),
+      new Promise((resolve) => {
+        setTimeout(() => resolve(false), EMAIL_SEND_TIMEOUT_MS);
+      })
+    ]);
 
-  if (!response.ok) {
-    const firebaseMessage = data?.error?.message || "FIREBASE_AUTH_ERROR";
-    const error = new Error(firebaseMessage);
-    error.code = firebaseMessage;
-    throw error;
-  }
-
-  return data;
-};
-
-const mapFirebaseError = (error, fallbackMessage) => {
-  switch (error?.code) {
-    case "EMAIL_EXISTS":
-      return "Email already exists";
-    case "EMAIL_NOT_FOUND":
-      return "User not found";
-    case "INVALID_LOGIN_CREDENTIALS":
-    case "INVALID_PASSWORD":
-      return "Invalid email or password";
-    case "TOO_MANY_ATTEMPTS_TRY_LATER":
-      return "Too many attempts. Please try again later.";
-    case "OPERATION_NOT_ALLOWED":
-      return "Email/password sign-in is not enabled in Firebase.";
-    default:
-      return fallbackMessage;
+    return Boolean(result);
+  } catch (error) {
+    return false;
   }
 };
 
-const sendFirebaseActionEmail = async (requestType, email, idToken = null) => {
-  const payload = {
-    requestType,
-    email,
-    continueUrl: FIREBASE_CONTINUE_URL
-  };
+const buildOtpResponse = (message, otp, deliveryConfirmed) => {
+  const response = { message };
 
-  if (idToken) {
-    payload.idToken = idToken;
+  if (!deliveryConfirmed && isOtpPreviewEnabled) {
+    response.otpPreview = otp;
+    response.otpPreviewMessage =
+      "Email delivery is not fully configured yet, so your OTP is shown here to keep the site working.";
   }
 
-  return firebaseRequest("accounts:sendOobCode", payload);
-};
-
-const getFirebaseAccountInfo = async (idToken) =>
-  firebaseRequest("accounts:lookup", { idToken });
-
-const signInWithFirebasePassword = async (email, password) =>
-  firebaseRequest("accounts:signInWithPassword", {
-    email,
-    password,
-    returnSecureToken: true
-  });
-
-const getIdentifierEmail = async (identifier) => {
-  if (identifier.includes("@")) {
-    return normalizeEmail(identifier);
-  }
-
-  const nameColumn = await getUsersNameColumn();
-  const rows = await runQuery(
-    `SELECT email FROM users WHERE LOWER(${nameColumn}) = LOWER(?) LIMIT 1`,
-    [identifier]
-  );
-
-  return rows[0]?.email ? normalizeEmail(rows[0].email) : "";
+  return response;
 };
 
 const insertUser = async ({ name, email, passwordHash, isVerified }) => {
@@ -283,34 +239,80 @@ exports.signup = async (req, res) => {
       return res.status(400).json({ error: "Username already taken" });
     }
 
+    await runQuery("DELETE FROM otps WHERE email = ?", [email]);
     await runQuery(
       "DELETE FROM users WHERE (email = ? OR name = ?) AND is_verified = 0",
       [email, name]
     );
 
     const passwordHash = await bcrypt.hash(password, 10);
-    const firebaseUser = await firebaseRequest("accounts:signUp", {
-      email,
-      password,
-      returnSecureToken: true
-    });
-
-    await sendFirebaseActionEmail("VERIFY_EMAIL", email, firebaseUser.idToken);
     await insertUser({ name, email, passwordHash, isVerified: false });
 
-    return res.status(201).json({
-      message: "Account created. Please check your email and click the verification link before logging in."
-    });
+    const otp = generateOTP();
+    await runQuery(
+      "INSERT INTO otps (email, otp_code, purpose, expires_at) VALUES (?, ?, 'SIGNUP', ?)",
+      [email, otp, createExpiryDate()]
+    );
+
+    try {
+      const delivery = await sendOtpWithTimeout(email, otp);
+      if (!delivery) {
+        console.error("OTP email send was not confirmed for:", email);
+      }
+
+      return res.status(201).json(
+        buildOtpResponse(
+          "User registered. Please check email for OTP, including Spam or Promotions.",
+          otp,
+          delivery
+        )
+      );
+    } catch (emailError) {
+      console.error("OTP email exception:", emailError.message);
+      return res.status(201).json(
+        buildOtpResponse(
+          "User registered. Please check email for OTP, including Spam or Promotions.",
+          otp,
+          false
+        )
+      );
+    }
   } catch (error) {
     console.error("signup error:", error.message);
-    return res.status(400).json({ error: mapFirebaseError(error, "Unable to create account") });
+    return res.status(500).json({ error: "Server error" });
   }
 };
 
 exports.verifyOtp = async (req, res) => {
-  return res.status(410).json({
-    error: "OTP verification has been replaced. Please use the verification link sent to your email."
-  });
+  const email = normalizeEmail(req.body?.email);
+  const otpCode = normalizeUsername(req.body?.otpCode);
+
+  if (!email || !otpCode) {
+    return res.status(400).json({ error: "Email and OTP code are required" });
+  }
+
+  try {
+    const rows = await runQuery(
+      "SELECT otp_id, purpose FROM otps WHERE email = ? AND otp_code = ? AND expires_at > ? ORDER BY created_at DESC LIMIT 1",
+      [email, otpCode, new Date()]
+    );
+
+    if (rows.length === 0) {
+      return res.status(400).json({ error: "Invalid or expired OTP" });
+    }
+
+    await runQuery("DELETE FROM otps WHERE otp_id = ?", [rows[0].otp_id]);
+
+    if (rows[0].purpose === "SIGNUP") {
+      await runQuery("UPDATE users SET is_verified = 1 WHERE email = ?", [email]);
+      return res.json({ message: "User verified successfully. You can now login." });
+    }
+
+    return res.json({ message: "OTP verified. Proceed to next step." });
+  } catch (error) {
+    console.error("verifyOtp error:", error.message);
+    return res.status(500).json({ error: "Database error" });
+  }
 };
 
 exports.login = async (req, res) => {
@@ -322,46 +324,64 @@ exports.login = async (req, res) => {
   }
 
   try {
-    const email = await getIdentifierEmail(name);
+    const isEmail = name.includes("@");
+    const identifier = isEmail ? normalizeEmail(name) : name;
+    const nameColumn = await getUsersNameColumn();
+    const rows = await runQuery(
+      isEmail
+        ? "SELECT * FROM users WHERE LOWER(email) = LOWER(?)"
+        : `SELECT * FROM users WHERE LOWER(${nameColumn}) = LOWER(?)`,
+      [identifier]
+    );
 
-    if (!email) {
-      return res.status(400).json({ error: "Invalid email or password" });
+    if (rows.length === 0) {
+      return res.status(400).json({ error: "Invalid name or password" });
     }
 
-    const signInResult = await signInWithFirebasePassword(email, password);
-    const accountInfo = await getFirebaseAccountInfo(signInResult.idToken);
-    const firebaseUser = accountInfo?.users?.[0];
+    let matchedUser = null;
+    let matchedStoredPassword = "";
+    let unverifiedPasswordMatch = false;
+    for (const candidateUser of rows) {
+      const storedPassword = getPasswordValue(candidateUser);
+      const validPassword = isBcryptHash(storedPassword)
+        ? await bcrypt.compare(password, storedPassword)
+        : password === storedPassword;
 
-    if (!firebaseUser?.emailVerified) {
-      return res.status(403).json({
-        error: "Email not verified. Please check your inbox and click the verification link."
-      });
+      if (!validPassword) {
+        continue;
+      }
+
+      if (!isUserVerified(candidateUser)) {
+        unverifiedPasswordMatch = true;
+        continue;
+      }
+
+      matchedUser = candidateUser;
+      matchedStoredPassword = storedPassword;
+      break;
     }
 
-    let user = await getUserByEmail(email);
-    const passwordHash = await bcrypt.hash(password, 10);
+    if (!matchedUser) {
+      if (unverifiedPasswordMatch) {
+        return res
+          .status(403)
+          .json({ error: "Account not verified. Please verify your OTP." });
+      }
+      return res.status(400).json({ error: "Invalid name or password" });
+    }
 
-    if (!user) {
-      const derivedName = await buildUniqueUsername(
-        firebaseUser.displayName || email.split("@")[0],
-        firebaseUser.localId || email
-      );
-      const insertResult = await insertUser({
-        name: derivedName,
-        email,
-        passwordHash,
-        isVerified: true
-      });
-      user = { user_id: insertResult.insertId, name: derivedName, email, is_verified: 1 };
-    } else {
+    const user = matchedUser;
+    const storedPassword = matchedStoredPassword;
+
+    if (!isBcryptHash(storedPassword)) {
+      const upgradedHash = await bcrypt.hash(password, 10);
       const passwordColumn = getPasswordColumn(user);
       const idColumn = getUserIdColumn(user);
-      await runQuery(
-        `UPDATE users SET is_verified = 1, ${passwordColumn} = ? WHERE ${idColumn} = ?`,
-        [passwordHash, getUserId(user)]
-      );
-      user.is_verified = 1;
-      user[passwordColumn] = passwordHash;
+      await runQuery(`UPDATE users SET ${passwordColumn} = ? WHERE ${idColumn} = ?`, [
+        upgradedHash,
+        getUserId(user)
+      ]);
+      user[passwordColumn] = upgradedHash;
     }
 
     const token = createToken(user);
@@ -372,7 +392,7 @@ exports.login = async (req, res) => {
     });
   } catch (error) {
     console.error("login error:", error.message);
-    return res.status(400).json({ error: mapFirebaseError(error, "Unable to sign in") });
+    return res.status(500).json({ error: "Database error" });
   }
 };
 
@@ -402,30 +422,42 @@ exports.changePassword = async (req, res) => {
   try {
     const hasUserIdColumn = await hasUsersColumn("user_id");
     const idColumn = hasUserIdColumn ? "user_id" : "id";
-    const users = await runQuery(`SELECT * FROM users WHERE ${idColumn} = ? LIMIT 1`, [userId]);
+    const hasPasswordHashColumn = await hasUsersColumn("password_hash");
+    const hasPasswordColumn = await hasUsersColumn("password");
+
+    if (!hasPasswordHashColumn && !hasPasswordColumn) {
+      return res.status(500).json({ error: "Password storage is not configured correctly" });
+    }
+
+    const selectedColumns = [idColumn];
+    if (hasPasswordHashColumn) {
+      selectedColumns.push("password_hash");
+    }
+    if (hasPasswordColumn) {
+      selectedColumns.push("password");
+    }
+
+    const users = await runQuery(
+      `SELECT ${selectedColumns.join(", ")} FROM users WHERE ${idColumn} = ? LIMIT 1`,
+      [userId]
+    );
 
     if (users.length === 0) {
       return res.status(404).json({ error: "User not found" });
     }
 
     const user = users[0];
-    const email = normalizeEmail(user.email);
-    if (!email) {
-      return res.status(400).json({ error: "User email is missing" });
+    const storedPassword = getPasswordValue(user);
+    if (!storedPassword) {
+      return res.status(400).json({ error: "Current password is not set for this account" });
     }
 
-    const signInResult = await signInWithFirebasePassword(email, oldPassword);
-    await firebaseRequest("accounts:update", {
-      idToken: signInResult.idToken,
-      password: newPassword,
-      returnSecureToken: false
-    });
+    const isCurrentPasswordValid = isBcryptHash(storedPassword)
+      ? await bcrypt.compare(oldPassword, storedPassword)
+      : oldPassword === storedPassword;
 
-    const hasPasswordHashColumn = await hasUsersColumn("password_hash");
-    const hasPasswordColumn = await hasUsersColumn("password");
-
-    if (!hasPasswordHashColumn && !hasPasswordColumn) {
-      return res.status(500).json({ error: "Password storage is not configured correctly" });
+    if (!isCurrentPasswordValid) {
+      return res.status(400).json({ error: "Old password is incorrect" });
     }
 
     const passwordHash = await bcrypt.hash(newPassword, 10);
@@ -449,7 +481,7 @@ exports.changePassword = async (req, res) => {
     return res.json({ message: "Password changed successfully." });
   } catch (error) {
     console.error("changePassword error:", error.message);
-    return res.status(400).json({ error: mapFirebaseError(error, "Unable to update password right now") });
+    return res.status(500).json({ error: "Unable to update password right now" });
   }
 };
 
@@ -467,20 +499,81 @@ exports.forgotPassword = async (req, res) => {
       return res.status(400).json({ error: "User not found" });
     }
 
-    await sendFirebaseActionEmail("PASSWORD_RESET", email);
-    return res.json({
-      message: "Password reset email sent. Please check your inbox and follow the link."
-    });
+    const otp = generateOTP();
+    await runQuery(
+      "INSERT INTO otps (email, otp_code, purpose, expires_at) VALUES (?, ?, 'PASSWORD_RESET', ?)",
+      [email, otp, createExpiryDate()]
+    );
+
+    const delivery = await sendOtpWithTimeout(email, otp);
+    if (!delivery) {
+      console.error("Password reset OTP email send was not confirmed for:", email);
+    }
+
+    return res.json(
+      buildOtpResponse(
+        "OTP sent to email for password reset. Please check Spam or Promotions too.",
+        otp,
+        delivery
+      )
+    );
   } catch (error) {
     console.error("forgotPassword error:", error.message);
-    return res.status(400).json({ error: mapFirebaseError(error, "Failed to send password reset email") });
+    return res.status(500).json({ error: "Failed to generate OTP" });
   }
 };
 
 exports.resetPassword = async (req, res) => {
-  return res.status(410).json({
-    error: "Password reset now uses an email link. Please use the link sent to your inbox."
-  });
+  const email = normalizeEmail(req.body?.email);
+  const otpCode = normalizeUsername(req.body?.otpCode);
+  const newPassword = req.body?.newPassword;
+
+  if (!email || !otpCode || !newPassword) {
+    return res
+      .status(400)
+      .json({ error: "Email, OTP code, and new password are required" });
+  }
+
+  try {
+    const rows = await runQuery(
+      "SELECT otp_id FROM otps WHERE email = ? AND otp_code = ? AND purpose = 'PASSWORD_RESET' AND expires_at > ? ORDER BY created_at DESC LIMIT 1",
+      [email, otpCode, new Date()]
+    );
+
+    if (rows.length === 0) {
+      return res.status(400).json({ error: "Invalid or expired OTP" });
+    }
+
+    const hasPasswordHashColumn = await hasUsersColumn("password_hash");
+    const hasPasswordColumn = await hasUsersColumn("password");
+    if (!hasPasswordHashColumn && !hasPasswordColumn) {
+      return res.status(500).json({ error: "Password storage is not configured correctly" });
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    const updates = [];
+    const updateParams = [];
+
+    if (hasPasswordHashColumn) {
+      updates.push("password_hash = ?");
+      updateParams.push(passwordHash);
+    }
+
+    if (hasPasswordColumn) {
+      updates.push("password = ?");
+      updateParams.push(passwordHash);
+    }
+
+    updateParams.push(email);
+
+    await runQuery("DELETE FROM otps WHERE email = ? AND purpose = 'PASSWORD_RESET'", [email]);
+    await runQuery(`UPDATE users SET ${updates.join(", ")} WHERE email = ?`, updateParams);
+
+    return res.json({ message: "Password reset successful. You can now login." });
+  } catch (error) {
+    console.error("resetPassword error:", error.message);
+    return res.status(500).json({ error: "Server error" });
+  }
 };
 
 exports.logout = (req, res) => {
