@@ -4,9 +4,14 @@ require("dotenv").config({ quiet: true });
 let transporter = null;
 let etherealAccount = null;
 const EMAIL_RETRY_DELAY_MS = 1500;
+const RESEND_API_URL = "https://api.resend.com/emails";
 
 const normalizeEnvValue = (value) =>
   typeof value === "string" ? value.trim() : "";
+
+const getResendApiKey = () => normalizeEnvValue(process.env.RESEND_API_KEY);
+const getResendFromAddress = () =>
+  normalizeEnvValue(process.env.RESEND_FROM_EMAIL) || "Pennywise <onboarding@resend.dev>";
 
 const isPlaceholderEmailConfig = (emailUser, emailPass) => {
   const normalizedUser = normalizeEnvValue(emailUser).toLowerCase();
@@ -93,7 +98,60 @@ const wait = (ms) =>
     setTimeout(resolve, ms);
   });
 
+const sendViaResend = async ({ to, subject, text, html }) => {
+  const apiKey = getResendApiKey();
+
+  if (!apiKey) {
+    return false;
+  }
+
+  const response = await fetch(RESEND_API_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      from: getResendFromAddress(),
+      to: [to],
+      subject,
+      text,
+      html
+    })
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Resend API failed: ${response.status} ${errorText}`);
+  }
+
+  console.log(`Resend email accepted for ${to}`);
+  return true;
+};
+
 exports.sendOTP = async (email, otp) => {
+  const subject = "Pennywise - Your OTP Code";
+  const text = `Your Pennywise OTP is ${otp}. It expires in 5 minutes.`;
+  const html = `
+        <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 420px; margin: 0 auto; color: #111827;">
+          <h2 style="color: #0066ff;">Pennywise</h2>
+          <p>Use this verification code to finish creating your account:</p>
+          <div style="background: #f0f4ff; padding: 16px; border-radius: 8px; text-align: center; margin: 16px 0;">
+            <span style="font-size: 32px; font-weight: bold; letter-spacing: 6px; color: #0066ff;">${otp}</span>
+          </div>
+          <p style="margin: 0 0 10px;">This code expires in 5 minutes.</p>
+          <p style="margin: 0; color: #6b7280; font-size: 13px;">If you did not request this, you can ignore this email.</p>
+        </div>
+      `;
+
+  try {
+    if (await sendViaResend({ to: email, subject, text, html })) {
+      return true;
+    }
+  } catch (error) {
+    console.error("Resend send failed:", error.message);
+  }
+
   const sendOtpMail = async () => {
     const mailTransporter = await getTransporter();
     if (!mailTransporter) {
@@ -108,19 +166,9 @@ exports.sendOTP = async (email, otp) => {
     const mailOptions = {
       from: `"Pennywise" <${fromAddress}>`,
       to: email,
-      subject: "Pennywise - Your OTP Code",
-      text: `Your Pennywise OTP is ${otp}. It expires in 5 minutes.`,
-      html: `
-        <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 420px; margin: 0 auto; color: #111827;">
-          <h2 style="color: #0066ff;">Pennywise</h2>
-          <p>Use this verification code to finish creating your account:</p>
-          <div style="background: #f0f4ff; padding: 16px; border-radius: 8px; text-align: center; margin: 16px 0;">
-            <span style="font-size: 32px; font-weight: bold; letter-spacing: 6px; color: #0066ff;">${otp}</span>
-          </div>
-          <p style="margin: 0 0 10px;">This code expires in 5 minutes.</p>
-          <p style="margin: 0; color: #6b7280; font-size: 13px;">If you did not request this, you can ignore this email.</p>
-        </div>
-      `
+      subject,
+      text,
+      html
     };
 
     const info = await mailTransporter.sendMail(mailOptions);
