@@ -49,6 +49,9 @@ const getTransporter = async () => {
     try {
       const gmailTransporter = nodemailer.createTransport({
         service: "gmail",
+        connectionTimeout: 10000,
+        greetingTimeout: 10000,
+        socketTimeout: 15000,
         auth: {
           user: emailUser,
           pass: emailPass

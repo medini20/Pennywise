@@ -54,6 +54,7 @@ const normalizeEmail = (value) =>
 
 const createExpiryDate = () =>
   new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
+const EMAIL_SEND_TIMEOUT_MS = 15000;
 
 const isBcryptHash = (value) =>
   typeof value === "string" && /^\$2[aby]\$\d{2}\$/.test(value);
@@ -103,6 +104,21 @@ const getUserByEmail = async (email) => {
       return null;
     }
     throw error;
+  }
+};
+
+const sendOtpWithTimeout = async (email, otp) => {
+  try {
+    const result = await Promise.race([
+      emailService.sendOTP(email, otp),
+      new Promise((resolve) => {
+        setTimeout(() => resolve(false), EMAIL_SEND_TIMEOUT_MS);
+      })
+    ]);
+
+    return Boolean(result);
+  } catch (error) {
+    return false;
   }
 };
 
@@ -225,7 +241,7 @@ exports.signup = async (req, res) => {
     );
 
     try {
-      const delivery = await emailService.sendOTP(email, otp);
+      const delivery = await sendOtpWithTimeout(email, otp);
       if (delivery) {
         return res
           .status(201)
@@ -473,7 +489,7 @@ exports.forgotPassword = async (req, res) => {
       [email, otp, createExpiryDate()]
     );
 
-    const delivery = await emailService.sendOTP(email, otp);
+    const delivery = await sendOtpWithTimeout(email, otp);
     if (delivery) {
       return res.json({ message: "OTP sent to email for password reset." });
     }
