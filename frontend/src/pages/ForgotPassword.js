@@ -111,6 +111,9 @@ function ForgotPassword() {
               placeholder="Email"
               required
             />
+            <p style={styles.helperText}>
+              For demo OTP delivery, use a personal email like Gmail. Institutional emails may delay or block OTPs.
+            </p>
 
             <div style={{ display: "flex", gap: "12px", alignItems: "stretch", flexDirection: isMobile ? "column" : "row" }}>
               <input
@@ -303,6 +306,12 @@ const styles = {
     outline: "none",
     transition: "border-color 0.3s",
     boxSizing: "border-box"
+  },
+  helperText: {
+    fontSize: "12px",
+    color: "#6b7280",
+    marginTop: "-6px",
+    lineHeight: "1.5"
   },
   button: {
     marginTop: "5px",

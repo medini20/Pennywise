@@ -6,6 +6,7 @@ import useIsMobile from "../hooks/useIsMobile";
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:5001";
 
 const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID;
+const SHOW_GOOGLE_SIGNIN = false;
 
 // Password strength calculator
 const getPasswordStrength = (password) => {
@@ -237,6 +238,9 @@ function Signup() {
                 style={{ ...styles.input, ...(isMobile ? mobileStyles.input : {}) }}
                 required
               />
+              <p style={styles.helperText}>
+                For demo OTP delivery, use a personal email like Gmail. Institutional emails may delay or block OTPs.
+              </p>
             </div>
 
             <div>
@@ -323,18 +327,15 @@ function Signup() {
             </button>
 
             {/* Google Sign-In */}
-            <div style={styles.orDivider}>
-              <div style={styles.orLine}></div>
-              <span style={styles.orText}>OR</span>
-              <div style={styles.orLine}></div>
-            </div>
-
-            {GOOGLE_CLIENT_ID ? (
-              <div ref={googleBtnRef} style={{ display: "flex", justifyContent: "center", width: "100%" }}></div>
-            ) : (
-              <p style={{ textAlign: "center", fontSize: "12px", color: "#6b7280" }}>
-                Google Sign-In not configured.
-              </p>
+            {SHOW_GOOGLE_SIGNIN && GOOGLE_CLIENT_ID && (
+              <>
+                <div style={styles.orDivider}>
+                  <div style={styles.orLine}></div>
+                  <span style={styles.orText}>OR</span>
+                  <div style={styles.orLine}></div>
+                </div>
+                <div ref={googleBtnRef} style={{ display: "flex", justifyContent: "center", width: "100%" }}></div>
+              </>
             )}
           </form>
         ) : (
@@ -443,6 +444,12 @@ const styles = {
     color: "#e5e7eb",
     display: "block",
     marginBottom: "6px",
+  },
+  helperText: {
+    fontSize: "12px",
+    color: "#6b7280",
+    marginTop: "8px",
+    lineHeight: "1.5"
   },
   input: {
     width: "100%",
