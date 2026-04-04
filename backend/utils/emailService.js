@@ -5,6 +5,7 @@ let transporter = null;
 let etherealAccount = null;
 const EMAIL_RETRY_DELAY_MS = 1500;
 const RESEND_API_URL = "https://api.resend.com/emails";
+const SENDGRID_API_URL = "https://api.sendgrid.com/v3/mail/send";
 
 const normalizeEnvValue = (value) =>
   typeof value === "string" ? value.trim() : "";
@@ -12,6 +13,9 @@ const normalizeEnvValue = (value) =>
 const getResendApiKey = () => normalizeEnvValue(process.env.RESEND_API_KEY);
 const getResendFromAddress = () =>
   normalizeEnvValue(process.env.RESEND_FROM_EMAIL) || "Pennywise <onboarding@resend.dev>";
+const getSendGridApiKey = () => normalizeEnvValue(process.env.SENDGRID_API_KEY);
+const getSendGridFromAddress = () =>
+  normalizeEnvValue(process.env.SENDGRID_FROM_EMAIL) || normalizeEnvValue(process.env.EMAIL_USER);
 
 const isPlaceholderEmailConfig = (emailUser, emailPass) => {
   const normalizedUser = normalizeEnvValue(emailUser).toLowerCase();
@@ -129,6 +133,51 @@ const sendViaResend = async ({ to, subject, text, html }) => {
   return true;
 };
 
+const sendViaSendGrid = async ({ to, subject, text, html }) => {
+  const apiKey = getSendGridApiKey();
+  const fromAddress = getSendGridFromAddress();
+
+  if (!apiKey || !fromAddress) {
+    return false;
+  }
+
+  const response = await fetch(SENDGRID_API_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      personalizations: [
+        {
+          to: [{ email: to }],
+          subject
+        }
+      ],
+      from: {
+        email: fromAddress,
+        name: "Pennywise"
+      },
+      reply_to: {
+        email: fromAddress,
+        name: "Pennywise"
+      },
+      content: [
+        { type: "text/plain", value: text },
+        { type: "text/html", value: html }
+      ]
+    })
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`SendGrid API failed: ${response.status} ${errorText}`);
+  }
+
+  console.log(`SendGrid email accepted for ${to}`);
+  return true;
+};
+
 exports.sendOTP = async (email, otp) => {
   const subject = "Pennywise - Your OTP Code";
   const text = `Your Pennywise OTP is ${otp}. It expires in 5 minutes.`;
@@ -143,6 +192,14 @@ exports.sendOTP = async (email, otp) => {
           <p style="margin: 0; color: #6b7280; font-size: 13px;">If you did not request this, you can ignore this email.</p>
         </div>
       `;
+
+  try {
+    if (await sendViaSendGrid({ to: email, subject, text, html })) {
+      return true;
+    }
+  } catch (error) {
+    console.error("SendGrid send failed:", error.message);
+  }
 
   try {
     if (await sendViaResend({ to: email, subject, text, html })) {

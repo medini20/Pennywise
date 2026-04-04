@@ -10,8 +10,8 @@ require("dotenv").config({ quiet: true });
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 const OTP_EXPIRY_MINUTES = 5;
 const isOtpPreviewEnabled =
-  process.env.ALLOW_OTP_PREVIEW === "true" ||
-  /resend\.dev/i.test(process.env.RESEND_FROM_EMAIL || "");
+  process.env.ALLOW_OTP_PREVIEW === "true" &&
+  !process.env.SENDGRID_API_KEY;
 
 const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
 
