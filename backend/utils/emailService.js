@@ -64,10 +64,14 @@ const getTransporter = async () => {
   if (!isPlaceholderEmailConfig(emailUser, emailPass)) {
     try {
       const gmailTransporter = nodemailer.createTransport({
-        service: "gmail",
-        connectionTimeout: 10000,
+        host: "smtp.gmail.com",
+        port: 587,
+        secure: false,
+        requireTLS: true,
+        connectionTimeout: 15000,
         greetingTimeout: 10000,
-        socketTimeout: 15000,
+        socketTimeout: 20000,
+        family: 4,
         auth: {
           user: emailUser,
           pass: emailPass
