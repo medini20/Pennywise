@@ -36,6 +36,8 @@ function Signup() {
   const [step, setStep] = useState(1);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [otpPreview, setOtpPreview] = useState("");
+  const [otpPreviewMessage, setOtpPreviewMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [nameStatus, setUsernameStatus] = useState(null);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
@@ -123,7 +125,7 @@ function Signup() {
 
   const handleSignup = async (e) => {
     e.preventDefault();
-    setError(""); setMessage(""); setLoading(true);
+    setError(""); setMessage(""); setOtpPreview(""); setOtpPreviewMessage(""); setLoading(true);
 
     if (formData.password !== confirmPassword) {
       setError("Passwords do not match.");
@@ -147,6 +149,8 @@ function Signup() {
 
       if (response.ok) {
         setMessage(data.message);
+        setOtpPreview(data.otpPreview || "");
+        setOtpPreviewMessage(data.otpPreviewMessage || "");
         setStep(2);
       } else {
         setError(data.error || "Signup failed");
@@ -342,6 +346,12 @@ function Signup() {
           <form onSubmit={handleVerifyOtp} style={{ ...styles.form, ...(isMobile ? mobileStyles.form : {}) }}>
             {error && <div style={{ ...styles.errorBanner, ...(isMobile ? mobileStyles.banner : {}) }}>{error}</div>}
             {message && <div style={{ ...styles.successBanner, ...(isMobile ? mobileStyles.banner : {}) }}>{message}</div>}
+            {otpPreview && (
+              <div style={{ ...styles.previewBanner, ...(isMobile ? mobileStyles.banner : {}) }}>
+                <div style={styles.previewLabel}>{otpPreviewMessage || "Use this OTP if the email has not arrived yet."}</div>
+                <div style={styles.previewCode}>{otpPreview}</div>
+              </div>
+            )}
 
             <input
               type="text"
@@ -491,6 +501,25 @@ const styles = {
     padding: "12px",
     borderRadius: "4px",
     fontSize: "14px",
+  },
+  previewBanner: {
+    background: "rgba(250, 204, 21, 0.08)",
+    borderLeft: "4px solid #facc15",
+    color: "#fde68a",
+    padding: "12px",
+    borderRadius: "4px",
+    fontSize: "14px",
+  },
+  previewLabel: {
+    marginBottom: "8px",
+    lineHeight: "1.5",
+  },
+  previewCode: {
+    fontSize: "28px",
+    fontWeight: "700",
+    letterSpacing: "6px",
+    color: "#ffffff",
+    textAlign: "center",
   },
   orDivider: {
     display: "flex",

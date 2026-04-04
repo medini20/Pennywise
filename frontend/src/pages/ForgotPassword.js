@@ -12,6 +12,8 @@ function ForgotPassword() {
   const [step, setStep] = useState(1);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [otpPreview, setOtpPreview] = useState("");
+  const [otpPreviewMessage, setOtpPreviewMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const isMobile = useIsMobile();
@@ -20,6 +22,8 @@ function ForgotPassword() {
     e.preventDefault();
     setError("");
     setMessage("");
+    setOtpPreview("");
+    setOtpPreviewMessage("");
     setLoading(true);
 
     try {
@@ -32,6 +36,8 @@ function ForgotPassword() {
 
       if (response.ok) {
         setMessage(data.message);
+        setOtpPreview(data.otpPreview || "");
+        setOtpPreviewMessage(data.otpPreviewMessage || "");
         setStep(2);
       } else {
         setError(data.error || "Request failed");
@@ -100,6 +106,12 @@ function ForgotPassword() {
 
         {error && <div style={{ ...styles.errorBanner, ...(isMobile ? mobileStyles.banner : {}) }}>{error}</div>}
         {message && <div style={{ ...styles.successBanner, ...(isMobile ? mobileStyles.banner : {}) }}>{message}</div>}
+        {otpPreview && (
+          <div style={{ ...styles.previewBanner, ...(isMobile ? mobileStyles.banner : {}) }}>
+            <div style={styles.previewLabel}>{otpPreviewMessage || "Use this OTP if the email has not arrived yet."}</div>
+            <div style={styles.previewCode}>{otpPreview}</div>
+          </div>
+        )}
 
         {step === 1 ? (
           <form onSubmit={handleRequestOtp} style={{ ...styles.form, ...(isMobile ? mobileStyles.form : {}) }}>
@@ -369,6 +381,29 @@ const styles = {
     maxWidth: "400px",
     boxSizing: "border-box",
     marginBottom: "10px"
+  },
+  previewBanner: {
+    background: "rgba(250, 204, 21, 0.08)",
+    borderLeft: "4px solid #facc15",
+    color: "#fde68a",
+    padding: "12px",
+    borderRadius: "4px",
+    fontSize: "14px",
+    width: "100%",
+    maxWidth: "400px",
+    boxSizing: "border-box",
+    marginBottom: "10px"
+  },
+  previewLabel: {
+    marginBottom: "8px",
+    lineHeight: "1.5"
+  },
+  previewCode: {
+    fontSize: "28px",
+    fontWeight: "700",
+    letterSpacing: "6px",
+    color: "#ffffff",
+    textAlign: "center"
   },
   footer: {
     marginTop: "32px",

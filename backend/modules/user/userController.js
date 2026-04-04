@@ -9,7 +9,9 @@ require("dotenv").config({ quiet: true });
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 const OTP_EXPIRY_MINUTES = 5;
-const isLocalOtpFallbackEnabled = process.env.NODE_ENV !== "production";
+const isOtpPreviewEnabled =
+  process.env.ALLOW_OTP_PREVIEW === "true" ||
+  /resend\.dev/i.test(process.env.RESEND_FROM_EMAIL || "");
 
 const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
 
@@ -120,6 +122,18 @@ const sendOtpWithTimeout = async (email, otp) => {
   } catch (error) {
     return false;
   }
+};
+
+const buildOtpResponse = (message, otp, deliveryConfirmed) => {
+  const response = { message };
+
+  if (!deliveryConfirmed && isOtpPreviewEnabled) {
+    response.otpPreview = otp;
+    response.otpPreviewMessage =
+      "Email delivery is not fully configured yet, so your OTP is shown here to keep the site working.";
+  }
+
+  return response;
 };
 
 const insertUser = async ({ name, email, passwordHash, isVerified }) => {
@@ -246,14 +260,22 @@ exports.signup = async (req, res) => {
         console.error("OTP email send was not confirmed for:", email);
       }
 
-      return res.status(201).json({
-        message: "User registered. Please check email for OTP, including Spam or Promotions."
-      });
+      return res.status(201).json(
+        buildOtpResponse(
+          "User registered. Please check email for OTP, including Spam or Promotions.",
+          otp,
+          delivery
+        )
+      );
     } catch (emailError) {
       console.error("OTP email exception:", emailError.message);
-      return res.status(201).json({
-        message: "User registered. Please check email for OTP, including Spam or Promotions."
-      });
+      return res.status(201).json(
+        buildOtpResponse(
+          "User registered. Please check email for OTP, including Spam or Promotions.",
+          otp,
+          false
+        )
+      );
     }
   } catch (error) {
     console.error("signup error:", error.message);
@@ -488,9 +510,13 @@ exports.forgotPassword = async (req, res) => {
       console.error("Password reset OTP email send was not confirmed for:", email);
     }
 
-    return res.json({
-      message: "OTP sent to email for password reset. Please check Spam or Promotions too."
-    });
+    return res.json(
+      buildOtpResponse(
+        "OTP sent to email for password reset. Please check Spam or Promotions too.",
+        otp,
+        delivery
+      )
+    );
   } catch (error) {
     console.error("forgotPassword error:", error.message);
     return res.status(500).json({ error: "Failed to generate OTP" });
