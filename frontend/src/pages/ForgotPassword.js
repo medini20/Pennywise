@@ -6,14 +6,9 @@ const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:500
 
 function ForgotPassword() {
   const [email, setEmail] = useState("");
-  const [otpCode, setOtpCode] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
   const [step, setStep] = useState(1);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
-  const [otpPreview, setOtpPreview] = useState("");
-  const [otpPreviewMessage, setOtpPreviewMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const isMobile = useIsMobile();
@@ -22,8 +17,6 @@ function ForgotPassword() {
     e.preventDefault();
     setError("");
     setMessage("");
-    setOtpPreview("");
-    setOtpPreviewMessage("");
     setLoading(true);
 
     try {
@@ -36,45 +29,9 @@ function ForgotPassword() {
 
       if (response.ok) {
         setMessage(data.message);
-        setOtpPreview(data.otpPreview || "");
-        setOtpPreviewMessage(data.otpPreviewMessage || "");
         setStep(2);
       } else {
         setError(data.error || "Request failed");
-      }
-    } catch (err) {
-      setError("Network error. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const passwordsMatch = newPassword && confirmPassword && newPassword === confirmPassword;
-  const showMismatch = confirmPassword.length > 0 && newPassword !== confirmPassword;
-
-  const handleResetPassword = async (e) => {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
-
-    if (newPassword !== confirmPassword) {
-      setError("Passwords do not match.");
-      setLoading(false);
-      return;
-    }
-
-    try {
-      const response = await fetch(`${API_BASE_URL}/auth/reset-password`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, otpCode, newPassword })
-      });
-      const data = await response.json();
-
-      if (response.ok) {
-        navigate("/login");
-      } else {
-        setError(data.error || "Password reset failed");
       }
     } catch (err) {
       setError("Network error. Please try again.");
@@ -106,12 +63,6 @@ function ForgotPassword() {
 
         {error && <div style={{ ...styles.errorBanner, ...(isMobile ? mobileStyles.banner : {}) }}>{error}</div>}
         {message && <div style={{ ...styles.successBanner, ...(isMobile ? mobileStyles.banner : {}) }}>{message}</div>}
-        {otpPreview && (
-          <div style={{ ...styles.previewBanner, ...(isMobile ? mobileStyles.banner : {}) }}>
-            <div style={styles.previewLabel}>{otpPreviewMessage || "Use this OTP if the email has not arrived yet."}</div>
-            <div style={styles.previewCode}>{otpPreview}</div>
-          </div>
-        )}
 
         {step === 1 ? (
           <form onSubmit={handleRequestOtp} style={{ ...styles.form, ...(isMobile ? mobileStyles.form : {}) }}>
@@ -124,113 +75,35 @@ function ForgotPassword() {
               required
             />
             <p style={styles.helperText}>
-              For demo OTP delivery, use a personal email like Gmail. Institutional emails may delay or block OTPs.
+              We will send a Firebase password reset link to this email.
             </p>
-
-            <div style={{ display: "flex", gap: "12px", alignItems: "stretch", flexDirection: isMobile ? "column" : "row" }}>
-              <input
-                type="text"
-                value={otpCode}
-                onChange={(e) => setOtpCode(e.target.value)}
-                style={{ ...styles.input, ...(isMobile ? mobileStyles.input : {}), flex: 1 }}
-                placeholder="Enter OTP"
-                disabled
-              />
-              <button
-                type="submit"
-                style={{ ...styles.sendOtpBtn, ...(isMobile ? mobileStyles.sendOtpBtn : {}) }}
-                disabled={loading}
-              >
-                {loading ? "Sending..." : "Send OTP"}
-              </button>
-            </div>
-
-            <button
-              type="button"
-              style={{ ...styles.button, ...(isMobile ? mobileStyles.button : {}), opacity: 0.5, cursor: "not-allowed" }}
-              disabled
-            >
-              Verify
-            </button>
-          </form>
-        ) : (
-          <form onSubmit={handleResetPassword} style={{ ...styles.form, ...(isMobile ? mobileStyles.form : {}) }}>
-            <input
-              type="email"
-              value={email}
-              style={{ ...styles.input, ...(isMobile ? mobileStyles.input : {}), opacity: 0.6 }}
-              disabled
-            />
-
-            <div style={{ display: "flex", gap: "12px", alignItems: "stretch", flexDirection: isMobile ? "column" : "row" }}>
-              <input
-                type="text"
-                value={otpCode}
-                onChange={(e) => setOtpCode(e.target.value)}
-                style={{ ...styles.input, ...(isMobile ? mobileStyles.input : {}), flex: 1 }}
-                placeholder="Enter OTP"
-                required
-              />
-              <span style={{ ...styles.otpSentBadge, ...(isMobile ? mobileStyles.otpSentBadge : {}) }}>Sent</span>
-            </div>
-
-            <div>
-              <input
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                style={{ ...styles.input, ...(isMobile ? mobileStyles.input : {}) }}
-                placeholder="New Password"
-                required
-              />
-            </div>
-
-            <div>
-              <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "6px" }}>
-                {confirmPassword.length > 0 && (
-                  <span
-                    style={{
-                      fontSize: "12px",
-                      fontWeight: "600",
-                      color: passwordsMatch ? "#22c55e" : "#ef4444"
-                    }}
-                  >
-                    {passwordsMatch ? "Passwords match" : "Passwords don't match"}
-                  </span>
-                )}
-              </div>
-              <input
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                style={{
-                  ...styles.input,
-                  ...(isMobile ? mobileStyles.input : {}),
-                  borderColor:
-                    confirmPassword.length > 0
-                      ? passwordsMatch
-                        ? "#22c55e"
-                        : "#ef4444"
-                      : "rgba(255, 255, 255, 0.25)"
-                }}
-                placeholder="Re-enter new password"
-                required
-              />
-            </div>
 
             <button
               type="submit"
-              style={{
-                ...styles.button,
-                ...(isMobile ? mobileStyles.button : {}),
-                opacity: showMismatch ? 0.5 : 1,
-                cursor: showMismatch ? "not-allowed" : "pointer"
-              }}
-              disabled={loading || showMismatch}
+              style={{ ...styles.button, ...(isMobile ? mobileStyles.button : {}) }}
+              disabled={loading}
             >
-              {loading ? "Resetting..." : "Verify"}
+              {loading ? "Sending..." : "Send Reset Email"}
             </button>
           </form>
+        ) : (
+          <div style={{ ...styles.form, ...(isMobile ? mobileStyles.form : {}) }}>
+            <div style={styles.infoCard}>
+              <p style={styles.infoText}>
+                We sent a password reset link to <strong>{email}</strong>.
+              </p>
+              <p style={styles.infoText}>
+                Open the email, reset your password there, then return here and sign in.
+              </p>
+            </div>
+            <button
+              type="button"
+              style={{ ...styles.button, ...(isMobile ? mobileStyles.button : {}) }}
+              onClick={() => navigate("/login")}
+            >
+              Back to Login
+            </button>
+          </div>
         )}
 
         <div style={styles.footer}>
@@ -338,26 +211,6 @@ const styles = {
     boxShadow: "0 0 20px rgba(0, 150, 255, 0.4), 0 0 40px rgba(0, 150, 255, 0.15)",
     transition: "box-shadow 0.3s, transform 0.1s"
   },
-  sendOtpBtn: {
-    padding: "14px 20px",
-    borderRadius: "6px",
-    background: "#2f5be7",
-    color: "#ffffff",
-    fontSize: "14px",
-    fontWeight: "600",
-    border: "1px solid rgba(0, 180, 255, 0.3)",
-    cursor: "pointer",
-    whiteSpace: "nowrap",
-    transition: "background 0.2s"
-  },
-  otpSentBadge: {
-    display: "flex",
-    alignItems: "center",
-    padding: "0 16px",
-    color: "#22c55e",
-    fontSize: "14px",
-    fontWeight: "600"
-  },
   errorBanner: {
     background: "rgba(239, 68, 68, 0.1)",
     borderLeft: "4px solid #ef4444",
@@ -382,10 +235,10 @@ const styles = {
     boxSizing: "border-box",
     marginBottom: "10px"
   },
-  previewBanner: {
-    background: "rgba(250, 204, 21, 0.08)",
-    borderLeft: "4px solid #facc15",
-    color: "#fde68a",
+  infoCard: {
+    background: "rgba(0, 204, 255, 0.08)",
+    borderLeft: "4px solid #00ccff",
+    color: "#bfdbfe",
     padding: "12px",
     borderRadius: "4px",
     fontSize: "14px",
@@ -394,16 +247,9 @@ const styles = {
     boxSizing: "border-box",
     marginBottom: "10px"
   },
-  previewLabel: {
+  infoText: {
     marginBottom: "8px",
     lineHeight: "1.5"
-  },
-  previewCode: {
-    fontSize: "28px",
-    fontWeight: "700",
-    letterSpacing: "6px",
-    color: "#ffffff",
-    textAlign: "center"
   },
   footer: {
     marginTop: "32px",
@@ -458,16 +304,6 @@ const mobileStyles = {
   },
   button: {
     width: "100%"
-  },
-  sendOtpBtn: {
-    width: "100%"
-  },
-  otpSentBadge: {
-    justifyContent: "center",
-    minHeight: "44px",
-    padding: "10px 16px",
-    borderRadius: "6px",
-    background: "rgba(34, 197, 94, 0.08)"
   },
   banner: {
     maxWidth: "100%"
