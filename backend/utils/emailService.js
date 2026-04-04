@@ -3,6 +3,7 @@ require("dotenv").config({ quiet: true });
 
 let transporter = null;
 let etherealAccount = null;
+const EMAIL_RETRY_DELAY_MS = 1500;
 
 const normalizeEnvValue = (value) =>
   typeof value === "string" ? value.trim() : "";
@@ -87,36 +88,41 @@ const getTransporter = async () => {
   }
 };
 
+const wait = (ms) =>
+  new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+
 exports.sendOTP = async (email, otp) => {
-  const mailTransporter = await getTransporter();
-  if (!mailTransporter) {
-    console.log("No email transporter available.");
-    return false;
-  }
+  const sendOtpMail = async () => {
+    const mailTransporter = await getTransporter();
+    if (!mailTransporter) {
+      console.log("No email transporter available.");
+      return false;
+    }
 
-  const fromAddress = etherealAccount
-    ? etherealAccount.user
-    : process.env.EMAIL_USER;
+    const fromAddress = etherealAccount
+      ? etherealAccount.user
+      : process.env.EMAIL_USER;
 
-  const mailOptions = {
-    from: `"Pennywise" <${fromAddress}>`,
-    to: email,
-    subject: "Pennywise - Your OTP Code",
-    text: `Your Pennywise OTP is ${otp}. It expires in 5 minutes.`,
-    html: `
-      <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 420px; margin: 0 auto; color: #111827;">
-        <h2 style="color: #0066ff;">Pennywise</h2>
-        <p>Use this verification code to finish creating your account:</p>
-        <div style="background: #f0f4ff; padding: 16px; border-radius: 8px; text-align: center; margin: 16px 0;">
-          <span style="font-size: 32px; font-weight: bold; letter-spacing: 6px; color: #0066ff;">${otp}</span>
+    const mailOptions = {
+      from: `"Pennywise" <${fromAddress}>`,
+      to: email,
+      subject: "Pennywise - Your OTP Code",
+      text: `Your Pennywise OTP is ${otp}. It expires in 5 minutes.`,
+      html: `
+        <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 420px; margin: 0 auto; color: #111827;">
+          <h2 style="color: #0066ff;">Pennywise</h2>
+          <p>Use this verification code to finish creating your account:</p>
+          <div style="background: #f0f4ff; padding: 16px; border-radius: 8px; text-align: center; margin: 16px 0;">
+            <span style="font-size: 32px; font-weight: bold; letter-spacing: 6px; color: #0066ff;">${otp}</span>
+          </div>
+          <p style="margin: 0 0 10px;">This code expires in 5 minutes.</p>
+          <p style="margin: 0; color: #6b7280; font-size: 13px;">If you did not request this, you can ignore this email.</p>
         </div>
-        <p style="margin: 0 0 10px;">This code expires in 5 minutes.</p>
-        <p style="margin: 0; color: #6b7280; font-size: 13px;">If you did not request this, you can ignore this email.</p>
-      </div>
-    `
-  };
+      `
+    };
 
-  try {
     const info = await mailTransporter.sendMail(mailOptions);
     const previewUrl = nodemailer.getTestMessageUrl(info);
 
@@ -127,9 +133,22 @@ exports.sendOTP = async (email, otp) => {
     }
 
     return true;
+  };
+
+  try {
+    return await sendOtpMail();
   } catch (error) {
     console.error("Email send failed:", error.message);
-    return false;
+    transporter = null;
+    etherealAccount = null;
+
+    try {
+      await wait(EMAIL_RETRY_DELAY_MS);
+      return await sendOtpMail();
+    } catch (retryError) {
+      console.error("OTP retry send failed:", retryError.message);
+      return false;
+    }
   }
 };
 

@@ -54,7 +54,7 @@ const normalizeEmail = (value) =>
 
 const createExpiryDate = () =>
   new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
-const EMAIL_SEND_TIMEOUT_MS = 15000;
+const EMAIL_SEND_TIMEOUT_MS = 20000;
 
 const isBcryptHash = (value) =>
   typeof value === "string" && /^\$2[aby]\$\d{2}\$/.test(value);
@@ -242,23 +242,17 @@ exports.signup = async (req, res) => {
 
     try {
       const delivery = await sendOtpWithTimeout(email, otp);
-      if (delivery) {
-        return res
-          .status(201)
-          .json({ message: "User registered. Please check email for OTP." });
+      if (!delivery) {
+        console.error("OTP email send was not confirmed for:", email);
       }
 
-      console.error("OTP email send failed for:", email);
-
-      const responsePayload = {
-        message: "User registered but email delivery failed. Please try again later."
-      };
-
-      return res.status(201).json(responsePayload);
+      return res.status(201).json({
+        message: "User registered. Please check email for OTP, including Spam or Promotions."
+      });
     } catch (emailError) {
       console.error("OTP email exception:", emailError.message);
       return res.status(201).json({
-        message: "User registered but email delivery failed. Please try again later."
+        message: "User registered. Please check email for OTP, including Spam or Promotions."
       });
     }
   } catch (error) {
@@ -490,15 +484,13 @@ exports.forgotPassword = async (req, res) => {
     );
 
     const delivery = await sendOtpWithTimeout(email, otp);
-    if (delivery) {
-      return res.json({ message: "OTP sent to email for password reset." });
+    if (!delivery) {
+      console.error("Password reset OTP email send was not confirmed for:", email);
     }
 
-    const responsePayload = {
-      message: "OTP generated, but email delivery failed. Please try again later."
-    };
-
-    return res.json(responsePayload);
+    return res.json({
+      message: "OTP sent to email for password reset. Please check Spam or Promotions too."
+    });
   } catch (error) {
     console.error("forgotPassword error:", error.message);
     return res.status(500).json({ error: "Failed to generate OTP" });
