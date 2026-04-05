@@ -42,6 +42,15 @@ const MAX_NOTIFICATION_HISTORY_ITEMS = 100;
 
 const formatCurrency = (value) => `${INR_SYMBOL}${Number(value || 0).toLocaleString("en-IN")}`;
 const normalizeNotificationId = (value) => String(value ?? "");
+const normalizeCurrencyText = (value) =>
+  typeof value === "string"
+    ? value.replace(/(^|[\s(])(?:â‚¹|�|\?)(?=\d)/g, `$1${INR_SYMBOL}`)
+    : value;
+const normalizeNotification = (notification) => ({
+  ...notification,
+  message: normalizeCurrencyText(notification?.message),
+  detail: normalizeCurrencyText(notification?.detail)
+});
 const toLocalDateKey = (value) => {
   const nextDate = value instanceof Date ? value : new Date(value);
 
@@ -111,20 +120,22 @@ export const mapTriggeredAlertsToNotifications = (summary) => {
     ? summary.triggered_alerts
     : [];
 
-  return triggeredAlerts.map((alert) => ({
-    id: buildNotificationInstanceId(alert, summary),
-    percentage: alert.percentage,
-    scope: alert.scope,
-    budgetName: alert.budget_name || "",
-    message:
-      alert.scope === "category"
-        ? `${alert.budget_name} reached ${alert.percentage}% of its budget`
-        : `Spending reached ${alert.percentage}% of your monthly budget`,
-    detail:
-      alert.scope === "category"
-        ? `${formatCurrency(alert.current_spending)} spent out of ${formatCurrency(alert.budget_amount)}`
-        : `${formatCurrency(getNotificationSpendingValue(alert, summary))} spent out of ${formatCurrency(summary.budget)}`
-  }));
+  return triggeredAlerts
+    .map((alert) => ({
+      id: buildNotificationInstanceId(alert, summary),
+      percentage: alert.percentage,
+      scope: alert.scope,
+      budgetName: alert.budget_name || "",
+      message:
+        alert.scope === "category"
+          ? `${alert.budget_name} reached ${alert.percentage}% of its budget`
+          : `Spending reached ${alert.percentage}% of your monthly budget`,
+      detail:
+        alert.scope === "category"
+          ? `${formatCurrency(alert.current_spending)} spent out of ${formatCurrency(alert.budget_amount)}`
+          : `${formatCurrency(getNotificationSpendingValue(alert, summary))} spent out of ${formatCurrency(summary.budget)}`
+    }))
+    .map(normalizeNotification);
 };
 
 const readStoredNotifications = () => {
@@ -138,7 +149,7 @@ const readStoredNotifications = () => {
 
     return Array.isArray(parsedValue)
       ? parsedValue.map((notification) => ({
-          ...notification,
+          ...normalizeNotification(notification),
           id: normalizeNotificationId(notification.id)
         }))
       : [];
@@ -159,7 +170,7 @@ const readStoredNotificationHistory = () => {
     return Array.isArray(parsedValue)
       ? parsedValue
           .map((notification) => ({
-            ...notification,
+            ...normalizeNotification(notification),
             id: normalizeNotificationId(notification.id)
           }))
           .filter((notification) => Boolean(notification.triggeredAt))

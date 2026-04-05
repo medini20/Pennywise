@@ -25,6 +25,8 @@ import {
   TopBar
 } from "./App";
 
+const INR_SYMBOL = "\u20B9";
+
 describe("alert notification retriggering", () => {
   test("creates a new notification instance when overall spending changes", () => {
     const alert = {
@@ -98,7 +100,7 @@ describe("alert notification retriggering", () => {
       {
         id: "7:800.00",
         message: "Spending reached 80% of your monthly budget",
-        detail: "₹800 spent out of ₹1,000",
+        detail: `${INR_SYMBOL}800 spent out of ${INR_SYMBOL}1,000`,
         triggeredAt: "2026-04-03T09:00:00.000Z"
       }
     ];
@@ -106,12 +108,12 @@ describe("alert notification retriggering", () => {
       {
         id: "7:800.00",
         message: "Spending reached 80% of your monthly budget",
-        detail: "₹800 spent out of ₹1,000"
+        detail: `${INR_SYMBOL}800 spent out of ${INR_SYMBOL}1,000`
       },
       {
         id: "8:600.00",
         message: "Food reached 60% of its budget",
-        detail: "₹600 spent out of ₹1,000"
+        detail: `${INR_SYMBOL}600 spent out of ${INR_SYMBOL}1,000`
       }
     ];
 
@@ -191,7 +193,7 @@ describe("alert notification retriggering", () => {
           {
             id: "7:800.00",
             message: "Spending reached 80% of your monthly budget",
-            detail: "₹800 spent out of ₹1,000",
+            detail: `${INR_SYMBOL}800 spent out of ${INR_SYMBOL}1,000`,
             triggeredAt: "2026-04-03T10:15:00.000Z"
           }
         ]}
@@ -199,13 +201,13 @@ describe("alert notification retriggering", () => {
           {
             id: "7:800.00",
             message: "Spending reached 80% of your monthly budget",
-            detail: "₹800 spent out of ₹1,000",
+            detail: `${INR_SYMBOL}800 spent out of ${INR_SYMBOL}1,000`,
             triggeredAt: "2026-04-03T10:15:00.000Z"
           },
           {
             id: "8:600.00",
             message: "Food reached 60% of its budget",
-            detail: "₹600 spent out of ₹1,000",
+            detail: `${INR_SYMBOL}600 spent out of ${INR_SYMBOL}1,000`,
             triggeredAt: "2026-04-02T08:00:00.000Z"
           }
         ]}
