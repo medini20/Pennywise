@@ -253,7 +253,7 @@ function Signup() {
                 required
               />
               <p style={styles.helperText}>
-                For demo OTP delivery, use a personal email like Gmail. Institutional emails may delay or block OTPs.
+                OTP is sent to your email address for account verification. Institutional inboxes can sometimes deliver more slowly.
               </p>
             </div>
 
@@ -323,7 +323,7 @@ function Signup() {
                 style={styles.checkbox}
               />
               <span>
-                I agree to the <span style={{ color: "#00ccff" }}>Terms of Service</span> and <span style={{ color: "#00ccff" }}>Privacy Policy</span>
+                I agree to the <Link to="/terms" style={styles.inlineLink}>Terms of Service</Link> and <Link to="/privacy" style={styles.inlineLink}>Privacy Policy</Link>
               </span>
             </label>
 
@@ -564,6 +564,11 @@ const styles = {
     color: "#00ccff",
     textDecoration: "none",
     fontWeight: "500",
+  },
+  inlineLink: {
+    color: "#00ccff",
+    textDecoration: "none",
+    fontWeight: "600"
   },
   checkboxLabel: {
     display: "flex",

@@ -135,7 +135,7 @@ function ForgotPassword() {
               required
             />
             <p style={styles.helperText}>
-              For demo OTP delivery, use a personal email like Gmail. Institutional emails may delay or block OTPs.
+              OTP is sent to your email address. Some institutional inboxes may take a little longer to deliver it.
             </p>
 
             <div style={{ display: "flex", gap: "12px", alignItems: "stretch", flexDirection: isMobile ? "column" : "row" }}>
