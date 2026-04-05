@@ -17,7 +17,9 @@ jest.mock(
 
 import {
   buildNotificationInstanceId,
+  filterNotificationsByIds,
   groupNotificationHistoryByDate,
+  keepClearedIdsForActiveNotifications,
   mapTriggeredAlertsToNotifications,
   mergeNotificationHistory,
   TopBar
@@ -158,7 +160,28 @@ describe("alert notification retriggering", () => {
     expect(groups[1].items.map((item) => item.id)).toEqual(["2"]);
   });
 
-  test("shows active alerts, day-wise history, and a clear history action in the topbar panel", async () => {
+  test("filters cleared notifications out of the topbar state", () => {
+    const visibleNotifications = filterNotificationsByIds(
+      [
+        { id: "7:800.00", message: "Active" },
+        { id: "8:600.00", message: "History" }
+      ],
+      ["8:600.00"]
+    );
+
+    expect(visibleNotifications).toEqual([{ id: "7:800.00", message: "Active" }]);
+  });
+
+  test("keeps cleared notification ids only while the same alert instance stays active", () => {
+    const retainedIds = keepClearedIdsForActiveNotifications(
+      ["7:800.00", "8:600.00"],
+      [{ id: "8:600.00" }, { id: "9:400.00" }]
+    );
+
+    expect(retainedIds).toEqual(["8:600.00"]);
+  });
+
+  test("shows active alerts, day-wise history, and a clear notifications action in the topbar panel", async () => {
     const refreshNotifications = jest.fn().mockResolvedValue([]);
     const clearNotificationHistory = jest.fn();
 
@@ -195,8 +218,8 @@ describe("alert notification retriggering", () => {
 
     expect(await screen.findByText(/active right now/i)).toBeInTheDocument();
     expect(screen.getByText(/alert history/i)).toBeInTheDocument();
-    expect(screen.getByText(/yesterday/i)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /clear history/i }));
+    expect(screen.getByText(/2 Apr 2026/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /clear notifications/i }));
     expect(clearNotificationHistory).toHaveBeenCalledTimes(1);
   });
 });

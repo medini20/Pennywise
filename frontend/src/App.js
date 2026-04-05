@@ -35,6 +35,7 @@ const CURRENT_SPENDING_KEY = "currentSpending";
 const ALERT_STORAGE_KEY = "pennywise-triggered-alerts";
 const ALERT_HISTORY_STORAGE_KEY = "pennywise-triggered-alert-history";
 const DISMISSED_ALERT_STORAGE_KEY = "pennywise-dismissed-triggered-alerts";
+const CLEARED_ALERT_STORAGE_KEY = "pennywise-cleared-triggered-alerts";
 const ALERTS_UPDATED_EVENT = "pennywise-alerts-updated";
 const INR_SYMBOL = "\u20B9";
 const MAX_NOTIFICATION_HISTORY_ITEMS = 100;
@@ -168,6 +169,51 @@ const readStoredNotificationHistory = () => {
   }
 };
 
+const normalizeNotificationIds = (values) =>
+  Array.from(
+    new Set(
+      (Array.isArray(values) ? values : [])
+        .map((value) => normalizeNotificationId(value))
+        .filter((value) => value.length > 0)
+    )
+  );
+
+export const filterNotificationsByIds = (notifications, excludedIds = []) => {
+  const excludedIdSet = new Set(normalizeNotificationIds(excludedIds));
+
+  return (Array.isArray(notifications) ? notifications : []).filter(
+    (notification) => !excludedIdSet.has(normalizeNotificationId(notification.id))
+  );
+};
+
+export const keepClearedIdsForActiveNotifications = (
+  clearedIds,
+  notifications = []
+) => {
+  const activeNotificationIds = new Set(
+    (Array.isArray(notifications) ? notifications : [])
+      .map((notification) => normalizeNotificationId(notification.id))
+      .filter((value) => value.length > 0)
+  );
+
+  return normalizeNotificationIds(clearedIds).filter((id) => activeNotificationIds.has(id));
+};
+
+const readStoredClearedNotificationIds = () => {
+  if (typeof window === "undefined") {
+    return [];
+  }
+
+  try {
+    const storedValue = window.localStorage.getItem(CLEARED_ALERT_STORAGE_KEY);
+    const parsedValue = storedValue ? JSON.parse(storedValue) : [];
+
+    return normalizeNotificationIds(parsedValue);
+  } catch (error) {
+    return [];
+  }
+};
+
 const readStoredDismissedNotificationIds = () => {
   if (typeof window === "undefined") {
     return [];
@@ -177,11 +223,7 @@ const readStoredDismissedNotificationIds = () => {
     const storedValue = window.localStorage.getItem(DISMISSED_ALERT_STORAGE_KEY);
     const parsedValue = storedValue ? JSON.parse(storedValue) : [];
 
-    return Array.isArray(parsedValue)
-      ? parsedValue
-          .map((value) => normalizeNotificationId(value))
-          .filter((value) => value.length > 0)
-      : [];
+    return normalizeNotificationIds(parsedValue);
   } catch (error) {
     return [];
   }
@@ -405,9 +447,9 @@ export function TopBar({
                   type="button"
                   className="topbarNotificationLink topbarNotificationDangerLink"
                   onClick={clearNotificationHistory}
-                  disabled={notificationHistory.length === 0}
+                  disabled={notifications.length === 0 && notificationHistory.length === 0}
                 >
-                  Clear History
+                  Clear Notifications
                 </button>
               </div>
             </div>
@@ -546,10 +588,14 @@ function AppLayout() {
   const isMobile = useIsMobile();
   const [notifications, setNotifications] = useState(readStoredNotifications);
   const [notificationHistory, setNotificationHistory] = useState(readStoredNotificationHistory);
+  const [clearedNotificationIds, setClearedNotificationIds] = useState(
+    readStoredClearedNotificationIds
+  );
   const [dismissedNotificationIds, setDismissedNotificationIds] = useState(
     readStoredDismissedNotificationIds
   );
   const notificationHistoryRef = useRef(notificationHistory);
+  const clearedNotificationIdsRef = useRef(clearedNotificationIds);
   const dismissedNotificationIdsRef = useRef(dismissedNotificationIds);
 
   // Identify auth routes to remove sidebar and margins
@@ -563,7 +609,9 @@ function AppLayout() {
     if (!userId) {
       setNotifications([]);
       setNotificationHistory([]);
+      setClearedNotificationIds([]);
       notificationHistoryRef.current = [];
+      clearedNotificationIdsRef.current = [];
       return [];
     }
 
@@ -585,9 +633,19 @@ function AppLayout() {
       }
 
       const nextNotifications = mapTriggeredAlertsToNotifications(data);
-      const mergedHistory = mergeNotificationHistory(
-        notificationHistoryRef.current,
+      const nextClearedNotificationIds = keepClearedIdsForActiveNotifications(
+        clearedNotificationIdsRef.current,
         nextNotifications
+      );
+      clearedNotificationIdsRef.current = nextClearedNotificationIds;
+      setClearedNotificationIds(nextClearedNotificationIds);
+      const visibleNotifications = filterNotificationsByIds(
+        nextNotifications,
+        nextClearedNotificationIds
+      );
+      const mergedHistory = mergeNotificationHistory(
+        filterNotificationsByIds(notificationHistoryRef.current, nextClearedNotificationIds),
+        visibleNotifications
       );
       notificationHistoryRef.current = mergedHistory;
       setNotificationHistory(mergedHistory);
@@ -598,7 +656,7 @@ function AppLayout() {
           notification
         ])
       );
-      const enrichedNotifications = nextNotifications.map((notification) => ({
+      const enrichedNotifications = visibleNotifications.map((notification) => ({
         ...notification,
         triggeredAt: historyById.get(normalizeNotificationId(notification.id))?.triggeredAt
       }));
@@ -659,6 +717,14 @@ function AppLayout() {
   }, [notificationHistory]);
 
   useEffect(() => {
+    clearedNotificationIdsRef.current = clearedNotificationIds;
+    window.localStorage.setItem(
+      CLEARED_ALERT_STORAGE_KEY,
+      JSON.stringify(clearedNotificationIds)
+    );
+  }, [clearedNotificationIds]);
+
+  useEffect(() => {
     dismissedNotificationIdsRef.current = dismissedNotificationIds;
     window.localStorage.setItem(
       DISMISSED_ALERT_STORAGE_KEY,
@@ -689,12 +755,26 @@ function AppLayout() {
   }, [refreshNotifications]);
 
   const clearNotificationHistory = useCallback(() => {
+    const nextClearedNotificationIds = keepClearedIdsForActiveNotifications(
+      [...clearedNotificationIdsRef.current, ...notifications.map((notification) => notification.id)],
+      notifications
+    );
+
+    clearedNotificationIdsRef.current = nextClearedNotificationIds;
+    setClearedNotificationIds(nextClearedNotificationIds);
+    setNotifications([]);
     notificationHistoryRef.current = [];
     setNotificationHistory([]);
+    window.localStorage.setItem(ALERT_STORAGE_KEY, JSON.stringify([]));
     window.localStorage.setItem(ALERT_HISTORY_STORAGE_KEY, JSON.stringify([]));
-  }, []);
+  }, [notifications]);
 
-  const popupNotifications = notifications.filter(
+  const visibleNotifications = filterNotificationsByIds(notifications, clearedNotificationIds);
+  const visibleNotificationHistory = filterNotificationsByIds(
+    notificationHistory,
+    clearedNotificationIds
+  );
+  const popupNotifications = visibleNotifications.filter(
     (notification) => !dismissedNotificationIds.includes(notification.id)
   );
 
@@ -719,8 +799,8 @@ function AppLayout() {
       >
         {!isAuthRoute && (
           <TopBar
-            notifications={notifications}
-            notificationHistory={notificationHistory}
+            notifications={visibleNotifications}
+            notificationHistory={visibleNotificationHistory}
             refreshNotifications={refreshNotifications}
             clearNotificationHistory={clearNotificationHistory}
           />
