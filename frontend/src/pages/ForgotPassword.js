@@ -135,7 +135,7 @@ function ForgotPassword() {
               required
             />
             <p style={styles.helperText}>
-              OTP is sent to your email address. Some institutional inboxes may take a little longer to deliver it.
+              OTP will be sent to your email. Please check Spam or Promotions if needed.
             </p>
 
             <div style={{ display: "flex", gap: "12px", alignItems: "stretch", flexDirection: isMobile ? "column" : "row" }}>

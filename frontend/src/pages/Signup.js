@@ -253,7 +253,7 @@ function Signup() {
                 required
               />
               <p style={styles.helperText}>
-                OTP is sent to your email address for account verification. Institutional inboxes can sometimes deliver more slowly.
+                OTP will be sent to your email. Please check Spam or Promotions if needed.
               </p>
             </div>
 

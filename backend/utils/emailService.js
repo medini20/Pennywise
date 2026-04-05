@@ -188,20 +188,37 @@ const sendViaSendGrid = async ({ to, subject, text, html }) => {
   return true;
 };
 
-exports.sendOTP = async (email, otp) => {
-  const subject = "Pennywise - Your OTP Code";
-  const text = `Your Pennywise OTP is ${otp}. It expires in 5 minutes.`;
-  const html = `
+const buildOtpEmailContent = (otp, purpose = "SIGNUP") => {
+  const isPasswordReset = purpose === "PASSWORD_RESET";
+  const subject = isPasswordReset
+    ? "Pennywise - Password Reset Code"
+    : "Pennywise - Verify Your Email";
+  const introText = isPasswordReset
+    ? "Use this verification code to reset your Pennywise password:"
+    : "Use this verification code to finish creating your Pennywise account:";
+  const fallbackText = isPasswordReset
+    ? "If you did not request a password reset, you can ignore this email."
+    : "If you did not create this account, you can ignore this email.";
+
+  return {
+    subject,
+    text: `Your Pennywise verification code is ${otp}. It expires in 5 minutes.`,
+    html: `
         <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 420px; margin: 0 auto; color: #111827;">
           <h2 style="color: #0066ff;">Pennywise</h2>
-          <p>Use this verification code to finish creating your account:</p>
+          <p>${introText}</p>
           <div style="background: #f0f4ff; padding: 16px; border-radius: 8px; text-align: center; margin: 16px 0;">
             <span style="font-size: 32px; font-weight: bold; letter-spacing: 6px; color: #0066ff;">${otp}</span>
           </div>
           <p style="margin: 0 0 10px;">This code expires in 5 minutes.</p>
-          <p style="margin: 0; color: #6b7280; font-size: 13px;">If you did not request this, you can ignore this email.</p>
+          <p style="margin: 0; color: #6b7280; font-size: 13px;">${fallbackText}</p>
         </div>
-      `;
+      `
+  };
+};
+
+exports.sendOTP = async (email, otp, purpose = "SIGNUP") => {
+  const { subject, text, html } = buildOtpEmailContent(otp, purpose);
 
   const sendOtpMail = async () => {
     const mailTransporter = await getTransporter();

@@ -122,6 +122,21 @@ const sendOtpWithTimeout = async (email, otp) => {
   }
 };
 
+const sendOtpWithPurposeTimeout = async (email, otp, purpose) => {
+  try {
+    const result = await Promise.race([
+      emailService.sendOTP(email, otp, purpose),
+      new Promise((resolve) => {
+        setTimeout(() => resolve(false), EMAIL_SEND_TIMEOUT_MS);
+      })
+    ]);
+
+    return Boolean(result);
+  } catch (error) {
+    return false;
+  }
+};
+
 const buildOtpResponse = (message, otp, deliveryConfirmed) => {
   const response = {
     message: deliveryConfirmed
@@ -259,7 +274,7 @@ exports.signup = async (req, res) => {
     );
 
     try {
-      const delivery = await sendOtpWithTimeout(email, otp);
+      const delivery = await sendOtpWithPurposeTimeout(email, otp, "SIGNUP");
       if (!delivery) {
         console.error("OTP email send was not confirmed for:", email);
       }
@@ -509,7 +524,7 @@ exports.forgotPassword = async (req, res) => {
       [email, otp, createExpiryDate()]
     );
 
-    const delivery = await sendOtpWithTimeout(email, otp);
+    const delivery = await sendOtpWithPurposeTimeout(email, otp, "PASSWORD_RESET");
     if (!delivery) {
       console.error("Password reset OTP email send was not confirmed for:", email);
     }
