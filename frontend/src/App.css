@@ -358,11 +358,24 @@ body, html, #root, .app-container, .page-content, .sidebar {
   color: #ff8a96;
 }
 
+.topbarNotificationSection + .topbarNotificationSection {
+  margin-top: 16px;
+}
+
 .topbarNotificationActiveSummary {
   margin: 0 0 12px;
   color: #d4dbef;
   font-size: 12px;
   line-height: 1.5;
+}
+
+.topbarNotificationSectionLabel {
+  margin: 0 0 10px;
+  color: #9db5e8;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
 }
 
 .topbarNotificationHistory {
@@ -402,6 +415,11 @@ body, html, #root, .app-container, .page-content, .sidebar {
   border-radius: 16px;
   background: linear-gradient(135deg, rgba(255, 93, 109, 0.16), rgba(255, 93, 109, 0.06));
   border: 1px solid rgba(255, 93, 109, 0.2);
+}
+
+.topbarNotificationItemActive {
+  background: linear-gradient(135deg, rgba(255, 93, 109, 0.2), rgba(84, 163, 255, 0.1));
+  border-color: rgba(255, 132, 145, 0.3);
 }
 
 .topbarNotificationMarker {

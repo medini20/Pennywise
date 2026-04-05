@@ -1,3 +1,6 @@
+import React from "react";
+import { fireEvent, render, screen } from "@testing-library/react";
+
 jest.mock(
   "react-router-dom",
   () => ({
@@ -14,7 +17,10 @@ jest.mock(
 
 import {
   buildNotificationInstanceId,
-  mapTriggeredAlertsToNotifications
+  groupNotificationHistoryByDate,
+  mapTriggeredAlertsToNotifications,
+  mergeNotificationHistory,
+  TopBar
 } from "./App";
 
 describe("alert notification retriggering", () => {
@@ -82,5 +88,115 @@ describe("alert notification retriggering", () => {
     expect(notifications).toHaveLength(1);
     expect(notifications[0].message).toMatch(/spending reached 80%/i);
     expect(notifications[0].detail).toMatch(/spent out of/i);
+  });
+
+  test("stores newly triggered alerts in history without duplicating the same notification instance", () => {
+    const now = new Date("2026-04-03T10:15:00.000Z");
+    const existingHistory = [
+      {
+        id: "7:800.00",
+        message: "Spending reached 80% of your monthly budget",
+        detail: "₹800 spent out of ₹1,000",
+        triggeredAt: "2026-04-03T09:00:00.000Z"
+      }
+    ];
+    const nextNotifications = [
+      {
+        id: "7:800.00",
+        message: "Spending reached 80% of your monthly budget",
+        detail: "₹800 spent out of ₹1,000"
+      },
+      {
+        id: "8:600.00",
+        message: "Food reached 60% of its budget",
+        detail: "₹600 spent out of ₹1,000"
+      }
+    ];
+
+    const history = mergeNotificationHistory(existingHistory, nextNotifications, now);
+
+    expect(history).toHaveLength(2);
+    expect(history[0]).toMatchObject({
+      id: "8:600.00",
+      triggeredAt: "2026-04-03T10:15:00.000Z"
+    });
+    expect(history[1]).toMatchObject({
+      id: "7:800.00",
+      triggeredAt: "2026-04-03T09:00:00.000Z"
+    });
+  });
+
+  test("groups notification history day-wise", () => {
+    const groups = groupNotificationHistoryByDate(
+      [
+        {
+          id: "1",
+          message: "Latest",
+          detail: "detail",
+          triggeredAt: "2026-04-03T11:30:00.000Z"
+        },
+        {
+          id: "2",
+          message: "Yesterday",
+          detail: "detail",
+          triggeredAt: "2026-04-02T08:00:00.000Z"
+        },
+        {
+          id: "3",
+          message: "Older today",
+          detail: "detail",
+          triggeredAt: "2026-04-03T08:15:00.000Z"
+        }
+      ],
+      new Date("2026-04-03T12:00:00.000Z")
+    );
+
+    expect(groups).toHaveLength(2);
+    expect(groups[0].label).toBe("Today");
+    expect(groups[0].items.map((item) => item.id)).toEqual(["1", "3"]);
+    expect(groups[1].label).toBe("Yesterday");
+    expect(groups[1].items.map((item) => item.id)).toEqual(["2"]);
+  });
+
+  test("shows active alerts, day-wise history, and a clear history action in the topbar panel", async () => {
+    const refreshNotifications = jest.fn().mockResolvedValue([]);
+    const clearNotificationHistory = jest.fn();
+
+    render(
+      <TopBar
+        notifications={[
+          {
+            id: "7:800.00",
+            message: "Spending reached 80% of your monthly budget",
+            detail: "₹800 spent out of ₹1,000",
+            triggeredAt: "2026-04-03T10:15:00.000Z"
+          }
+        ]}
+        notificationHistory={[
+          {
+            id: "7:800.00",
+            message: "Spending reached 80% of your monthly budget",
+            detail: "₹800 spent out of ₹1,000",
+            triggeredAt: "2026-04-03T10:15:00.000Z"
+          },
+          {
+            id: "8:600.00",
+            message: "Food reached 60% of its budget",
+            detail: "₹600 spent out of ₹1,000",
+            triggeredAt: "2026-04-02T08:00:00.000Z"
+          }
+        ]}
+        refreshNotifications={refreshNotifications}
+        clearNotificationHistory={clearNotificationHistory}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /open notifications/i }));
+
+    expect(await screen.findByText(/active right now/i)).toBeInTheDocument();
+    expect(screen.getByText(/alert history/i)).toBeInTheDocument();
+    expect(screen.getByText(/yesterday/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /clear history/i }));
+    expect(clearNotificationHistory).toHaveBeenCalledTimes(1);
   });
 });

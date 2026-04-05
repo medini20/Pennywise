@@ -33,11 +33,65 @@ import PrivacyPolicy from "./pages/PrivacyPolicy";
 
 const CURRENT_SPENDING_KEY = "currentSpending";
 const ALERT_STORAGE_KEY = "pennywise-triggered-alerts";
+const ALERT_HISTORY_STORAGE_KEY = "pennywise-triggered-alert-history";
 const DISMISSED_ALERT_STORAGE_KEY = "pennywise-dismissed-triggered-alerts";
 const ALERTS_UPDATED_EVENT = "pennywise-alerts-updated";
+const INR_SYMBOL = "\u20B9";
+const MAX_NOTIFICATION_HISTORY_ITEMS = 100;
 
-const formatCurrency = (value) => `?${Number(value || 0).toLocaleString("en-IN")}`;
+const formatCurrency = (value) => `${INR_SYMBOL}${Number(value || 0).toLocaleString("en-IN")}`;
 const normalizeNotificationId = (value) => String(value ?? "");
+const toLocalDateKey = (value) => {
+  const nextDate = value instanceof Date ? value : new Date(value);
+
+  if (Number.isNaN(nextDate.getTime())) {
+    return "unknown-date";
+  }
+
+  return `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, "0")}-${String(
+    nextDate.getDate()
+  ).padStart(2, "0")}`;
+};
+
+const formatNotificationDateLabel = (value, now = new Date()) => {
+  const nextDate = value instanceof Date ? value : new Date(value);
+
+  if (Number.isNaN(nextDate.getTime())) {
+    return "Earlier";
+  }
+
+  const todayKey = toLocalDateKey(now);
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const dateKey = toLocalDateKey(nextDate);
+
+  if (dateKey === todayKey) {
+    return "Today";
+  }
+
+  if (dateKey === toLocalDateKey(yesterday)) {
+    return "Yesterday";
+  }
+
+  return new Intl.DateTimeFormat("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric"
+  }).format(nextDate);
+};
+
+const formatNotificationTime = (value) => {
+  const nextDate = value instanceof Date ? value : new Date(value);
+
+  if (Number.isNaN(nextDate.getTime())) {
+    return "";
+  }
+
+  return new Intl.DateTimeFormat("en-IN", {
+    hour: "numeric",
+    minute: "2-digit"
+  }).format(nextDate);
+};
 
 const getNotificationSpendingValue = (alert, summary) =>
   Number(
@@ -59,6 +113,8 @@ export const mapTriggeredAlertsToNotifications = (summary) => {
   return triggeredAlerts.map((alert) => ({
     id: buildNotificationInstanceId(alert, summary),
     percentage: alert.percentage,
+    scope: alert.scope,
+    budgetName: alert.budget_name || "",
     message:
       alert.scope === "category"
         ? `${alert.budget_name} reached ${alert.percentage}% of its budget`
@@ -90,6 +146,28 @@ const readStoredNotifications = () => {
   }
 };
 
+const readStoredNotificationHistory = () => {
+  if (typeof window === "undefined") {
+    return [];
+  }
+
+  try {
+    const storedValue = window.localStorage.getItem(ALERT_HISTORY_STORAGE_KEY);
+    const parsedValue = storedValue ? JSON.parse(storedValue) : [];
+
+    return Array.isArray(parsedValue)
+      ? parsedValue
+          .map((notification) => ({
+            ...notification,
+            id: normalizeNotificationId(notification.id)
+          }))
+          .filter((notification) => Boolean(notification.triggeredAt))
+      : [];
+  } catch (error) {
+    return [];
+  }
+};
+
 const readStoredDismissedNotificationIds = () => {
   if (typeof window === "undefined") {
     return [];
@@ -115,7 +193,80 @@ const PrivateRoute = ({ children }) => {
   return isLoggedIn ? children : <Navigate to="/login" />;
 };
 
-function TopBar({ notifications, refreshNotifications }) {
+export const mergeNotificationHistory = (
+  existingHistory,
+  nextNotifications,
+  now = new Date()
+) => {
+  const historyItems = Array.isArray(existingHistory) ? existingHistory : [];
+  const activeNotifications = Array.isArray(nextNotifications) ? nextNotifications : [];
+  const nextTimestamp = now instanceof Date ? now.toISOString() : new Date(now).toISOString();
+  const historyById = new Map(
+    historyItems.map((notification) => [
+      normalizeNotificationId(notification.id),
+      {
+        ...notification,
+        id: normalizeNotificationId(notification.id)
+      }
+    ])
+  );
+
+  activeNotifications.forEach((notification) => {
+    const notificationId = normalizeNotificationId(notification.id);
+
+    if (historyById.has(notificationId)) {
+      return;
+    }
+
+    historyById.set(notificationId, {
+      ...notification,
+      id: notificationId,
+      triggeredAt: nextTimestamp
+    });
+  });
+
+  return Array.from(historyById.values())
+    .sort((left, right) => new Date(right.triggeredAt) - new Date(left.triggeredAt))
+    .slice(0, MAX_NOTIFICATION_HISTORY_ITEMS);
+};
+
+export const groupNotificationHistoryByDate = (history, now = new Date()) => {
+  const groupedHistory = [];
+  const groupsByKey = new Map();
+
+  (Array.isArray(history) ? history : []).forEach((notification) => {
+    const dateKey = toLocalDateKey(notification.triggeredAt);
+    const existingGroup = groupsByKey.get(dateKey);
+
+    if (existingGroup) {
+      existingGroup.items.push(notification);
+      return;
+    }
+
+    const nextGroup = {
+      key: dateKey,
+      label: formatNotificationDateLabel(notification.triggeredAt, now),
+      items: [notification]
+    };
+
+    groupsByKey.set(dateKey, nextGroup);
+    groupedHistory.push(nextGroup);
+  });
+
+  return groupedHistory.map((group) => ({
+    ...group,
+    items: [...group.items].sort(
+      (left, right) => new Date(right.triggeredAt) - new Date(left.triggeredAt)
+    )
+  }));
+};
+
+export function TopBar({
+  notifications = [],
+  notificationHistory = [],
+  refreshNotifications,
+  clearNotificationHistory
+}) {
   const navigate = useNavigate();
   const storedUser = getStoredUser();
   const profileLabel = storedUser?.name || storedUser?.name || storedUser?.email || "Profile";
@@ -124,6 +275,11 @@ function TopBar({ notifications, refreshNotifications }) {
   const [isRefreshingNotifications, setIsRefreshingNotifications] = useState(false);
   const notificationPanelRef = useRef(null);
   const logoutPanelRef = useRef(null);
+  const activeNotificationIds = new Set(notifications.map((notification) => notification.id));
+  const historicalNotifications = notificationHistory.filter(
+    (notification) => !activeNotificationIds.has(notification.id)
+  );
+  const notificationHistoryGroups = groupNotificationHistoryByDate(historicalNotifications);
 
   const handleLogout = () => {
     clearStoredSession();
@@ -234,36 +390,98 @@ function TopBar({ notifications, refreshNotifications }) {
                 </p>
               </div>
 
-              <button
-                type="button"
-                className="topbarNotificationLink"
-                onClick={() => {
-                  setIsNotificationOpen(false);
-                  navigate("/alerts");
-                }}
-              >
-                View Alerts
-              </button>
+              <div className="topbarNotificationHeaderActions">
+                <button
+                  type="button"
+                  className="topbarNotificationLink"
+                  onClick={() => {
+                    setIsNotificationOpen(false);
+                    navigate("/alerts");
+                  }}
+                >
+                  View Alerts
+                </button>
+                <button
+                  type="button"
+                  className="topbarNotificationLink topbarNotificationDangerLink"
+                  onClick={clearNotificationHistory}
+                  disabled={notificationHistory.length === 0}
+                >
+                  Clear History
+                </button>
+              </div>
             </div>
 
             {isRefreshingNotifications ? (
               <p className="topbarNotificationEmpty">Loading notifications...</p>
-            ) : notifications.length === 0 ? (
+            ) : notifications.length === 0 && notificationHistory.length === 0 ? (
               <p className="topbarNotificationEmpty">
                 You will see triggered budget alerts here whenever spending crosses one of your thresholds.
               </p>
             ) : (
-              <div className="topbarNotificationList">
-                {notifications.map((notification) => (
-                  <div className="topbarNotificationItem" key={notification.id}>
-                    <span className="topbarNotificationMarker" />
-                    <div className="topbarNotificationCopy">
-                      <strong>{notification.message}</strong>
-                      <span>{notification.detail}</span>
+              <>
+                {notifications.length > 0 && (
+                  <div className="topbarNotificationSection">
+                    <p className="topbarNotificationActiveSummary">Active right now</p>
+
+                    <div className="topbarNotificationList">
+                      {notifications.map((notification) => (
+                        <div
+                          className="topbarNotificationItem topbarNotificationItemActive"
+                          key={notification.id}
+                        >
+                          <span className="topbarNotificationMarker" />
+                          <div className="topbarNotificationCopy">
+                            <strong>{notification.message}</strong>
+                            <span>{notification.detail}</span>
+                            {notification.triggeredAt && (
+                              <span className="topbarNotificationTime">
+                                Triggered at {formatNotificationTime(notification.triggeredAt)}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
-                ))}
-              </div>
+                )}
+
+                <div className="topbarNotificationSection">
+                  <p className="topbarNotificationSectionLabel">Alert history</p>
+
+                  {notificationHistoryGroups.length === 0 ? (
+                    <p className="topbarNotificationEmpty">
+                      Cleared alerts and past triggers will appear here once a threshold is crossed again.
+                    </p>
+                  ) : (
+                    <div className="topbarNotificationHistory">
+                      {notificationHistoryGroups.map((group) => (
+                        <div className="topbarNotificationDateGroup" key={group.key}>
+                          <span className="topbarNotificationDateLabel">{group.label}</span>
+
+                          <div className="topbarNotificationList">
+                            {group.items.map((notification) => (
+                              <div
+                                className="topbarNotificationItem"
+                                key={`${group.key}-${notification.id}`}
+                              >
+                                <span className="topbarNotificationMarker" />
+                                <div className="topbarNotificationCopy">
+                                  <strong>{notification.message}</strong>
+                                  <span>{notification.detail}</span>
+                                  <span className="topbarNotificationTime">
+                                    Triggered at {formatNotificationTime(notification.triggeredAt)}
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </>
             )}
           </div>
         )}
@@ -327,9 +545,11 @@ function AppLayout() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const isMobile = useIsMobile();
   const [notifications, setNotifications] = useState(readStoredNotifications);
+  const [notificationHistory, setNotificationHistory] = useState(readStoredNotificationHistory);
   const [dismissedNotificationIds, setDismissedNotificationIds] = useState(
     readStoredDismissedNotificationIds
   );
+  const notificationHistoryRef = useRef(notificationHistory);
   const dismissedNotificationIdsRef = useRef(dismissedNotificationIds);
 
   // Identify auth routes to remove sidebar and margins
@@ -342,6 +562,8 @@ function AppLayout() {
   const refreshNotifications = useCallback(async () => {
     if (!userId) {
       setNotifications([]);
+      setNotificationHistory([]);
+      notificationHistoryRef.current = [];
       return [];
     }
 
@@ -363,16 +585,33 @@ function AppLayout() {
       }
 
       const nextNotifications = mapTriggeredAlertsToNotifications(data);
-      const nextNotificationIds = nextNotifications.map((notification) => notification.id);
+      const mergedHistory = mergeNotificationHistory(
+        notificationHistoryRef.current,
+        nextNotifications
+      );
+      notificationHistoryRef.current = mergedHistory;
+      setNotificationHistory(mergedHistory);
+
+      const historyById = new Map(
+        mergedHistory.map((notification) => [
+          normalizeNotificationId(notification.id),
+          notification
+        ])
+      );
+      const enrichedNotifications = nextNotifications.map((notification) => ({
+        ...notification,
+        triggeredAt: historyById.get(normalizeNotificationId(notification.id))?.triggeredAt
+      }));
+      const nextNotificationIds = enrichedNotifications.map((notification) => notification.id);
       const nextDismissedNotificationIds = dismissedNotificationIdsRef.current.filter((id) =>
         nextNotificationIds.includes(id)
       );
 
-      setNotifications(nextNotifications);
+      setNotifications(enrichedNotifications);
       dismissedNotificationIdsRef.current = nextDismissedNotificationIds;
       setDismissedNotificationIds(nextDismissedNotificationIds);
 
-      return nextNotifications;
+      return enrichedNotifications;
     } catch (error) {
       console.error(error.message);
       return [];
@@ -412,6 +651,14 @@ function AppLayout() {
   }, [notifications]);
 
   useEffect(() => {
+    window.localStorage.setItem(
+      ALERT_HISTORY_STORAGE_KEY,
+      JSON.stringify(notificationHistory)
+    );
+    notificationHistoryRef.current = notificationHistory;
+  }, [notificationHistory]);
+
+  useEffect(() => {
     dismissedNotificationIdsRef.current = dismissedNotificationIds;
     window.localStorage.setItem(
       DISMISSED_ALERT_STORAGE_KEY,
@@ -441,6 +688,12 @@ function AppLayout() {
     };
   }, [refreshNotifications]);
 
+  const clearNotificationHistory = useCallback(() => {
+    notificationHistoryRef.current = [];
+    setNotificationHistory([]);
+    window.localStorage.setItem(ALERT_HISTORY_STORAGE_KEY, JSON.stringify([]));
+  }, []);
+
   const popupNotifications = notifications.filter(
     (notification) => !dismissedNotificationIds.includes(notification.id)
   );
@@ -467,7 +720,9 @@ function AppLayout() {
         {!isAuthRoute && (
           <TopBar
             notifications={notifications}
+            notificationHistory={notificationHistory}
             refreshNotifications={refreshNotifications}
+            clearNotificationHistory={clearNotificationHistory}
           />
         )}
 

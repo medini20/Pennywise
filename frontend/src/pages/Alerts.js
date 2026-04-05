@@ -81,6 +81,15 @@ const getAlertDescription = (alert, triggerAmount) => {
   return `Alert when spending reaches ${formatCurrency(triggerAmount)}`;
 };
 
+const isAlertTriggered = (value) => {
+  if (typeof value === "string") {
+    const normalizedValue = value.trim().toLowerCase();
+    return normalizedValue === "true" || normalizedValue === "1";
+  }
+
+  return Boolean(value);
+};
+
 const toBudgetIdValue = (value) => String(value ?? "");
 
 const notifyAlertStateChanged = () => {
@@ -134,6 +143,7 @@ export default function AlertsView() {
   const [isSavingBudget, setIsSavingBudget] = useState(false);
   const [isSavingAlert, setIsSavingAlert] = useState(false);
   const [deletingAlertId, setDeletingAlertId] = useState(null);
+  const [alertPendingDelete, setAlertPendingDelete] = useState(null);
 
   const applyAlertState = useCallback((nextState) => {
     if (!nextState) {
@@ -445,7 +455,28 @@ export default function AlertsView() {
     }
   };
 
-  const handleDeleteAlert = async (alertId) => {
+  const closeDeleteAlertDialog = () => {
+    if (deletingAlertId !== null) {
+      return;
+    }
+
+    setAlertPendingDelete(null);
+  };
+
+  const handlePromptDeleteAlert = (alert) => {
+    if (deletingAlertId !== null) {
+      return;
+    }
+
+    setAlertPendingDelete(alert);
+  };
+
+  const handleDeleteAlert = async () => {
+    if (!alertPendingDelete?.id) {
+      return;
+    }
+
+    const alertId = alertPendingDelete.id;
     setDeletingAlertId(alertId);
     setStatusMessage("");
     setStatusTone("");
@@ -464,6 +495,7 @@ export default function AlertsView() {
       await loadAlertData({ clearStatus: false });
       setStatusMessage(data.message || "Alert deleted successfully.");
       setStatusTone("success");
+      setAlertPendingDelete(null);
       notifyAlertStateChanged();
     } catch (error) {
       setStatusMessage(error.message || "Unable to delete alert.");
@@ -613,7 +645,7 @@ export default function AlertsView() {
               {alerts.map((alert) => {
                 const isCategoryAlert = alert.scope === "category";
                 const tone = isCategoryAlert ? "category" : getAlertTone(alert.percentage);
-                const isTriggered = Boolean(alert.triggered);
+                const isTriggered = isAlertTriggered(alert.triggered);
                 const triggerAmount =
                   Number(alert.threshold_amount || 0) ||
                   Number(alert.budget_amount || 0) * (alert.percentage / 100) ||
@@ -668,8 +700,11 @@ export default function AlertsView() {
                           <h3>{alert.percentage}% Alert</h3>
                         )}
 
-                        {isTriggered && !isCategoryAlert && (
-                          <span className="alertsTriggeredBadge">Triggered</span>
+                        {isTriggered && (
+                          <span className="alertsTriggeredBadge" aria-label="Triggered alert">
+                            <AlertTriangle size={12} />
+                            <span>Triggered</span>
+                          </span>
                         )}
                       </div>
 
@@ -685,7 +720,7 @@ export default function AlertsView() {
                     <button
                       className="alertsDeleteButton"
                       type="button"
-                      onClick={() => handleDeleteAlert(alert.id)}
+                      onClick={() => handlePromptDeleteAlert(alert)}
                       disabled={deletingAlertId === alert.id}
                       aria-label={`Delete ${alert.percentage}% alert`}
                     >
@@ -847,6 +882,57 @@ export default function AlertsView() {
                 }
               >
                 Add Alert
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {alertPendingDelete && (
+        <div className="alertsModalOverlay">
+          <div className="alertsModal alertsDeleteModal">
+            <div className="alertsModalHeader">
+              <h2>Delete Alert</h2>
+              <button
+                className="alertsModalClose"
+                type="button"
+                onClick={closeDeleteAlertDialog}
+                disabled={deletingAlertId !== null}
+                aria-label="Close delete alert dialog"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <p className="alertsModalHint">
+              {`Are you sure you want to delete the ${alertPendingDelete.percentage}% ${
+                alertPendingDelete.scope === "category"
+                  ? `${alertPendingDelete.budget_name} `
+                  : ""
+              }alert?`}
+            </p>
+
+            <div className="alertsDeleteWarning">
+              This action will remove the alert permanently from the Alerts page.
+            </div>
+
+            <div className="alertsModalButtons">
+              <button
+                className="alertsModalCancel"
+                type="button"
+                onClick={closeDeleteAlertDialog}
+                disabled={deletingAlertId !== null}
+              >
+                Cancel
+              </button>
+              <button
+                className="alertsModalDelete"
+                type="button"
+                onClick={handleDeleteAlert}
+                disabled={deletingAlertId !== null}
+                aria-label="Confirm delete alert"
+              >
+                Delete Alert
               </button>
             </div>
           </div>

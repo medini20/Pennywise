@@ -420,12 +420,18 @@
 .alertsTriggeredBadge {
   display: inline-flex;
   align-items: center;
+  gap: 6px;
   border-radius: 10px;
-  background: rgba(34, 197, 94, 0.18);
-  color: #22c55e;
+  background: rgba(239, 68, 68, 0.18);
+  border: 1px solid rgba(248, 113, 113, 0.24);
+  color: #fca5a5;
   padding: 4px 10px;
   font-size: 11px;
   font-weight: 700;
+}
+
+.alertsTriggeredBadge svg {
+  flex-shrink: 0;
 }
 
 .alertsDeleteButton {
@@ -465,6 +471,10 @@
 
 .alertsModalWide {
   width: 460px;
+}
+
+.alertsDeleteModal {
+  width: 400px;
 }
 
 .alertsModalHeader {
@@ -674,6 +684,17 @@
   font-size: 12px;
 }
 
+.alertsDeleteWarning {
+  margin-top: 4px;
+  padding: 12px 14px;
+  border: 1px solid rgba(248, 113, 113, 0.22);
+  border-radius: 12px;
+  background: rgba(127, 29, 29, 0.18);
+  color: #fecaca;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .alertsModalButtons {
   display: flex;
   gap: 12px;
@@ -699,6 +720,18 @@
 .alertsModalSave {
   background: #facc15;
   color: #101828;
+}
+
+.alertsModalDelete {
+  flex: 1;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #ef4444;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
 }
 
 @media (max-width: 900px) {
