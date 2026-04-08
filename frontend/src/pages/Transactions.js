@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { FaRegCalendarAlt } from "react-icons/fa";
+import { FaCheck, FaRegCalendarAlt } from "react-icons/fa";
 import { getStoredUser } from "../services/authStorage";
 import "./transactions.css";
 import Category from "./category1";
@@ -25,6 +25,7 @@ const formatDateValue = (date) => {
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
 };
+const TODAY_DATE_VALUE = formatDateValue(new Date());
 
 const getTransactionDateValue = (transaction, fallbackDate) => {
   if (typeof transaction?.transaction_date === "string" && transaction.transaction_date.trim()) {
@@ -269,6 +270,11 @@ export default function Transactions({
       return;
     }
 
+    if (selectedDate > TODAY_DATE_VALUE) {
+      alert("Transaction date cannot be in the future.");
+      return;
+    }
+
     const wasSaved = await Promise.resolve(
       addTransaction({
         amount: Number(amount),
@@ -300,6 +306,11 @@ export default function Transactions({
 
     if (!recurringStartDate) {
       setRecurringMessage("Select a recurring payment start date.");
+      return;
+    }
+
+    if (recurringStartDate > TODAY_DATE_VALUE) {
+      setRecurringMessage("Recurring start date cannot be in the future.");
       return;
     }
 
@@ -505,6 +516,7 @@ export default function Transactions({
                         className="dateInput"
                         type="date"
                         value={recurringStartDate}
+                        max={TODAY_DATE_VALUE}
                         onChange={(event) => {
                           setRecurringStartDate(event.target.value);
                           setRecurringMessage("");
@@ -547,7 +559,7 @@ export default function Transactions({
                   className="recurringSaveButton"
                   onClick={handleSaveRecurringPayment}
                 >
-                  <span className="recurringSaveIcon">?</span>
+                  <span className="recurringSaveIcon"><FaCheck /></span>
                   <span>Save Recurring Payment</span>
                 </button>
 
@@ -584,6 +596,7 @@ export default function Transactions({
                 className="dateInput"
                 type="date"
                 value={selectedDate}
+                max={TODAY_DATE_VALUE}
                 onChange={(e) => setSelectedDate(e.target.value)}
               />
               <FaRegCalendarAlt className="dateInputIcon" onClick={openDatePicker} />

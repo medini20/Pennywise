@@ -47,6 +47,15 @@ const normalizeDateValue = (value) => {
 };
 
 const getTodayDateValue = () => formatUtcDate(new Date());
+const isFutureDateValue = (value) => {
+  const normalizedValue = normalizeDateValue(value);
+
+  if (!normalizedValue) {
+    return false;
+  }
+
+  return normalizedValue > getTodayDateValue();
+};
 
 const calculateNextOccurrenceDate = (dateValue, frequency, customIntervalDays) => {
   const nextDate = createUtcDate(dateValue);
@@ -302,7 +311,15 @@ exports.addTransaction = async (req, res) => {
     return res.status(400).json({ message: "user_id, amount, type, and category are required" });
   }
 
+  if (isFutureDateValue(finalTransactionDate)) {
+    return res.status(400).json({ message: "Transaction date cannot be in the future." });
+  }
+
   if (isRecurring) {
+    if (isFutureDateValue(startDate)) {
+      return res.status(400).json({ message: "Recurring start date cannot be in the future." });
+    }
+
     if (!ALLOWED_RECURRING_FREQUENCIES.has(normalizedFrequency)) {
       return res.status(400).json({ message: "Choose a valid recurring frequency." });
     }
@@ -431,6 +448,10 @@ exports.updateTransaction = async (req, res) => {
 
   if (!user_id || !amount || !type || !finalCategoryName) {
     return res.status(400).json({ message: "user_id, amount, type, and category are required" });
+  }
+
+  if (isFutureDateValue(finalTransactionDate)) {
+    return res.status(400).json({ message: "Transaction date cannot be in the future." });
   }
 
   try {
