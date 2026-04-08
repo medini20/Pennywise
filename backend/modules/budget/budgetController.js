@@ -159,14 +159,16 @@ const syncBudgetLifecycle = async (userId) => {
     is_system_generated: 1
   };
 };
-const getUserId = (req) => {
+const getRequestedUserId = (req) => {
   const body = req.body || {};
   const query = req.query || {};
-  const rawUserId = body.user_id || query.user_id;
+  const rawUserId = req.user?.user_id || req.user?.id || body.user_id || query.user_id;
   const parsedUserId = Number(rawUserId);
-  return Number.isInteger(parsedUserId) && parsedUserId > 0
-    ? parsedUserId
-    : DEFAULT_USER_ID;
+  return Number.isInteger(parsedUserId) && parsedUserId > 0 ? parsedUserId : null;
+};
+const getUserId = (req) => {
+  const requestedUserId = getRequestedUserId(req);
+  return requestedUserId || DEFAULT_USER_ID;
 };
 const hasBudgetCategoryIdColumn = async () => {
   if (budgetCategoryIdColumnExists !== null) {
@@ -348,7 +350,6 @@ exports.addBudget = async (req, res) => {
 };
 exports.editBudget = async (req, res) => {
   try {
-    const userId = getUserId(req);
     const { budget_id, amount, name, start_date, end_date } = req.body;
     const updates = [];
     const values = [];
@@ -378,16 +379,38 @@ exports.editBudget = async (req, res) => {
     if (!Number.isInteger(parsedBudgetId) || parsedBudgetId <= 0 || updates.length === 0) {
       return res.status(400).json({ error: "budget_id and at least one field are required" });
     }
+    const [existingRows] = await db.promise().query(
+      `
+        SELECT budget_id, user_id
+        FROM budgets
+        WHERE budget_id = ?
+        LIMIT 1
+      `,
+      [parsedBudgetId]
+    );
+    const existingBudget = existingRows[0];
+    if (!existingBudget) {
+      return res.status(404).json({ error: "Budget not found" });
+    }
+    const requestedUserId = getRequestedUserId(req);
+    const resolvedUserId = requestedUserId || Number(existingBudget.user_id);
+    if (
+      Number.isInteger(requestedUserId) &&
+      requestedUserId > 0 &&
+      Number(existingBudget.user_id) !== requestedUserId
+    ) {
+      return res.status(404).json({ error: "Budget not found" });
+    }
     if (name !== undefined) {
       const hasCategoryIdColumn = await hasBudgetCategoryIdColumn();
-      const categoryId = await findOrCreateExpenseCategory(userId, name, null);
+      const categoryId = await findOrCreateExpenseCategory(resolvedUserId, name, null);
       if (hasCategoryIdColumn) {
         updates.push("category_id = ?");
         values.push(categoryId);
       }
     }
-    const query = `UPDATE budgets SET ${updates.join(", ")} WHERE budget_id = ?`;
-    values.push(parsedBudgetId);
+    const query = `UPDATE budgets SET ${updates.join(", ")} WHERE budget_id = ? AND user_id = ?`;
+    values.push(parsedBudgetId, resolvedUserId);
     const [result] = await db.promise().query(query, values);
     if (result.affectedRows === 0) {
       return res.status(404).json({ error: "Budget not found" });

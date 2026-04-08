@@ -457,6 +457,7 @@ function Budget() {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          user_id: userId,
           budget_id: selectedBudget.budget_id,
           name: editName,
           amount: Number(amount),
