@@ -33,6 +33,22 @@ const hasTable = async (tableName) => {
   return rows.length > 0;
 };
 
+const hasIndex = async (tableName, indexName) => {
+  const [rows] = await db.promise().query(
+    `
+      SELECT INDEX_NAME
+      FROM information_schema.STATISTICS
+      WHERE TABLE_SCHEMA = ?
+        AND TABLE_NAME = ?
+        AND INDEX_NAME = ?
+      LIMIT 1
+    `,
+    [getDatabaseName(), tableName, indexName]
+  );
+
+  return rows.length > 0;
+};
+
 const ensureBudgetSchema = async () => {
   if (!(await hasTable("budgets"))) {
     console.log("Skipping budgets schema update: budgets table not found");
@@ -188,18 +204,107 @@ const ensureCategorySchema = async () => {
     return;
   }
 
-  if (await hasColumn("categories", "icon")) {
-    return;
+  if (!(await hasColumn("categories", "icon"))) {
+    await db.promise().query(
+      `
+        ALTER TABLE categories
+        ADD COLUMN icon VARCHAR(50) NULL
+      `
+    );
+
+    console.log("Added missing categories.icon column");
   }
 
   await db.promise().query(
     `
-      ALTER TABLE categories
-      ADD COLUMN icon VARCHAR(50) NULL
+      UPDATE categories
+      SET name = TRIM(name),
+          type = TRIM(type)
+      WHERE name <> TRIM(name) OR type <> TRIM(type)
     `
   );
 
-  console.log("Added missing categories.icon column");
+  const [duplicateGroups] = await db.promise().query(
+    `
+      SELECT
+        user_id,
+        LOWER(TRIM(name)) AS normalized_name,
+        LOWER(TRIM(type)) AS normalized_type,
+        MIN(category_id) AS keep_category_id,
+        GROUP_CONCAT(category_id ORDER BY category_id ASC) AS category_ids,
+        COUNT(*) AS duplicate_count
+      FROM categories
+      GROUP BY user_id, LOWER(TRIM(name)), LOWER(TRIM(type))
+      HAVING COUNT(*) > 1
+    `
+  );
+
+  for (const duplicateGroup of duplicateGroups) {
+    const keepCategoryId = Number(duplicateGroup.keep_category_id);
+    const duplicateCategoryIds = String(duplicateGroup.category_ids || "")
+      .split(",")
+      .map((value) => Number(value))
+      .filter((value) => Number.isInteger(value) && value > 0 && value !== keepCategoryId);
+
+    if (duplicateCategoryIds.length === 0) {
+      continue;
+    }
+
+    const placeholders = duplicateCategoryIds.map(() => "?").join(", ");
+    const params = [keepCategoryId, ...duplicateCategoryIds];
+
+    if (await hasColumn("transactions", "category_id")) {
+      await db.promise().query(
+        `
+          UPDATE transactions
+          SET category_id = ?
+          WHERE category_id IN (${placeholders})
+        `,
+        params
+      );
+    }
+
+    if (await hasTable("recurring_payments") && (await hasColumn("recurring_payments", "category_id"))) {
+      await db.promise().query(
+        `
+          UPDATE recurring_payments
+          SET category_id = ?
+          WHERE category_id IN (${placeholders})
+        `,
+        params
+      );
+    }
+
+    if (await hasColumn("budgets", "category_id")) {
+      await db.promise().query(
+        `
+          UPDATE budgets
+          SET category_id = ?
+          WHERE category_id IN (${placeholders})
+        `,
+        params
+      );
+    }
+
+    await db.promise().query(
+      `
+        DELETE FROM categories
+        WHERE category_id IN (${placeholders})
+      `,
+      duplicateCategoryIds
+    );
+  }
+
+  if (!(await hasIndex("categories", "uniq_categories_user_type_name"))) {
+    await db.promise().query(
+      `
+        ALTER TABLE categories
+        ADD UNIQUE KEY uniq_categories_user_type_name (user_id, type, name)
+      `
+    );
+
+    console.log("Added categories unique index for user_id, type, and name");
+  }
 };
 
 const ensureTransactionSchema = async () => {

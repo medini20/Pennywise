@@ -227,6 +227,26 @@ const findOrCreateExpenseCategory = async (userId, name, icon) => {
   );
   return insertResult.insertId;
 };
+const findExistingCustomBudgetByName = async (userId, name, excludeBudgetId = null) => {
+  const values = [userId, name, DEFAULT_BUDGET_NAME];
+  let query = `
+    SELECT budget_id, user_id, name, icon, amount, color, start_date, end_date, month
+    FROM budgets
+    WHERE user_id = ?
+      AND COALESCE(is_system_generated, 0) = 0
+      AND LOWER(TRIM(name)) = LOWER(TRIM(?))
+      AND LOWER(TRIM(name)) <> LOWER(TRIM(?))
+  `;
+
+  if (Number.isInteger(excludeBudgetId) && excludeBudgetId > 0) {
+    query += " AND budget_id <> ?";
+    values.push(excludeBudgetId);
+  }
+
+  query += " ORDER BY budget_id DESC LIMIT 1";
+  const [rows] = await db.promise().query(query, values);
+  return rows[0] || null;
+};
 exports.getBudgets = async (req, res) => {
   const userId = getUserId(req);
   try {
@@ -248,11 +268,7 @@ exports.getBudgets = async (req, res) => {
                     (b.category_id IS NOT NULL AND t.category_id = b.category_id)
                     OR (
                       b.category_id IS NULL
-                      AND (
-                        (b.icon IS NOT NULL AND TRIM(b.icon) <> '' AND c.icon IS NOT NULL AND TRIM(c.icon) <> '' AND TRIM(c.icon) = TRIM(b.icon))
-                        OR LOWER(TRIM(COALESCE(c.name, ''))) = LOWER(TRIM(b.name))
-                        OR LOWER(TRIM(COALESCE(t.description, ''))) = LOWER(TRIM(b.name))
-                      )
+                      AND LOWER(TRIM(COALESCE(c.name, ''))) = LOWER(TRIM(b.name))
                     )
                   )
               ), 0)
@@ -273,9 +289,7 @@ exports.getBudgets = async (req, res) => {
                   AND (b.start_date IS NULL OR DATE(t.transaction_date) >= b.start_date)
                   AND (b.end_date IS NULL OR DATE(t.transaction_date) <= b.end_date)
                   AND (
-                    (b.icon IS NOT NULL AND TRIM(b.icon) <> '' AND c.icon IS NOT NULL AND TRIM(c.icon) <> '' AND TRIM(c.icon) = TRIM(b.icon))
-                    OR LOWER(TRIM(COALESCE(c.name, ''))) = LOWER(TRIM(b.name))
-                    OR LOWER(TRIM(COALESCE(t.description, ''))) = LOWER(TRIM(b.name))
+                    LOWER(TRIM(COALESCE(c.name, ''))) = LOWER(TRIM(b.name))
                   )
               ), 0)
             END AS spent, b.month, b.color, b.start_date, b.end_date, b.is_system_generated
@@ -300,7 +314,8 @@ exports.getBudgets = async (req, res) => {
 };
 exports.addBudget = async (req, res) => {
   const { name, amount, icon, user_id, month, color, start_date, end_date } = req.body;
-  if (!name || !amount) {
+  const normalizedName = typeof name === "string" ? name.trim() : "";
+  if (!normalizedName || !amount) {
     return res.status(400).json({ error: "Name and amount are required" });
   }
   if (start_date && end_date && start_date > end_date) {
@@ -312,7 +327,52 @@ exports.addBudget = async (req, res) => {
     const resolvedMonth =
       Number(month) > 0 ? Number(month) : getMonthNumberFromDate(resolvedDates.startDate);
     const hasCategoryIdColumn = await hasBudgetCategoryIdColumn();
-    const categoryId = await findOrCreateExpenseCategory(resolvedUserId, name, icon);
+    const categoryId = await findOrCreateExpenseCategory(resolvedUserId, normalizedName, icon);
+    const existingBudget = await findExistingCustomBudgetByName(resolvedUserId, normalizedName);
+    if (existingBudget) {
+      const updateQuery = hasCategoryIdColumn
+        ? `UPDATE budgets
+           SET name = ?, amount = ?, icon = ?, category_id = ?, month = ?, color = ?, start_date = ?, end_date = ?
+           WHERE budget_id = ? AND user_id = ?`
+        : `UPDATE budgets
+           SET name = ?, amount = ?, icon = ?, month = ?, color = ?, start_date = ?, end_date = ?
+           WHERE budget_id = ? AND user_id = ?`;
+      const updateValues = hasCategoryIdColumn
+        ? [
+            normalizedName,
+            amount,
+            icon,
+            categoryId,
+            resolvedMonth,
+            color || DEFAULT_BUDGET_COLOR,
+            resolvedDates.startDate,
+            resolvedDates.endDate,
+            existingBudget.budget_id,
+            resolvedUserId
+          ]
+        : [
+            normalizedName,
+            amount,
+            icon,
+            resolvedMonth,
+            color || DEFAULT_BUDGET_COLOR,
+            resolvedDates.startDate,
+            resolvedDates.endDate,
+            existingBudget.budget_id,
+            resolvedUserId
+          ];
+      await db.promise().query(updateQuery, updateValues);
+      return res.status(200).json({
+        budget_id: existingBudget.budget_id,
+        name: normalizedName,
+        amount,
+        icon,
+        color: color || DEFAULT_BUDGET_COLOR,
+        start_date: resolvedDates.startDate,
+        end_date: resolvedDates.endDate,
+        message: "Budget already existed, so it was updated instead."
+      });
+    }
     const query = hasCategoryIdColumn
       ? `INSERT INTO budgets (name, amount, icon, user_id, category_id, month, spent, color, start_date, end_date, is_system_generated)
          VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, 0)`
@@ -320,11 +380,11 @@ exports.addBudget = async (req, res) => {
          VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, 0)`;
     const values = hasCategoryIdColumn
       ? [
-          name, amount, icon, resolvedUserId, categoryId, resolvedMonth,
+          normalizedName, amount, icon, resolvedUserId, categoryId, resolvedMonth,
           color || DEFAULT_BUDGET_COLOR, resolvedDates.startDate, resolvedDates.endDate
         ]
       : [
-          name, amount, icon, resolvedUserId, resolvedMonth,
+          normalizedName, amount, icon, resolvedUserId, resolvedMonth,
           color || DEFAULT_BUDGET_COLOR, resolvedDates.startDate, resolvedDates.endDate
         ];
     db.query(query, values, (err, result) => {
@@ -334,7 +394,7 @@ exports.addBudget = async (req, res) => {
       }
       return res.status(201).json({
         budget_id: result.insertId,
-        name,
+        name: normalizedName,
         amount,
         icon,
         spent: 0,
@@ -351,6 +411,7 @@ exports.addBudget = async (req, res) => {
 exports.editBudget = async (req, res) => {
   try {
     const { budget_id, amount, name, start_date, end_date } = req.body;
+    const normalizedName = typeof name === "string" ? name.trim() : name;
     const updates = [];
     const values = [];
     const parsedBudgetId = Number(budget_id);
@@ -360,7 +421,7 @@ exports.editBudget = async (req, res) => {
         : null;
     if (name !== undefined) {
       updates.push("name = ?");
-      values.push(name);
+      values.push(normalizedName);
     }
     if (amount !== undefined) {
       updates.push("amount = ?");
@@ -402,8 +463,16 @@ exports.editBudget = async (req, res) => {
       return res.status(404).json({ error: "Budget not found" });
     }
     if (name !== undefined) {
+      const conflictingBudget = await findExistingCustomBudgetByName(
+        resolvedUserId,
+        normalizedName,
+        parsedBudgetId
+      );
+      if (conflictingBudget) {
+        return res.status(409).json({ error: "A budget with this name already exists." });
+      }
       const hasCategoryIdColumn = await hasBudgetCategoryIdColumn();
-      const categoryId = await findOrCreateExpenseCategory(resolvedUserId, name, null);
+      const categoryId = await findOrCreateExpenseCategory(resolvedUserId, normalizedName, null);
       if (hasCategoryIdColumn) {
         updates.push("category_id = ?");
         values.push(categoryId);

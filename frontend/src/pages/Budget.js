@@ -281,8 +281,6 @@ function Budget() {
   const computedBudgets = useMemo(() => {
     return budgets.map((budget) => {
       const budgetWithDates = withDefaultBudgetDateRange(budget);
-      const budgetIcon =
-        typeof budgetWithDates.icon === "string" ? budgetWithDates.icon.trim() : "";
       const budgetName = normalizeCategoryName(budgetWithDates.name);
       const budgetStartDate = formatBudgetDateValue(budgetWithDates.start_date);
       const budgetEndDate = formatBudgetDateValue(budgetWithDates.end_date);
@@ -304,27 +302,20 @@ function Budget() {
           return sum;
         }
 
-        const transactionIcon = getTransactionIcon(transaction);
         const transactionCategoryId = Number(transaction.category_id || transaction.categoryId || 0);
         const matchesByCategoryId =
           budgetCategoryId > 0 &&
           transactionCategoryId > 0 &&
           budgetCategoryId === transactionCategoryId;
-        const matchesByIcon =
-          budgetCategoryId <= 0 &&
-          Boolean(budgetIcon) &&
-          Boolean(transactionIcon) &&
-          budgetIcon === transactionIcon;
 
         const matchesByName =
           budgetCategoryId <= 0 &&
           (
             normalizeCategoryName(transaction.category_name) === budgetName ||
-            normalizeCategoryName(transaction.category) === budgetName ||
-            normalizeCategoryName(transaction.description) === budgetName
+            normalizeCategoryName(transaction.category) === budgetName
           );
 
-        return matchesByCategoryId || matchesByIcon || matchesByName
+        return matchesByCategoryId || matchesByName
           ? sum + Number(transaction.amount || 0)
           : sum;
       }, 0);
@@ -508,10 +499,6 @@ function Budget() {
 
     const selectedBudgetWithDates = withDefaultBudgetDateRange(selectedBudget);
     const selectedName = normalizeCategoryName(selectedBudgetWithDates.name);
-    const selectedIcon =
-      typeof selectedBudgetWithDates.icon === "string"
-        ? selectedBudgetWithDates.icon.trim()
-        : "";
     const selectedCategoryId = Number(selectedBudgetWithDates.category_id || 0);
 
     return transactions.filter((transaction) => {
@@ -529,38 +516,20 @@ function Budget() {
         return false;
       }
 
-      const transactionIcon =
-        typeof transaction.category_icon === "string"
-          ? transaction.category_icon.trim()
-          : typeof transaction.categoryIcon === "string"
-            ? transaction.categoryIcon.trim()
-            : "";
-      const inferredTransactionIcon =
-        transactionIcon ||
-        inferIconFromText(transaction.category_name) ||
-        inferIconFromText(transaction.description) ||
-        inferIconFromText(transaction.category);
       const transactionCategoryId = Number(transaction.category_id || transaction.categoryId || 0);
       const matchesByCategoryId =
         selectedCategoryId > 0 &&
         transactionCategoryId > 0 &&
         selectedCategoryId === transactionCategoryId;
 
-      const matchesByIcon =
-        selectedCategoryId <= 0 &&
-        Boolean(selectedIcon) &&
-        Boolean(inferredTransactionIcon) &&
-        inferredTransactionIcon === selectedIcon;
-
       const matchesByName =
         selectedCategoryId <= 0 &&
         (
           normalizeCategoryName(transaction.category_name) === selectedName ||
-          normalizeCategoryName(transaction.description) === selectedName ||
           normalizeCategoryName(transaction.category) === selectedName
         );
 
-      return transaction.type === "expense" && (matchesByCategoryId || matchesByIcon || matchesByName);
+      return transaction.type === "expense" && (matchesByCategoryId || matchesByName);
     });
   }, [selectedBudget, transactions]);
 

@@ -270,7 +270,8 @@ ALTER TABLE `budgets`
 --
 ALTER TABLE `categories`
   ADD PRIMARY KEY (`category_id`),
-  ADD KEY `user_id` (`user_id`);
+  ADD KEY `user_id` (`user_id`),
+  ADD UNIQUE KEY `uniq_categories_user_type_name` (`user_id`,`type`,`name`);
 
 --
 -- Indexes for table `expenses`

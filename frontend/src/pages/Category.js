@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { FaTimes } from "react-icons/fa";
 import AestheticDatePicker from "../components/AestheticDatePicker";
 import { getStoredUser } from "../services/authStorage";
@@ -25,14 +25,49 @@ export default function Category({ closeCategory, addNewCategory }) {
   const [startDate, setStartDate] = useState(defaultMonthRange.startDate);
   const [endDate, setEndDate] = useState(defaultMonthRange.endDate);
   const [errorMessage, setErrorMessage] = useState("");
-
-  const predefinedCategories = [
+  const [predefinedCategories, setPredefinedCategories] = useState([
     { name: "Food", icon: "\uD83C\uDF7D\uFE0F" },
     { name: "Home", icon: "\uD83C\uDFE0" },
     { name: "Shopping", icon: "\uD83D\uDED2" },
     { name: "Health", icon: "\u2764\uFE0F" },
     { name: "Finance", icon: "\uD83D\uDCB0" }
-  ];
+  ]);
+
+  useEffect(() => {
+    if (!userId) {
+      return;
+    }
+
+    fetch(`${API_BASE_URL}/api/categories?user_id=${userId}&type=expense`)
+      .then((res) => res.json())
+      .then((data) => {
+        const fetchedCategories = (Array.isArray(data) ? data : [])
+          .map((category) => ({
+            name: typeof category?.name === "string" ? category.name.trim() : "",
+            icon: typeof category?.icon === "string" ? category.icon.trim() : ""
+          }))
+          .filter((category) => category.name);
+
+        setPredefinedCategories((currentCategories) => {
+          const mergedCategories = [...fetchedCategories];
+
+          currentCategories.forEach((category) => {
+            const exists = mergedCategories.some(
+              (existingCategory) =>
+                existingCategory.name.trim().toLowerCase() ===
+                category.name.trim().toLowerCase()
+            );
+
+            if (!exists) {
+              mergedCategories.push(category);
+            }
+          });
+
+          return mergedCategories;
+        });
+      })
+      .catch(() => {});
+  }, [userId]);
 
   const icons = [
     "\uD83C\uDF7D\uFE0F", "\uD83C\uDFE0", "\uD83D\uDED2", "\uD83D\uDE97", "\u2615",
@@ -138,7 +173,7 @@ export default function Category({ closeCategory, addNewCategory }) {
             <div className="predefined-grid">
               {predefinedCategories.map((cat, i) => (
                 <button
-                  key={i}
+                  key={`${cat.name}-${i}`}
                   className="predefined-item"
                   onClick={() => handleSelectPredefined(cat)}
                 >
