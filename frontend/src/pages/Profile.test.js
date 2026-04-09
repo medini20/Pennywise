@@ -56,7 +56,7 @@ describe("Profile page", () => {
     );
   });
 
-  afterAll(() => {
+  afterEach(() => {
     global.fetch = originalFetch;
   });
 
@@ -101,6 +101,7 @@ describe("Profile page", () => {
   test("shows validation when username is empty during profile save", async () => {
     render(<Profile />);
     await screen.findByRole("heading", { name: "Server User" });
+    const initialFetchCalls = global.fetch.mock.calls.length;
 
     await userEvent.click(screen.getByRole("button", { name: /edit username/i }));
     const usernameInput = screen.getByPlaceholderText("Enter username");
@@ -108,7 +109,7 @@ describe("Profile page", () => {
     await userEvent.click(screen.getByRole("button", { name: /save username/i }));
 
     expect(await screen.findByText("Username is required.")).toBeInTheDocument();
-    expect(global.fetch).toHaveBeenCalledTimes(1);
+    expect(global.fetch).toHaveBeenCalledTimes(initialFetchCalls);
   });
 
   test("updates profile successfully and syncs storage", async () => {

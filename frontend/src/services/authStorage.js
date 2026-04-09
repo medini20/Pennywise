@@ -9,7 +9,9 @@ const readStorageValue = (key) => {
 
   const legacyLocalValue = localStorage.getItem(key);
   if (legacyLocalValue) {
+    sessionStorage.setItem(key, legacyLocalValue);
     localStorage.removeItem(key);
+    return legacyLocalValue;
   }
 
   return null;
@@ -71,14 +73,24 @@ export const clearStoredSession = () => {
 };
 
 export const hasValidSession = () => {
-  const token = getStoredToken();
-  const user = getStoredUser();
+  const token = readStorageValue(TOKEN_KEY);
+  const rawUser = readStorageValue(USER_KEY);
+  let user = null;
+
+  if (rawUser) {
+    try {
+      user = JSON.parse(rawUser);
+    } catch (error) {
+      clearStoredSession();
+      return false;
+    }
+  }
 
   if (token && user && !isTokenExpired(token)) {
     return true;
   }
 
-  if (token || readStorageValue(USER_KEY)) {
+  if (token || rawUser) {
     clearStoredSession();
   }
 
@@ -86,10 +98,16 @@ export const hasValidSession = () => {
 };
 
 export const saveStoredSession = ({ user, token }) => {
+  if (!user || typeof token !== "string" || !token.trim()) {
+    clearStoredSession();
+    return false;
+  }
+
   sessionStorage.setItem(USER_KEY, JSON.stringify(user));
   sessionStorage.setItem(TOKEN_KEY, token);
   localStorage.removeItem(USER_KEY);
   localStorage.removeItem(TOKEN_KEY);
+  return true;
 };
 
 export const updateStoredUser = (nextFields) => {

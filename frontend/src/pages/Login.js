@@ -4,6 +4,15 @@ import { hasValidSession, saveStoredSession } from "../services/authStorage";
 import useIsMobile from "../hooks/useIsMobile";
 import { API_BASE_URL } from "../config/api";
 const API_DOWN_MESSAGE = `Cannot reach backend server (${API_BASE_URL}). Start backend with 'cd backend && npm start' or run 'start-dev.cmd'.`;
+const sanitizeServerMessage = (value, fallback) => {
+  if (typeof value !== "string" || !value.trim()) {
+    return fallback;
+  }
+
+  return value
+    .replace(/[<>]/g, "")
+    .slice(0, 300);
+};
 
 function Login() {
   const [name, setUsername] = useState("");
@@ -32,9 +41,11 @@ function Login() {
       } else {
         const details =
           typeof data.details === "string" && data.details.trim()
-            ? ` (${data.details})`
+            ? ` (${sanitizeServerMessage(data.details, "")})`
             : "";
-        setError((data.error || "Login failed") + details);
+        setError(
+          `${sanitizeServerMessage(data.error, "Login failed")}${details}`
+        );
       }
     } catch {
       setError(API_DOWN_MESSAGE);

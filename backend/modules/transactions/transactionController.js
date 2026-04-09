@@ -1,6 +1,7 @@
 const db = require("../../config/db");
 
 const ALLOWED_RECURRING_FREQUENCIES = new Set(["Weekly", "Monthly", "Custom"]);
+const ALLOWED_TRANSACTION_TYPES = new Set(["income", "expense"]);
 
 const normalizeCategoryName = (value) =>
   typeof value === "string" ? value.trim() : "";
@@ -55,6 +56,11 @@ const isFutureDateValue = (value) => {
   }
 
   return normalizedValue > getTodayDateValue();
+};
+
+const toPositiveAmount = (value) => {
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue) && numericValue > 0 ? numericValue : null;
 };
 
 const calculateNextOccurrenceDate = (dateValue, frequency, customIntervalDays) => {
@@ -209,11 +215,21 @@ const processRecurringPayments = async (userId) => {
     let nextRunDate =
       normalizeDateValue(recurringPayment.next_run_date) ||
       normalizeDateValue(recurringPayment.start_date);
+    let loopGuard = 0;
+
+    if (!nextRunDate) {
+      continue;
+    }
 
     while (
       nextRunDate <= todayDateValue &&
       (!endDate || nextRunDate <= endDate)
     ) {
+      loopGuard += 1;
+      if (loopGuard > 1000) {
+        break;
+      }
+
       const [existingExceptions] = await db.promise().query(
         `
           SELECT recurring_payment_exception_id
@@ -306,9 +322,15 @@ exports.addTransaction = async (req, res) => {
     ? recurringFrequency.trim()
     : "";
   const normalizedCustomIntervalDays = normalizeCustomIntervalDays(customIntervalDays);
+  const parsedUserId = Number(user_id);
+  const parsedAmount = toPositiveAmount(amount);
 
-  if (!user_id || !amount || !type || !finalCategoryName) {
+  if (!Number.isInteger(parsedUserId) || parsedUserId <= 0 || !parsedAmount || !type || !finalCategoryName) {
     return res.status(400).json({ message: "user_id, amount, type, and category are required" });
+  }
+
+  if (!ALLOWED_TRANSACTION_TYPES.has(String(type).trim().toLowerCase())) {
+    return res.status(400).json({ message: "type must be either income or expense." });
   }
 
   if (isFutureDateValue(finalTransactionDate)) {
@@ -335,7 +357,7 @@ exports.addTransaction = async (req, res) => {
 
   try {
     const categoryId = await resolveCategoryId({
-      userId: user_id,
+      userId: parsedUserId,
       categoryName: finalCategoryName,
       categoryIcon: finalCategoryIcon,
       type
@@ -362,10 +384,10 @@ exports.addTransaction = async (req, res) => {
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NOW())
         `,
         [
-          user_id,
+          parsedUserId,
           categoryId,
           finalCategoryIcon,
-          amount,
+          parsedAmount,
           type,
           finalDescription,
           normalizedFrequency,
@@ -378,10 +400,10 @@ exports.addTransaction = async (req, res) => {
 
       const recurringPaymentId = recurringResult.insertId;
       const transactionId = await insertTransaction({
-        userId: user_id,
+        userId: parsedUserId,
         categoryId,
         categoryIcon: finalCategoryIcon,
-        amount,
+        amount: parsedAmount,
         type,
         description: finalDescription,
         transactionDate: startDate,
@@ -413,10 +435,10 @@ exports.addTransaction = async (req, res) => {
     }
 
     const transactionId = await insertTransaction({
-      userId: user_id,
+      userId: parsedUserId,
       categoryId,
       categoryIcon: finalCategoryIcon,
-      amount,
+      amount: parsedAmount,
       type,
       description: finalDescription,
       transactionDate: finalTransactionDate
@@ -445,9 +467,15 @@ exports.updateTransaction = async (req, res) => {
       : new Date().toISOString().slice(0, 10);
   const finalCategoryName = normalizeCategoryName(category);
   const finalCategoryIcon = normalizeCategoryIcon(categoryIcon);
+  const parsedUserId = Number(user_id);
+  const parsedAmount = toPositiveAmount(amount);
 
-  if (!user_id || !amount || !type || !finalCategoryName) {
+  if (!Number.isInteger(parsedUserId) || parsedUserId <= 0 || !parsedAmount || !type || !finalCategoryName) {
     return res.status(400).json({ message: "user_id, amount, type, and category are required" });
+  }
+
+  if (!ALLOWED_TRANSACTION_TYPES.has(String(type).trim().toLowerCase())) {
+    return res.status(400).json({ message: "type must be either income or expense." });
   }
 
   if (isFutureDateValue(finalTransactionDate)) {
@@ -462,7 +490,7 @@ exports.updateTransaction = async (req, res) => {
         WHERE transaction_id = ? AND user_id = ?
         LIMIT 1
       `,
-      [transactionId, user_id]
+      [transactionId, parsedUserId]
     );
 
     if (existingTransactions.length === 0) {
@@ -472,7 +500,7 @@ exports.updateTransaction = async (req, res) => {
     const existingTransaction = existingTransactions[0];
     const existingTransactionDate = normalizeDateValue(existingTransaction.transaction_date);
     const categoryId = await resolveCategoryId({
-      userId: user_id,
+      userId: parsedUserId,
       categoryName: finalCategoryName,
       categoryIcon: finalCategoryIcon,
       type
@@ -495,7 +523,7 @@ exports.updateTransaction = async (req, res) => {
         SET category_id = ?, category_icon = ?, amount = ?, type = ?, description = ?, transaction_date = ?
         WHERE transaction_id = ? AND user_id = ?
       `,
-      [categoryId, finalCategoryIcon, amount, type, finalDescription, finalTransactionDate, transactionId, user_id]
+      [categoryId, finalCategoryIcon, parsedAmount, type, finalDescription, finalTransactionDate, transactionId, parsedUserId]
     );
 
     if (existingTransaction.recurring_payment_id) {
@@ -508,11 +536,11 @@ exports.updateTransaction = async (req, res) => {
         [
           categoryId,
           finalCategoryIcon,
-          amount,
+          parsedAmount,
           type,
           finalDescription,
           existingTransaction.recurring_payment_id,
-          user_id
+          parsedUserId
         ]
       );
     }

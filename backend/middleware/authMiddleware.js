@@ -1,4 +1,5 @@
 const jwt = require("jsonwebtoken");
+const JWT_SECRET = require("../utils/jwtSecret");
 
 const getTokenFromHeader = (authorizationHeader = "") => {
   const [scheme, token] = authorizationHeader.split(" ");
@@ -29,7 +30,7 @@ exports.requireAuth = (req, res, next) => {
   }
 
   try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET || "secret");
+    const payload = jwt.verify(token, JWT_SECRET);
     const userId = extractUserIdFromPayload(payload);
     req.user = userId
       ? {

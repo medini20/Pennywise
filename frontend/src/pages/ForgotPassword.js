@@ -138,30 +138,12 @@ function ForgotPassword() {
               OTP will be sent to your email. Please check Spam or Promotions if needed.
             </p>
 
-            <div style={{ display: "flex", gap: "12px", alignItems: "stretch", flexDirection: isMobile ? "column" : "row" }}>
-              <input
-                type="text"
-                value={otpCode}
-                onChange={(e) => setOtpCode(e.target.value)}
-                style={{ ...styles.input, ...(isMobile ? mobileStyles.input : {}), flex: 1 }}
-                placeholder="Enter OTP"
-                disabled
-              />
-              <button
-                type="submit"
-                style={{ ...styles.sendOtpBtn, ...(isMobile ? mobileStyles.sendOtpBtn : {}) }}
-                disabled={loading}
-              >
-                {loading ? "Sending..." : "Send OTP"}
-              </button>
-            </div>
-
             <button
-              type="button"
-              style={{ ...styles.button, ...(isMobile ? mobileStyles.button : {}), opacity: 0.5, cursor: "not-allowed" }}
-              disabled
+              type="submit"
+              style={{ ...styles.sendOtpBtn, ...(isMobile ? mobileStyles.sendOtpBtn : {}) }}
+              disabled={loading}
             >
-              Verify
+              {loading ? "Sending..." : "Send OTP"}
             </button>
           </form>
         ) : (

@@ -1,5 +1,4 @@
 const db = require("../../config/db");
-const DEFAULT_USER_ID = 1;
 const DEFAULT_BUDGET_NAME = "Monthly Budget";
 const DEFAULT_BUDGET_COLOR = "#ffcc00";
 let budgetCategoryIdColumnExists = null;
@@ -168,7 +167,7 @@ const getRequestedUserId = (req) => {
 };
 const getUserId = (req) => {
   const requestedUserId = getRequestedUserId(req);
-  return requestedUserId || DEFAULT_USER_ID;
+  return requestedUserId || null;
 };
 const hasBudgetCategoryIdColumn = async () => {
   if (budgetCategoryIdColumnExists !== null) {
@@ -249,6 +248,9 @@ const findExistingCustomBudgetByName = async (userId, name, excludeBudgetId = nu
 };
 exports.getBudgets = async (req, res) => {
   const userId = getUserId(req);
+  if (!userId) {
+    return res.status(401).json({ error: "Valid user_id is required" });
+  }
   try {
     await syncBudgetLifecycle(userId);
     const hasCategoryIdColumn = await hasBudgetCategoryIdColumn();
@@ -321,7 +323,10 @@ exports.addBudget = async (req, res) => {
   if (start_date && end_date && start_date > end_date) {
     return res.status(400).json({ error: "End date must be after start date" });
   }
-  const resolvedUserId = user_id || DEFAULT_USER_ID;
+  const resolvedUserId = Number(getUserId(req) || user_id);
+  if (!Number.isInteger(resolvedUserId) || resolvedUserId <= 0) {
+    return res.status(401).json({ error: "Valid user_id is required" });
+  }
   try {
     const resolvedDates = getResolvedDateRange(start_date, end_date);
     const resolvedMonth =
@@ -454,12 +459,11 @@ exports.editBudget = async (req, res) => {
       return res.status(404).json({ error: "Budget not found" });
     }
     const requestedUserId = getRequestedUserId(req);
-    const resolvedUserId = requestedUserId || Number(existingBudget.user_id);
-    if (
-      Number.isInteger(requestedUserId) &&
-      requestedUserId > 0 &&
-      Number(existingBudget.user_id) !== requestedUserId
-    ) {
+    if (!requestedUserId) {
+      return res.status(401).json({ error: "Valid user_id is required" });
+    }
+    const resolvedUserId = requestedUserId;
+    if (Number(existingBudget.user_id) !== requestedUserId) {
       return res.status(404).json({ error: "Budget not found" });
     }
     if (name !== undefined) {
@@ -509,13 +513,28 @@ exports.editBudget = async (req, res) => {
   }
 };
 exports.deleteBudget = (req, res) => {
-  const id = req.params.id;
-  const query = "DELETE FROM budgets WHERE budget_id = ?";
-  db.query(query, [id], (err) => {
+  const id = Number(req.params.id);
+  const userId = getUserId(req);
+
+  if (!Number.isInteger(id) || id <= 0) {
+    return res.status(400).json({ error: "Valid budget id is required" });
+  }
+
+  if (!userId) {
+    return res.status(401).json({ error: "Valid user_id is required" });
+  }
+
+  const query = "DELETE FROM budgets WHERE budget_id = ? AND user_id = ?";
+  db.query(query, [id, userId], (err, result) => {
     if (err) {
       console.error("SQL Error in deleteBudget:", err.message);
-      return res.status(500).json(err);
+      return res.status(500).json({ error: "Unable to delete budget right now" });
     }
+
+    if (!result?.affectedRows) {
+      return res.status(404).json({ error: "Budget not found" });
+    }
+
     return res.json({ message: "Budget deleted successfully" });
   });
 };

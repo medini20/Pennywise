@@ -3,6 +3,7 @@ const bcrypt = require("bcrypt");
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const emailService = require("../../utils/emailService");
+const JWT_SECRET = require("../../utils/jwtSecret");
 const { OAuth2Client } = require("google-auth-library");
 
 require("dotenv").config({ quiet: true });
@@ -10,6 +11,9 @@ require("dotenv").config({ quiet: true });
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 const OTP_EXPIRY_MINUTES = 5;
 const isOtpPreviewEnabled = process.env.ALLOW_OTP_PREVIEW === "true";
+const OTP_VERIFY_MAX_ATTEMPTS = 5;
+const OTP_VERIFY_LOCK_WINDOW_MS = 10 * 60 * 1000;
+const otpVerifyAttempts = new Map();
 
 const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
 
@@ -51,6 +55,10 @@ const normalizeUsername = (value) =>
 
 const normalizeEmail = (value) =>
   typeof value === "string" ? value.trim().toLowerCase() : "";
+const isValidEmail = (value) =>
+  typeof value === "string" &&
+  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim()) &&
+  value.trim().length <= 254;
 
 const createExpiryDate = () =>
   new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
@@ -85,9 +93,25 @@ const getRequestUserId = (requestUser) => {
 const createToken = (user) =>
   jwt.sign(
     { id: getUserId(user), name: getUserName(user) },
-    process.env.JWT_SECRET || "secret",
+    JWT_SECRET,
     { expiresIn: "1d" }
   );
+
+const getOtpAttemptKey = (email, req) =>
+  `${email}::${req.ip || req.headers["x-forwarded-for"] || "unknown"}`;
+
+const getOtpAttemptState = (key) => {
+  const now = Date.now();
+  const existingState = otpVerifyAttempts.get(key);
+
+  if (!existingState || now >= existingState.expiresAt) {
+    const nextState = { count: 0, expiresAt: now + OTP_VERIFY_LOCK_WINDOW_MS };
+    otpVerifyAttempts.set(key, nextState);
+    return nextState;
+  }
+
+  return existingState;
+};
 
 const toPublicUser = (user) => ({
   id: getUserId(user),
@@ -145,7 +169,10 @@ const buildOtpResponse = (message, otp, deliveryConfirmed) => {
     deliveryConfirmed: Boolean(deliveryConfirmed)
   };
 
-  if (isOtpPreviewEnabled) {
+  const shouldExposeOtp =
+    isOtpPreviewEnabled || (!deliveryConfirmed && process.env.NODE_ENV !== "production");
+
+  if (shouldExposeOtp) {
     response.otpPreview = otp;
     response.otpPreviewMessage = deliveryConfirmed
       ? "Development preview: your OTP is shown here as well."
@@ -239,6 +266,18 @@ exports.signup = async (req, res) => {
       .json({ error: "Username, email, and password are required" });
   }
 
+  if (name.length < 2 || name.length > 100) {
+    return res.status(400).json({ error: "Username must be between 2 and 100 characters" });
+  }
+
+  if (!isValidEmail(email)) {
+    return res.status(400).json({ error: "Please provide a valid email address" });
+  }
+
+  if (typeof password !== "string" || password.length < 8) {
+    return res.status(400).json({ error: "Password must be at least 8 characters long" });
+  }
+
   try {
     const verifiedEmailRows = await runQuery(
       "SELECT 1 FROM users WHERE email = ? AND is_verified = 1 LIMIT 1",
@@ -310,6 +349,15 @@ exports.verifyOtp = async (req, res) => {
     return res.status(400).json({ error: "Email and OTP code are required" });
   }
 
+  const attemptKey = getOtpAttemptKey(email, req);
+  const attemptState = getOtpAttemptState(attemptKey);
+
+  if (attemptState.count >= OTP_VERIFY_MAX_ATTEMPTS) {
+    return res.status(429).json({
+      error: "Too many invalid OTP attempts. Please wait a few minutes and try again."
+    });
+  }
+
   try {
     const rows = await runQuery(
       "SELECT otp_id, purpose FROM otps WHERE email = ? AND otp_code = ? AND expires_at > ? ORDER BY created_at DESC LIMIT 1",
@@ -317,10 +365,12 @@ exports.verifyOtp = async (req, res) => {
     );
 
     if (rows.length === 0) {
+      attemptState.count += 1;
       return res.status(400).json({ error: "Invalid or expired OTP" });
     }
 
     await runQuery("DELETE FROM otps WHERE otp_id = ?", [rows[0].otp_id]);
+    otpVerifyAttempts.delete(attemptKey);
 
     if (rows[0].purpose === "SIGNUP") {
       await runQuery("UPDATE users SET is_verified = 1 WHERE email = ?", [email]);
@@ -511,6 +561,10 @@ exports.forgotPassword = async (req, res) => {
     return res.status(400).json({ error: "Email is required" });
   }
 
+  if (!isValidEmail(email)) {
+    return res.status(400).json({ error: "Please provide a valid email address" });
+  }
+
   try {
     const user = await getUserByEmail(email);
 
@@ -551,6 +605,14 @@ exports.resetPassword = async (req, res) => {
     return res
       .status(400)
       .json({ error: "Email, OTP code, and new password are required" });
+  }
+
+  if (!isValidEmail(email)) {
+    return res.status(400).json({ error: "Please provide a valid email address" });
+  }
+
+  if (typeof newPassword !== "string" || newPassword.length < 8) {
+    return res.status(400).json({ error: "New password must be at least 8 characters long" });
   }
 
   try {

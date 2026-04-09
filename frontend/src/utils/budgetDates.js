@@ -1,4 +1,39 @@
 const padNumber = (value) => String(value).padStart(2, "0");
+const isValidDateParts = (year, month, day) => {
+  if (
+    !Number.isInteger(year) ||
+    !Number.isInteger(month) ||
+    !Number.isInteger(day) ||
+    month < 1 ||
+    month > 12 ||
+    day < 1 ||
+    day > 31
+  ) {
+    return false;
+  }
+
+  const candidate = new Date(year, month - 1, day);
+  return (
+    candidate.getFullYear() === year &&
+    candidate.getMonth() === month - 1 &&
+    candidate.getDate() === day
+  );
+};
+
+const normalizeStrictDate = (value) => {
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) {
+    return "";
+  }
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+
+  return isValidDateParts(year, month, day)
+    ? `${year}-${padNumber(month)}-${padNumber(day)}`
+    : "";
+};
 
 export const formatAsDateValue = (date) =>
   `${date.getFullYear()}-${padNumber(date.getMonth() + 1)}-${padNumber(date.getDate())}`;
@@ -12,13 +47,13 @@ export const normalizeBudgetDateValue = (value) => {
     const trimmedValue = value.trim();
 
     if (/^\d{4}-\d{2}-\d{2}$/.test(trimmedValue)) {
-      return trimmedValue;
+      return normalizeStrictDate(trimmedValue);
     }
 
     const datePrefixMatch = trimmedValue.match(/^(\d{4}-\d{2}-\d{2})T/);
 
     if (datePrefixMatch) {
-      return datePrefixMatch[1];
+      return normalizeStrictDate(datePrefixMatch[1]);
     }
 
     const parsedDate = new Date(trimmedValue);
@@ -27,14 +62,14 @@ export const normalizeBudgetDateValue = (value) => {
       return formatAsDateValue(parsedDate);
     }
 
-    return "";
+    return null;
   }
 
   if (value instanceof Date && !Number.isNaN(value.getTime())) {
     return formatAsDateValue(value);
   }
 
-  return "";
+  return null;
 };
 
 export const getCurrentMonthDateRange = () => {
@@ -50,6 +85,10 @@ export const getCurrentMonthDateRange = () => {
 
 export const formatDisplayDate = (value, options = {}) => {
   const normalizedValue = normalizeBudgetDateValue(value);
+
+  if (normalizedValue === null) {
+    return "Invalid date";
+  }
 
   if (!normalizedValue) {
     return "";

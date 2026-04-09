@@ -79,11 +79,24 @@ function Analytics() {
   const [error, setError] = useState("");
 
   const storedUser = getStoredUser();
-  const userId = storedUser?.id ?? storedUser?.user_id ?? 1;
+  const userId = storedUser?.id ?? storedUser?.user_id ?? null;
+
+  const escapeCsvCell = (value) => {
+    const normalizedValue =
+      value === null || value === undefined ? "" : String(value);
+    return `"${normalizedValue.replace(/"/g, "\"\"")}"`;
+  };
 
   const fetchTransactions = useCallback(async () => {
     setLoading(true);
     setError("");
+
+    if (!userId) {
+      setTransactions([]);
+      setError("Please log in again to load analytics.");
+      setLoading(false);
+      return;
+    }
 
     try {
       const searchParams = new URLSearchParams({
@@ -97,13 +110,17 @@ function Analytics() {
       }
 
       const response = await fetch(`${API_BASE_URL}/api/analytics/summary?${searchParams.toString()}`);
-      const data = await response.json().catch(() => []);
+      const data = await response.json().catch(() => null);
 
       if (!response.ok) {
         throw new Error(data?.error || "Unable to load analytics.");
       }
 
-      setTransactions(Array.isArray(data) ? data : []);
+      if (!Array.isArray(data)) {
+        throw new Error("Received an invalid analytics response from the server.");
+      }
+
+      setTransactions(data);
     } catch (fetchError) {
       console.error("Error fetching analytics:", fetchError);
       setTransactions([]);
@@ -187,7 +204,9 @@ function Analytics() {
       csvRows.push([transaction.date, transaction.category || "Other", transaction.type, transaction.amount]);
     });
 
-    const csvContent = `data:text/csv;charset=utf-8,${csvRows.map((row) => row.join(",")).join("\n")}`;
+    const csvContent = `data:text/csv;charset=utf-8,${csvRows
+      .map((row) => row.map((cell) => escapeCsvCell(cell)).join(","))
+      .join("\n")}`;
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);

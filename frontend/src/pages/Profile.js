@@ -65,6 +65,8 @@ const sanitizeProfileMessage = (message, fallbackMessage) => {
 function Profile() {
   const navigate = useNavigate();
   const webcamRef = useRef(null);
+  const cameraUploadRef = useRef(null);
+  const galleryUploadRef = useRef(null);
   const usernameInputRef = useRef(null);
   const sessionUserRef = useRef(getStoredUser());
   const profileImageStorageKeyRef = useRef(
@@ -466,7 +468,13 @@ function Profile() {
 
             <button
               onClick={() => {
-                document.getElementById("galleryUpload").click();
+                if (galleryUploadRef.current) {
+                  galleryUploadRef.current.click();
+                } else if (cameraUploadRef.current) {
+                  cameraUploadRef.current.click();
+                } else {
+                  setStatusMessage("Unable to open file picker right now.");
+                }
                 setShowOptions(false);
               }}
             >
@@ -492,6 +500,7 @@ function Profile() {
 
       <input
         id="cameraUpload"
+        ref={cameraUploadRef}
         type="file"
         accept="image/*"
         capture="environment"
@@ -501,6 +510,7 @@ function Profile() {
 
       <input
         id="galleryUpload"
+        ref={galleryUploadRef}
         type="file"
         accept="image/*"
         style={{ display: "none" }}
@@ -518,6 +528,15 @@ function Profile() {
 
           <button
             onClick={() => {
+              const canCapture =
+                webcamRef.current &&
+                typeof webcamRef.current.getScreenshot === "function";
+
+              if (!canCapture) {
+                setStatusMessage("Camera is not ready. Please try again.");
+                return;
+              }
+
               const imageSrc = webcamRef.current.getScreenshot();
               if (!imageSrc) {
                 setStatusMessage("Unable to capture image. Please try again.");

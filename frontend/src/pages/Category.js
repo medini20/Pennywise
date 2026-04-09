@@ -16,7 +16,7 @@ const getMonthNumberFromDate = (value) => {
 
 export default function Category({ closeCategory, addNewCategory }) {
   const storedUser = getStoredUser();
-  const userId = storedUser?.id ?? storedUser?.user_id ?? 1;
+  const userId = storedUser?.id ?? storedUser?.user_id ?? null;
   const defaultMonthRange = getCurrentMonthDateRange();
   const [view, setView] = useState("select");
   const [name, setName] = useState("");
@@ -25,6 +25,7 @@ export default function Category({ closeCategory, addNewCategory }) {
   const [startDate, setStartDate] = useState(defaultMonthRange.startDate);
   const [endDate, setEndDate] = useState(defaultMonthRange.endDate);
   const [errorMessage, setErrorMessage] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
   const [predefinedCategories, setPredefinedCategories] = useState([
     { name: "Food", icon: "\uD83C\uDF7D\uFE0F" },
     { name: "Home", icon: "\uD83C\uDFE0" },
@@ -109,6 +110,10 @@ export default function Category({ closeCategory, addNewCategory }) {
   };
 
   const handleSave = () => {
+    if (isSaving) {
+      return;
+    }
+
     if (!name || !amount || !selectedIcon) {
       alert("Please enter Name, Amount, and choose an Icon!");
       return;
@@ -125,6 +130,7 @@ export default function Category({ closeCategory, addNewCategory }) {
     }
 
     setErrorMessage("");
+    setIsSaving(true);
 
     const budgetData = {
       name,
@@ -155,6 +161,9 @@ export default function Category({ closeCategory, addNewCategory }) {
       .catch((err) => {
         console.error("Server Error:", err);
         setErrorMessage("Backend is offline. Start the server on port 5001 and try again.");
+      })
+      .finally(() => {
+        setIsSaving(false);
       });
   };
 
@@ -171,9 +180,9 @@ export default function Category({ closeCategory, addNewCategory }) {
             </div>
 
             <div className="predefined-grid">
-              {predefinedCategories.map((cat, i) => (
+              {predefinedCategories.map((cat) => (
                 <button
-                  key={`${cat.name}-${i}`}
+                  key={`${cat.name}-${cat.icon}`}
                   className="predefined-item"
                   onClick={() => handleSelectPredefined(cat)}
                 >
@@ -260,9 +269,9 @@ export default function Category({ closeCategory, addNewCategory }) {
               <div>
                 <p className="section-label">Choose Icon</p>
                 <div className="icon-grid">
-                  {icons.map((icon, i) => (
+                  {icons.map((icon) => (
                     <div
-                      key={i}
+                      key={icon}
                       className={`icon-item ${selectedIcon === icon ? "active" : ""}`}
                       onClick={() => setSelectedIcon(icon)}
                     >
@@ -277,8 +286,8 @@ export default function Category({ closeCategory, addNewCategory }) {
               <button className="btn-cancel-modal" onClick={() => setView("select")}>
                 Cancel
               </button>
-              <button className="btn-add-modal" onClick={handleSave}>
-                Save Category
+              <button className="btn-add-modal" onClick={handleSave} disabled={isSaving}>
+                {isSaving ? "Saving..." : "Save Category"}
               </button>
             </div>
           </>

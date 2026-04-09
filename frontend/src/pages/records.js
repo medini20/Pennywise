@@ -107,6 +107,11 @@ const getRequestErrorMessage = (error) =>
     ? "Backend is offline. Start the server on port 5001 and try again."
     : error.message;
 
+const toFiniteAmount = (value) => {
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue) ? numericValue : 0;
+};
+
 export default function Records({ notifications = [], dismissNotification, onSpendingChange }) {
   const currentDate = new Date();
   const storedUser = getStoredUser();
@@ -145,11 +150,11 @@ export default function Records({ notifications = [], dismissNotification, onSpe
 
   const totalExpense = monthTransactions
     .filter((transaction) => transaction.type === "expense")
-    .reduce((sum, transaction) => sum + Number(transaction.amount), 0);
+    .reduce((sum, transaction) => sum + toFiniteAmount(transaction.amount), 0);
 
   const totalIncome = monthTransactions
     .filter((transaction) => transaction.type === "income")
-    .reduce((sum, transaction) => sum + Number(transaction.amount), 0);
+    .reduce((sum, transaction) => sum + toFiniteAmount(transaction.amount), 0);
 
   const balance = totalIncome - totalExpense;
 

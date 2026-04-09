@@ -1,5 +1,6 @@
 const db = require("../../config/db");
 const jwt = require("jsonwebtoken");
+const JWT_SECRET = require("../../utils/jwtSecret");
 
 const runQuery = async (sql, params = []) => {
   const [rows] = await db.promise().query(sql, params);
@@ -7,8 +8,11 @@ const runQuery = async (sql, params = []) => {
 };
 
 const normalizeText = (value) => (typeof value === "string" ? value.trim() : "");
+const isValidEmail = (value) =>
+  typeof value === "string" &&
+  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim()) &&
+  value.trim().length <= 254;
 const UNKNOWN_COLUMN_REGEX = /Unknown column/i;
-const JWT_SECRET = process.env.JWT_SECRET || "secret";
 
 const extractRequestUserId = (user = {}) => {
   const candidates = [user.id, user.user_id];
@@ -284,6 +288,14 @@ exports.updateProfile = async (req, res) => {
 
   if (!username || !email) {
     return res.status(400).json({ message: "Username and email are required" });
+  }
+
+  if (username.length < 2 || username.length > 100) {
+    return res.status(400).json({ message: "Username must be between 2 and 100 characters" });
+  }
+
+  if (!isValidEmail(email)) {
+    return res.status(400).json({ message: "Please provide a valid email address" });
   }
 
   try {

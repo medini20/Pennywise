@@ -1,7 +1,6 @@
 const db = require("../../config/db");
 const emailService = require("../../utils/emailService");
 
-const DEFAULT_USER_ID = 1;
 const DEFAULT_BUDGET_AMOUNT = 5000;
 const DEFAULT_BUDGET_NAME = "Monthly Budget";
 const DEFAULT_BUDGET_COLOR = "#ffcc00";
@@ -233,12 +232,12 @@ const getResolvedDateRange = (startDateValue, endDateValue, referenceDate = new 
 const getUserId = (req) => {
   const body = req.body || {};
   const query = req.query || {};
-  const rawUserId = body.user_id || query.user_id;
+  const rawUserId = req.user?.user_id || req.user?.id || body.user_id || query.user_id;
   const parsedUserId = Number(rawUserId);
 
   return Number.isInteger(parsedUserId) && parsedUserId > 0
     ? parsedUserId
-    : DEFAULT_USER_ID;
+    : null;
 };
 
 const toPositiveNumber = (value) => {
@@ -271,6 +270,11 @@ const toHexColor = (value) => {
   const parsedValue = toOptionalText(value);
   return parsedValue && /^#[0-9a-fA-F]{6}$/.test(parsedValue) ? parsedValue : null;
 };
+
+const isValidEmail = (value) =>
+  typeof value === "string" &&
+  value.length <= 254 &&
+  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 
 const getBudgetPeriodInput = (body, existingBudget, month, year) => {
   const defaultPeriod = getDefaultBudgetPeriod(month, year);
@@ -820,6 +824,9 @@ exports.saveBudget = async (req, res) => {
     }
 
     const userId = getUserId(req);
+    if (!userId) {
+      return res.status(401).json({ error: "Valid user_id is required." });
+    }
     const { month, year } = getCurrentPeriod();
     await syncBudgetLifecycle(userId);
     const existingBudget = await getMonthlyBudgetForMonth(userId, month);
@@ -931,6 +938,9 @@ exports.createAlert = async (req, res) => {
     }
 
     const userId = getUserId(req);
+    if (!userId) {
+      return res.status(401).json({ error: "Valid user_id is required." });
+    }
     const { month, year } = getCurrentPeriod();
     const currentBudget = await ensureBudgetForMonth(userId, month, year);
     const requestedBudgetId = Number(body.budget_id);
@@ -1014,10 +1024,26 @@ exports.createAlert = async (req, res) => {
       });
     }
 
-    const result = await runQuery(
-      "INSERT INTO alerts (user_id, budget_id, threshold_percent) VALUES (?, ?, ?)",
-      [userId, budgetId, thresholdPercent]
-    );
+    let result;
+    try {
+      result = await runQuery(
+        "INSERT INTO alerts (user_id, budget_id, threshold_percent) VALUES (?, ?, ?)",
+        [userId, budgetId, thresholdPercent]
+      );
+    } catch (error) {
+      if (error?.code === "ER_DUP_ENTRY") {
+        return res.status(409).json({
+          error:
+            alertScope === "category"
+              ? "This category already has an alert for that percentage."
+              : "Your monthly budget already has an alert for that percentage.",
+          scope: alertScope,
+          budget_name:
+            alertScope === "overall" ? DEFAULT_BUDGET_NAME : getBudgetDisplayName(budgetRow)
+        });
+      }
+      throw error;
+    }
 
     return res.status(201).json({
       message: "Alert added!",
@@ -1040,6 +1066,9 @@ exports.createAlert = async (req, res) => {
 exports.getAlertData = async (req, res) => {
   try {
     const userId = getUserId(req);
+    if (!userId) {
+      return res.status(401).json({ error: "Valid user_id is required." });
+    }
     const summary = await buildAlertSummary(
       userId,
       getCurrentSpendingOverride(req)
@@ -1056,6 +1085,9 @@ exports.checkTriggeredAlerts = async (req, res) => {
     const body = req.body || {};
     const query = req.query || {};
     const userId = getUserId(req);
+    if (!userId) {
+      return res.status(401).json({ error: "Valid user_id is required." });
+    }
     const sendEmail = body.send_email === true || query.send_email === "true";
     const email = body.email || query.email;
     const summary = await buildAlertSummary(
@@ -1064,6 +1096,10 @@ exports.checkTriggeredAlerts = async (req, res) => {
     );
 
     let emailSent = false;
+
+    if (sendEmail && email && !isValidEmail(email)) {
+      return res.status(400).json({ error: "Please provide a valid email address." });
+    }
 
     if (sendEmail && email && summary.triggered_alerts.length > 0) {
       emailSent = await emailService.sendBudgetAlert(email, {
@@ -1085,6 +1121,9 @@ exports.checkTriggeredAlerts = async (req, res) => {
 exports.deleteAlert = async (req, res) => {
   try {
     const userId = getUserId(req);
+    if (!userId) {
+      return res.status(401).json({ error: "Valid user_id is required." });
+    }
     const alertId = Number(req.params.id);
 
     if (!Number.isInteger(alertId) || alertId <= 0) {
@@ -1100,7 +1139,7 @@ exports.deleteAlert = async (req, res) => {
       return res.status(404).json({ error: "Alert not found." });
     }
 
-    await runQuery("DELETE FROM alerts WHERE alert_id = ?", [alertId]);
+    await runQuery("DELETE FROM alerts WHERE alert_id = ? AND user_id = ?", [alertId, userId]);
 
     return res.json({ message: "Alert deleted successfully.", alert_id: alertId });
   } catch (error) {

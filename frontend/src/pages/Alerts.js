@@ -119,7 +119,7 @@ const writeCachedAlertState = (userId, nextState) => {
 
 export default function AlertsView() {
   const storedUser = getStoredUser();
-  const userId = storedUser?.id ?? storedUser?.user_id ?? 1;
+  const userId = storedUser?.id ?? storedUser?.user_id ?? null;
   const defaultMonthRange = getCurrentMonthDateRange();
   const [budget, setBudget] = useState(5000);
   const [budgetId, setBudgetId] = useState(null);
@@ -188,6 +188,15 @@ export default function AlertsView() {
     if (clearStatus) {
       setStatusMessage("");
       setStatusTone("");
+    }
+
+    if (!userId) {
+      setStatusMessage("Please log in again to load your alerts.");
+      setStatusTone("error");
+      setIsLoading(false);
+      setAlerts([]);
+      setCategoryBudgets([]);
+      return;
     }
 
     try {
@@ -293,7 +302,7 @@ export default function AlertsView() {
   };
 
   const handleStartBudgetEdit = () => {
-    setTempBudget(budget);
+    setTempBudget(Number(budget) || 0);
     setTempBudgetStartDate(budgetStartDate);
     setTempBudgetEndDate(budgetEndDate);
     setIsEditingBudget(true);
@@ -302,7 +311,7 @@ export default function AlertsView() {
   };
 
   const handleCancelBudgetEdit = () => {
-    setTempBudget(budget);
+    setTempBudget(Number(budget) || 0);
     setTempBudgetStartDate(budgetStartDate);
     setTempBudgetEndDate(budgetEndDate);
     setIsEditingBudget(false);
@@ -568,7 +577,7 @@ export default function AlertsView() {
                   className="alertsBudgetInput"
                   type="number"
                   value={tempBudget}
-                  onChange={(event) => setTempBudget(event.target.value)}
+                  onChange={(event) => setTempBudget(Number(event.target.value) || 0)}
                   autoFocus
                 />
               </div>

@@ -230,7 +230,7 @@ const formatTransactionDate = (value) => {
 
 function Budget() {
   const storedUser = getStoredUser();
-  const userId = storedUser?.id ?? storedUser?.user_id ?? 1;
+  const userId = storedUser?.id ?? storedUser?.user_id ?? null;
   const [budgets, setBudgets] = useState([]);
   const [selectedBudget, setSelectedBudget] = useState(null);
   const [transactions, setTransactions] = useState([]);
@@ -245,20 +245,37 @@ function Budget() {
   const [editErrorMessage, setEditErrorMessage] = useState("");
 
   const loadBudgets = useCallback(async () => {
+    if (!userId) {
+      setBudgets([]);
+      setEditErrorMessage("Please log in again to load budgets.");
+      return [];
+    }
+
     try {
       const res = await fetch(`${API_BASE_URL}/budget/list?user_id=${userId}`);
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(data.error || "Unable to load budgets.");
+      }
+
       const list = Array.isArray(data) ? data : data.budgets || [];
       const normalizedBudgets = list.map((budget) => withDefaultBudgetDateRange(budget));
       setBudgets(normalizedBudgets);
+      setEditErrorMessage("");
       return normalizedBudgets;
     } catch (error) {
-      console.log("Database offline");
+      setEditErrorMessage(error.message || "Unable to load budgets.");
       return [];
     }
   }, [userId]);
 
   const loadTransactions = useCallback(() => {
+    if (!userId) {
+      setTransactions([]);
+      return;
+    }
+
     fetch(`${API_BASE_URL}/api/transactions?user_id=${userId}`)
       .then((res) => res.json())
       .then((data) => {
@@ -329,28 +346,30 @@ function Budget() {
   }, [budgets, transactions]);
 
   useEffect(() => {
-    if (!selectedBudget) {
-      return;
-    }
+    setSelectedBudget((currentSelectedBudget) => {
+      if (!currentSelectedBudget) {
+        return currentSelectedBudget;
+      }
 
-    const refreshedBudget = computedBudgets.find(
-      (budget) => budget.budget_id === selectedBudget.budget_id
-    );
+      const refreshedBudget = computedBudgets.find(
+        (budget) => budget.budget_id === currentSelectedBudget.budget_id
+      );
 
-    if (
-      refreshedBudget &&
-      (
-        refreshedBudget.spent !== selectedBudget.spent ||
-        refreshedBudget.amount !== selectedBudget.amount ||
-        refreshedBudget.name !== selectedBudget.name ||
-        refreshedBudget.icon !== selectedBudget.icon ||
-        refreshedBudget.start_date !== selectedBudget.start_date ||
-        refreshedBudget.end_date !== selectedBudget.end_date
-      )
-    ) {
-      setSelectedBudget(refreshedBudget);
-    }
-  }, [computedBudgets, selectedBudget]);
+      if (!refreshedBudget) {
+        return currentSelectedBudget;
+      }
+
+      const hasMeaningfulChanges =
+        refreshedBudget.spent !== currentSelectedBudget.spent ||
+        refreshedBudget.amount !== currentSelectedBudget.amount ||
+        refreshedBudget.name !== currentSelectedBudget.name ||
+        refreshedBudget.icon !== currentSelectedBudget.icon ||
+        refreshedBudget.start_date !== currentSelectedBudget.start_date ||
+        refreshedBudget.end_date !== currentSelectedBudget.end_date;
+
+      return hasMeaningfulChanges ? refreshedBudget : currentSelectedBudget;
+    });
+  }, [computedBudgets]);
 
   const mergeUpdatedBudget = (budget) => {
     if (!budget) {
@@ -481,8 +500,16 @@ function Budget() {
   };
 
   const deleteBudget = () => {
+    if (!selectedBudget?.budget_id || !userId) {
+      return;
+    }
+
     fetch(`${API_BASE_URL}/budget/${selectedBudget.budget_id}`, {
-      method: "DELETE"
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ user_id: userId })
     }).then(() => {
       setDeleteOpen(false);
       if (isDetailOpen) {

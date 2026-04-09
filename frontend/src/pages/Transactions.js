@@ -26,6 +26,14 @@ const formatDateValue = (date) => {
   return `${year}-${month}-${day}`;
 };
 const TODAY_DATE_VALUE = formatDateValue(new Date());
+const toDateFromValue = (value) => {
+  if (typeof value !== "string" || !value) {
+    return null;
+  }
+
+  const parsedDate = new Date(`${value}T00:00:00`);
+  return Number.isNaN(parsedDate.getTime()) ? null : parsedDate;
+};
 
 const getTransactionDateValue = (transaction, fallbackDate) => {
   if (typeof transaction?.transaction_date === "string" && transaction.transaction_date.trim()) {
@@ -98,7 +106,7 @@ export default function Transactions({
 }) {
   const today = new Date();
   const storedUser = getStoredUser();
-  const userId = storedUser?.id ?? storedUser?.user_id ?? 1;
+  const userId = storedUser?.id ?? storedUser?.user_id ?? null;
   const isEditMode = Boolean(initialTransaction);
   const initialTransactionDate = getTransactionDateValue(initialTransaction, today);
   const initialCategoryName = getTransactionCategoryName(initialTransaction);
@@ -265,19 +273,37 @@ export default function Transactions({
       return;
     }
 
+    const parsedAmount = Number(amount);
+    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+      alert("Enter a valid amount greater than 0.");
+      return;
+    }
+
+    if (!userId) {
+      alert("Please log in again before saving transactions.");
+      return;
+    }
+
     if (!selectedCategory) {
       alert("Select a category");
       return;
     }
 
-    if (selectedDate > TODAY_DATE_VALUE) {
+    const selectedDateValue = toDateFromValue(selectedDate);
+    const todayDateValue = toDateFromValue(TODAY_DATE_VALUE);
+    if (
+      !isEditMode &&
+      selectedDateValue &&
+      todayDateValue &&
+      selectedDateValue.getTime() > todayDateValue.getTime()
+    ) {
       alert("Transaction date cannot be in the future.");
       return;
     }
 
     const wasSaved = await Promise.resolve(
       addTransaction({
-        amount: Number(amount),
+        amount: parsedAmount,
         note: note || selectedCategory,
         type,
         category: selectedCategory,
@@ -304,12 +330,29 @@ export default function Transactions({
       return;
     }
 
+    const parsedAmount = Number(amount);
+    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+      setRecurringMessage("Enter a valid amount greater than 0.");
+      return;
+    }
+
+    if (!userId) {
+      setRecurringMessage("Please log in again before saving recurring payments.");
+      return;
+    }
+
     if (!recurringStartDate) {
       setRecurringMessage("Select a recurring payment start date.");
       return;
     }
 
-    if (recurringStartDate > TODAY_DATE_VALUE) {
+    const recurringStartDateValue = toDateFromValue(recurringStartDate);
+    const todayDateValue = toDateFromValue(TODAY_DATE_VALUE);
+    if (
+      recurringStartDateValue &&
+      todayDateValue &&
+      recurringStartDateValue.getTime() > todayDateValue.getTime()
+    ) {
       setRecurringMessage("Recurring start date cannot be in the future.");
       return;
     }
@@ -319,14 +362,19 @@ export default function Transactions({
       return;
     }
 
-    if (recurringEndDate && recurringEndDate < recurringStartDate) {
+    const recurringEndDateValue = toDateFromValue(recurringEndDate);
+    if (
+      recurringEndDateValue &&
+      recurringStartDateValue &&
+      recurringEndDateValue.getTime() < recurringStartDateValue.getTime()
+    ) {
       setRecurringMessage("End date must be the same as or after the start date.");
       return;
     }
 
     const wasSaved = await Promise.resolve(
       addTransaction({
-        amount: Number(amount),
+        amount: parsedAmount,
         note: note || selectedCategory,
         type,
         category: selectedCategory,
@@ -352,6 +400,11 @@ export default function Transactions({
     };
 
     if (!normalizedCategory.name || !normalizedCategory.icon) {
+      return;
+    }
+
+    if (!userId) {
+      alert("Please log in again before adding categories.");
       return;
     }
 

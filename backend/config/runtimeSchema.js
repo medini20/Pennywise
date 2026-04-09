@@ -428,12 +428,31 @@ const ensureRecurringSchema = async () => {
   }
 };
 
+const ensureAlertsSchema = async () => {
+  if (!(await hasTable("alerts"))) {
+    console.log("Skipping alerts schema update: alerts table not found");
+    return;
+  }
+
+  if (!(await hasIndex("alerts", "uniq_alerts_user_budget_threshold"))) {
+    await db.promise().query(
+      `
+        ALTER TABLE alerts
+        ADD UNIQUE KEY uniq_alerts_user_budget_threshold (user_id, budget_id, threshold_percent)
+      `
+    );
+
+    console.log("Added alerts unique index for user_id, budget_id, and threshold_percent");
+  }
+};
+
 const ensureRuntimeSchema = async () => {
   try {
     await ensureBudgetSchema();
     await ensureUsersSchema();
     await ensureOtpSchema();
     await ensureCategorySchema();
+    await ensureAlertsSchema();
     await ensureTransactionSchema();
     await ensureRecurringSchema();
   } catch (error) {
