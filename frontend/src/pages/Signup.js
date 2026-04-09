@@ -286,7 +286,7 @@ function Signup() {
                 </div>
               )}
               <p style={{ fontSize: "12px", color: "#6b7280", marginTop: "6px" }}>
-                Use 6+ characters with uppercase, numbers & symbols
+                Use 8+ characters with uppercase, numbers & symbols
               </p>
             </div>
 
