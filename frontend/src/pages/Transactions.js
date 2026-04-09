@@ -494,14 +494,20 @@ export default function Transactions({
           + Add Categories
         </div>
 
+        <label className="amountLabel" htmlFor="transaction-amount-input">
+          Amount
+        </label>
         <input
+          id="transaction-amount-input"
           className="amount amountInput"
           type="text"
           inputMode="decimal"
           value={amount}
           onChange={(event) => setAmount(normalizeAmountInput(event.target.value))}
           placeholder="0"
+          aria-label="Transaction amount"
         />
+        <p className="amountHint">Tap the keypad below or type your amount.</p>
 
         {!isEditMode && (
           <div className="recurringCard">
@@ -672,33 +678,36 @@ export default function Transactions({
           </>
         )}
 
-        {!isRecurring && (
-          <div className="keypad">
-            <button onClick={() => appendAmountValue("7")}>7</button>
-            <button onClick={() => appendAmountValue("8")}>8</button>
-            <button onClick={() => appendAmountValue("9")}>9</button>
-            <button className="mathKey" type="button">+</button>
+        <div className="keypad">
+          <button onClick={() => appendAmountValue("7")}>7</button>
+          <button onClick={() => appendAmountValue("8")}>8</button>
+          <button onClick={() => appendAmountValue("9")}>9</button>
+          <button className="mathKey" type="button">+</button>
 
-            <button onClick={() => appendAmountValue("4")}>4</button>
-            <button onClick={() => appendAmountValue("5")}>5</button>
-            <button onClick={() => appendAmountValue("6")}>6</button>
-            <button className="mathKey" type="button">-</button>
+          <button onClick={() => appendAmountValue("4")}>4</button>
+          <button onClick={() => appendAmountValue("5")}>5</button>
+          <button onClick={() => appendAmountValue("6")}>6</button>
+          <button className="mathKey" type="button">-</button>
 
-            <button onClick={() => appendAmountValue("1")}>1</button>
-            <button onClick={() => appendAmountValue("2")}>2</button>
-            <button onClick={() => appendAmountValue("3")}>3</button>
-            <button
-              className="backKey"
-              onClick={() => setAmount((currentAmount) => currentAmount.slice(0, -1))}
-            >
-              Back
-            </button>
+          <button onClick={() => appendAmountValue("1")}>1</button>
+          <button onClick={() => appendAmountValue("2")}>2</button>
+          <button onClick={() => appendAmountValue("3")}>3</button>
+          <button
+            className="backKey"
+            onClick={() => setAmount((currentAmount) => currentAmount.slice(0, -1))}
+          >
+            Back
+          </button>
 
-            <button onClick={() => appendAmountValue(".")}>.</button>
-            <button onClick={() => appendAmountValue("0")}>0</button>
-            <button className="ok" onClick={handleSubmitTransaction}>{submitLabel}</button>
-          </div>
-        )}
+          <button onClick={() => appendAmountValue(".")}>.</button>
+          <button onClick={() => appendAmountValue("0")}>0</button>
+          <button
+            className="ok"
+            onClick={isRecurring ? handleSaveRecurringPayment : handleSubmitTransaction}
+          >
+            {isRecurring ? "Save Recurring" : submitLabel}
+          </button>
+        </div>
       </div>
 
       {showCategory && (

@@ -156,22 +156,37 @@
 .amount {
   font-size: 48px;
   text-align: center;
-  margin: 10px 0 12px;
+  margin: 8px 0 4px;
   font-weight: 800;
   line-height: 1;
 }
 
+.amountLabel {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.72);
+  margin: 12px 0 6px;
+}
+
 .amountInput {
   width: 100%;
-  border: none;
-  background: transparent;
+  border: 1px solid rgba(55, 111, 228, 0.72);
+  border-radius: 14px;
+  background: #24345c;
   color: white;
-  padding: 0;
+  padding: 12px 14px;
   outline: none;
 }
 
 .amountInput::placeholder {
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.amountHint {
+  margin: 0 0 10px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.62);
 }
 
 .recurringCard {
