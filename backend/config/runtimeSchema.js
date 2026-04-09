@@ -434,6 +434,42 @@ const ensureAlertsSchema = async () => {
     return;
   }
 
+  const [duplicateAlertGroups] = await db.promise().query(
+    `
+      SELECT
+        user_id,
+        budget_id,
+        threshold_percent,
+        MIN(alert_id) AS keep_alert_id,
+        GROUP_CONCAT(alert_id ORDER BY alert_id ASC) AS alert_ids,
+        COUNT(*) AS duplicate_count
+      FROM alerts
+      GROUP BY user_id, budget_id, threshold_percent
+      HAVING COUNT(*) > 1
+    `
+  );
+
+  for (const duplicateAlertGroup of duplicateAlertGroups) {
+    const keepAlertId = Number(duplicateAlertGroup.keep_alert_id);
+    const duplicateAlertIds = String(duplicateAlertGroup.alert_ids || "")
+      .split(",")
+      .map((value) => Number(value))
+      .filter((value) => Number.isInteger(value) && value > 0 && value !== keepAlertId);
+
+    if (duplicateAlertIds.length === 0) {
+      continue;
+    }
+
+    const placeholders = duplicateAlertIds.map(() => "?").join(", ");
+    await db.promise().query(
+      `
+        DELETE FROM alerts
+        WHERE alert_id IN (${placeholders})
+      `,
+      duplicateAlertIds
+    );
+  }
+
   if (!(await hasIndex("alerts", "uniq_alerts_user_budget_threshold"))) {
     await db.promise().query(
       `
