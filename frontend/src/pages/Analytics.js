@@ -84,7 +84,11 @@ function Analytics() {
   const escapeCsvCell = (value) => {
     const normalizedValue =
       value === null || value === undefined ? "" : String(value);
-    return `"${normalizedValue.replace(/"/g, "\"\"")}"`;
+    const shouldNeutralizeFormula =
+      typeof value === "string" && /^[\t\r\n ]*[=+\-@]/.test(normalizedValue);
+    const safeValue = shouldNeutralizeFormula ? `'${normalizedValue}` : normalizedValue;
+
+    return `"${safeValue.replace(/"/g, "\"\"")}"`;
   };
 
   const fetchTransactions = useCallback(async () => {
