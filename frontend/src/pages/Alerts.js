@@ -453,7 +453,8 @@ export default function AlertsView() {
       notifyAlertStateChanged();
       didSave = true;
     } catch (error) {
-      await loadAlertData({ clearStatus: false });
+      // Keep the dialog state intact on failure so users can correct input/retry
+      // without triggering a background refresh that may surface stale cached data.
       setDialogError(error.message || "Unable to add alert.");
     } finally {
       setIsSavingAlert(false);
