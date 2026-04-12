@@ -14,6 +14,7 @@ import AestheticDatePicker from "../components/AestheticDatePicker";
 import { getStoredUser } from "../services/authStorage";
 import {
   getCurrentMonthDateRange,
+  parseBudgetDateValue,
   withDefaultBudgetDateRange
 } from "../utils/budgetDates";
 import "./Budget.css";
@@ -34,7 +35,7 @@ const formatBudgetDateValue = (value) => {
 
 const parseBudgetDate = (value) => {
   const normalizedValue = formatBudgetDateValue(value);
-  return normalizedValue ? new Date(`${normalizedValue}T00:00:00`) : null;
+  return normalizedValue ? parseBudgetDateValue(normalizedValue) : null;
 };
 
 const getBudgetDateTime = (value) => {

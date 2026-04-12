@@ -4,21 +4,15 @@ import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 import {
   formatAsDateValue,
   formatDisplayDate,
-  normalizeBudgetDateValue
+  normalizeBudgetDateValue,
+  parseBudgetDateValue
 } from "../utils/budgetDates";
 import "./AestheticDatePicker.css";
 
 const WEEK_DAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 
 const parseDateValue = (value) => {
-  const normalizedValue = normalizeBudgetDateValue(value);
-
-  if (!normalizedValue) {
-    return null;
-  }
-
-  const parsedDate = new Date(`${normalizedValue}T00:00:00`);
-  return Number.isNaN(parsedDate.getTime()) ? null : parsedDate;
+  return parseBudgetDateValue(value);
 };
 
 const isOutsideRange = (dateValue, min, max) => {

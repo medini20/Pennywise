@@ -23,7 +23,7 @@ const isValidDateParts = (year, month, day) => {
 const normalizeStrictDate = (value) => {
   const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (!match) {
-    return "";
+    return null;
   }
 
   const year = Number(match[1]);
@@ -32,11 +32,27 @@ const normalizeStrictDate = (value) => {
 
   return isValidDateParts(year, month, day)
     ? `${year}-${padNumber(month)}-${padNumber(day)}`
-    : "";
+    : null;
 };
 
 export const formatAsDateValue = (date) =>
   `${date.getFullYear()}-${padNumber(date.getMonth() + 1)}-${padNumber(date.getDate())}`;
+
+export const parseBudgetDateValue = (value) => {
+  const normalizedValue = normalizeBudgetDateValue(value);
+
+  if (!normalizedValue) {
+    return null;
+  }
+
+  const [year, month, day] = normalizedValue.split("-").map(Number);
+
+  if (!isValidDateParts(year, month, day)) {
+    return null;
+  }
+
+  return new Date(year, month - 1, day);
+};
 
 export const normalizeBudgetDateValue = (value) => {
   if (!value) {
@@ -54,12 +70,6 @@ export const normalizeBudgetDateValue = (value) => {
 
     if (datePrefixMatch) {
       return normalizeStrictDate(datePrefixMatch[1]);
-    }
-
-    const parsedDate = new Date(trimmedValue);
-
-    if (!Number.isNaN(parsedDate.getTime())) {
-      return formatAsDateValue(parsedDate);
     }
 
     return null;
@@ -94,9 +104,9 @@ export const formatDisplayDate = (value, options = {}) => {
     return "";
   }
 
-  const parsedDate = new Date(`${normalizedValue}T00:00:00`);
+  const parsedDate = parseBudgetDateValue(normalizedValue);
 
-  if (Number.isNaN(parsedDate.getTime())) {
+  if (!parsedDate) {
     return normalizedValue;
   }
 

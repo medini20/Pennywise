@@ -17,6 +17,20 @@ const getSendGridApiKey = () => normalizeEnvValue(process.env.SENDGRID_API_KEY);
 const getSendGridFromAddress = () =>
   normalizeEnvValue(process.env.SENDGRID_FROM_EMAIL) || normalizeEnvValue(process.env.EMAIL_USER);
 
+const createEmailSendResult = ({
+  success = false,
+  deliveryConfirmed = false,
+  previewMode = false,
+  provider = "",
+  previewUrl = ""
+} = {}) => ({
+  success: Boolean(success),
+  deliveryConfirmed: Boolean(deliveryConfirmed),
+  previewMode: Boolean(previewMode),
+  provider,
+  previewUrl
+});
+
 const isPlaceholderEmailConfig = (emailUser, emailPass) => {
   const normalizedUser = normalizeEnvValue(emailUser).toLowerCase();
   const normalizedPass = normalizeEnvValue(emailPass).toLowerCase();
@@ -140,7 +154,11 @@ const sendViaResend = async ({ to, subject, text, html }) => {
   }
 
   console.log(`Resend email accepted for ${to}`);
-  return true;
+  return createEmailSendResult({
+    success: true,
+    deliveryConfirmed: true,
+    provider: "resend"
+  });
 };
 
 const sendViaSendGrid = async ({ to, subject, text, html }) => {
@@ -185,7 +203,11 @@ const sendViaSendGrid = async ({ to, subject, text, html }) => {
   }
 
   console.log(`SendGrid email accepted for ${to}`);
-  return true;
+  return createEmailSendResult({
+    success: true,
+    deliveryConfirmed: true,
+    provider: "sendgrid"
+  });
 };
 
 const buildOtpEmailContent = (otp, purpose = "SIGNUP") => {
@@ -224,7 +246,7 @@ exports.sendOTP = async (email, otp, purpose = "SIGNUP") => {
     const mailTransporter = await getTransporter();
     if (!mailTransporter) {
       console.log("No email transporter available.");
-      return false;
+      return createEmailSendResult();
     }
 
     const fromAddress = etherealAccount
@@ -244,17 +266,28 @@ exports.sendOTP = async (email, otp, purpose = "SIGNUP") => {
 
     if (previewUrl) {
       console.log("Email preview created successfully.");
+      return createEmailSendResult({
+        success: true,
+        deliveryConfirmed: false,
+        previewMode: true,
+        provider: "ethereal",
+        previewUrl
+      });
     } else {
       console.log(`Email sent to ${email}`);
+      return createEmailSendResult({
+        success: true,
+        deliveryConfirmed: true,
+        provider: "smtp"
+      });
     }
-
-    return true;
   };
 
   if (hasConfiguredSmtpCredentials()) {
     try {
-      if (await sendOtpMail()) {
-        return true;
+      const smtpResult = await sendOtpMail();
+      if (smtpResult.success) {
+        return smtpResult;
       }
     } catch (error) {
       console.error("SMTP email send failed:", error.message);
@@ -264,16 +297,18 @@ exports.sendOTP = async (email, otp, purpose = "SIGNUP") => {
   }
 
   try {
-    if (await sendViaSendGrid({ to: email, subject, text, html })) {
-      return true;
+    const sendGridResult = await sendViaSendGrid({ to: email, subject, text, html });
+    if (sendGridResult.success) {
+      return sendGridResult;
     }
   } catch (error) {
     console.error("SendGrid send failed:", error.message);
   }
 
   try {
-    if (await sendViaResend({ to: email, subject, text, html })) {
-      return true;
+    const resendResult = await sendViaResend({ to: email, subject, text, html });
+    if (resendResult.success) {
+      return resendResult;
     }
   } catch (error) {
     console.error("Resend send failed:", error.message);
@@ -291,7 +326,7 @@ exports.sendOTP = async (email, otp, purpose = "SIGNUP") => {
       return await sendOtpMail();
     } catch (retryError) {
       console.error("OTP retry send failed:", retryError.message);
-      return false;
+      return createEmailSendResult();
     }
   }
 };

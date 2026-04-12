@@ -80,6 +80,25 @@ const calculateNextOccurrenceDate = (dateValue, frequency, customIntervalDays) =
   return formatUtcDate(nextDate);
 };
 
+const getValidatedNextOccurrenceDate = (
+  dateValue,
+  frequency,
+  customIntervalDays,
+  nextOccurrenceCalculator = calculateNextOccurrenceDate
+) => {
+  const nextDateValue = nextOccurrenceCalculator(
+    dateValue,
+    frequency,
+    customIntervalDays
+  );
+
+  if (!nextDateValue || nextDateValue <= dateValue) {
+    return null;
+  }
+
+  return nextDateValue;
+};
+
 const resolveCategoryId = async ({ userId, categoryName, categoryIcon, type }) => {
   const [existingCategories] = await db.promise().query(
     `
@@ -216,6 +235,7 @@ const processRecurringPayments = async (userId) => {
       normalizeDateValue(recurringPayment.next_run_date) ||
       normalizeDateValue(recurringPayment.start_date);
     let loopGuard = 0;
+    let shouldRemainActive = true;
 
     if (!nextRunDate) {
       continue;
@@ -227,6 +247,7 @@ const processRecurringPayments = async (userId) => {
     ) {
       loopGuard += 1;
       if (loopGuard > 1000) {
+        shouldRemainActive = false;
         break;
       }
 
@@ -265,14 +286,22 @@ const processRecurringPayments = async (userId) => {
         }
       }
 
-      nextRunDate = calculateNextOccurrenceDate(
+      const followingRunDate = getValidatedNextOccurrenceDate(
         nextRunDate,
         recurringPayment.frequency,
         recurringPayment.custom_interval_days
       );
+
+      if (!followingRunDate) {
+        shouldRemainActive = false;
+        break;
+      }
+
+      nextRunDate = followingRunDate;
     }
 
-    const isActive = !endDate || nextRunDate <= endDate ? 1 : 0;
+    const isActive =
+      shouldRemainActive && (!endDate || nextRunDate <= endDate) ? 1 : 0;
 
     await db.promise().query(
       `
@@ -283,6 +312,11 @@ const processRecurringPayments = async (userId) => {
       [nextRunDate, isActive, recurringPayment.recurring_payment_id]
     );
   }
+};
+
+exports.__test__ = {
+  calculateNextOccurrenceDate,
+  getValidatedNextOccurrenceDate,
 };
 
 exports.addTransaction = async (req, res) => {

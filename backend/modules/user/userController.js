@@ -13,7 +13,9 @@ const OTP_EXPIRY_MINUTES = 5;
 const isOtpPreviewEnabled = process.env.ALLOW_OTP_PREVIEW === "true";
 const OTP_VERIFY_MAX_ATTEMPTS = 5;
 const OTP_VERIFY_LOCK_WINDOW_MS = 10 * 60 * 1000;
+const OTP_REQUEST_COOLDOWN_MS = 60 * 1000;
 const otpVerifyAttempts = new Map();
+const otpRequestCooldowns = new Map();
 
 const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
 
@@ -97,8 +99,11 @@ const createToken = (user) =>
     { expiresIn: "1d" }
   );
 
-const getOtpAttemptKey = (email, req) =>
-  `${email}::${req.ip || req.headers["x-forwarded-for"] || "unknown"}`;
+const getRateLimitClientKey = (req) =>
+  req.ip || req.headers["x-forwarded-for"] || "unknown";
+
+const getOtpAttemptKey = (email, scope, req) =>
+  `${scope}::${email}::${getRateLimitClientKey(req)}`;
 
 const getOtpAttemptState = (key) => {
   const now = Date.now();
@@ -111,6 +116,48 @@ const getOtpAttemptState = (key) => {
   }
 
   return existingState;
+};
+
+const getOtpRequestCooldownState = (key) => {
+  const now = Date.now();
+  const existingState = otpRequestCooldowns.get(key);
+
+  if (!existingState || now >= existingState.expiresAt) {
+    otpRequestCooldowns.delete(key);
+    return null;
+  }
+
+  return existingState;
+};
+
+const setOtpRequestCooldown = (key) => {
+  otpRequestCooldowns.set(key, {
+    expiresAt: Date.now() + OTP_REQUEST_COOLDOWN_MS
+  });
+};
+
+const normalizeEmailSendResult = (result) => {
+  if (typeof result === "boolean") {
+    return {
+      success: result,
+      deliveryConfirmed: result,
+      previewMode: false
+    };
+  }
+
+  if (result && typeof result === "object") {
+    return {
+      success: Boolean(result.success),
+      deliveryConfirmed: Boolean(result.deliveryConfirmed),
+      previewMode: Boolean(result.previewMode)
+    };
+  }
+
+  return {
+    success: false,
+    deliveryConfirmed: false,
+    previewMode: false
+  };
 };
 
 const toPublicUser = (user) => ({
@@ -140,9 +187,9 @@ const sendOtpWithTimeout = async (email, otp) => {
       })
     ]);
 
-    return Boolean(result);
+    return normalizeEmailSendResult(result);
   } catch (error) {
-    return false;
+    return normalizeEmailSendResult(false);
   }
 };
 
@@ -155,28 +202,37 @@ const sendOtpWithPurposeTimeout = async (email, otp, purpose) => {
       })
     ]);
 
-    return Boolean(result);
+    return normalizeEmailSendResult(result);
   } catch (error) {
-    return false;
+    return normalizeEmailSendResult(false);
   }
 };
 
-const buildOtpResponse = (message, otp, deliveryConfirmed) => {
+const buildOtpResponse = (message, otp, emailSendResult) => {
+  const {
+    deliveryConfirmed,
+    previewMode
+  } = normalizeEmailSendResult(emailSendResult);
   const response = {
     message: deliveryConfirmed
       ? message
       : "OTP was generated, but email delivery could not be confirmed. Check Spam or Promotions, or try again in a moment.",
-    deliveryConfirmed: Boolean(deliveryConfirmed)
+    deliveryConfirmed,
+    previewMode
   };
 
   const shouldExposeOtp =
-    isOtpPreviewEnabled || (!deliveryConfirmed && process.env.NODE_ENV !== "production");
+    isOtpPreviewEnabled ||
+    previewMode ||
+    (!deliveryConfirmed && process.env.NODE_ENV !== "production");
 
   if (shouldExposeOtp) {
     response.otpPreview = otp;
-    response.otpPreviewMessage = deliveryConfirmed
-      ? "Development preview: your OTP is shown here as well."
-      : "Email delivery is not fully configured yet, so your OTP is shown here to keep the site working.";
+    response.otpPreviewMessage = previewMode
+      ? "Email preview mode is active, so your OTP is shown here instead of being delivered to your inbox."
+      : deliveryConfirmed
+        ? "Development preview: your OTP is shown here as well."
+        : "Email delivery is not fully configured yet, so your OTP is shown here to keep the site working.";
   }
 
   return response;
@@ -279,6 +335,20 @@ exports.signup = async (req, res) => {
   }
 
   try {
+    const requestCooldownKey = getOtpAttemptKey(email, "signup-request", req);
+    const requestCooldownState = getOtpRequestCooldownState(requestCooldownKey);
+
+    if (requestCooldownState) {
+      const retryAfterSeconds = Math.max(
+        1,
+        Math.ceil((requestCooldownState.expiresAt - Date.now()) / 1000)
+      );
+
+      return res.status(429).json({
+        error: `Please wait ${retryAfterSeconds} seconds before requesting another OTP.`
+      });
+    }
+
     const verifiedEmailRows = await runQuery(
       "SELECT 1 FROM users WHERE email = ? AND is_verified = 1 LIMIT 1",
       [email]
@@ -311,10 +381,11 @@ exports.signup = async (req, res) => {
       "INSERT INTO otps (email, otp_code, purpose, expires_at) VALUES (?, ?, 'SIGNUP', ?)",
       [email, otp, createExpiryDate()]
     );
+    setOtpRequestCooldown(requestCooldownKey);
 
     try {
       const delivery = await sendOtpWithPurposeTimeout(email, otp, "SIGNUP");
-      if (!delivery) {
+      if (!delivery.success) {
         console.error("OTP email send was not confirmed for:", email);
       }
 
@@ -349,7 +420,7 @@ exports.verifyOtp = async (req, res) => {
     return res.status(400).json({ error: "Email and OTP code are required" });
   }
 
-  const attemptKey = getOtpAttemptKey(email, req);
+  const attemptKey = getOtpAttemptKey(email, "signup-verify", req);
   const attemptState = getOtpAttemptState(attemptKey);
 
   if (attemptState.count >= OTP_VERIFY_MAX_ATTEMPTS) {
@@ -566,6 +637,20 @@ exports.forgotPassword = async (req, res) => {
   }
 
   try {
+    const requestCooldownKey = getOtpAttemptKey(email, "password-reset-request", req);
+    const requestCooldownState = getOtpRequestCooldownState(requestCooldownKey);
+
+    if (requestCooldownState) {
+      const retryAfterSeconds = Math.max(
+        1,
+        Math.ceil((requestCooldownState.expiresAt - Date.now()) / 1000)
+      );
+
+      return res.status(429).json({
+        error: `Please wait ${retryAfterSeconds} seconds before requesting another OTP.`
+      });
+    }
+
     const user = await getUserByEmail(email);
 
     if (!user) {
@@ -573,13 +658,15 @@ exports.forgotPassword = async (req, res) => {
     }
 
     const otp = generateOTP();
+    await runQuery("DELETE FROM otps WHERE email = ? AND purpose = 'PASSWORD_RESET'", [email]);
     await runQuery(
       "INSERT INTO otps (email, otp_code, purpose, expires_at) VALUES (?, ?, 'PASSWORD_RESET', ?)",
       [email, otp, createExpiryDate()]
     );
+    setOtpRequestCooldown(requestCooldownKey);
 
     const delivery = await sendOtpWithPurposeTimeout(email, otp, "PASSWORD_RESET");
-    if (!delivery) {
+    if (!delivery.success) {
       console.error("Password reset OTP email send was not confirmed for:", email);
     }
 
@@ -615,6 +702,15 @@ exports.resetPassword = async (req, res) => {
     return res.status(400).json({ error: "New password must be at least 8 characters long" });
   }
 
+  const attemptKey = getOtpAttemptKey(email, "password-reset-verify", req);
+  const attemptState = getOtpAttemptState(attemptKey);
+
+  if (attemptState.count >= OTP_VERIFY_MAX_ATTEMPTS) {
+    return res.status(429).json({
+      error: "Too many invalid OTP attempts. Please wait a few minutes and try again."
+    });
+  }
+
   try {
     const rows = await runQuery(
       "SELECT otp_id FROM otps WHERE email = ? AND otp_code = ? AND purpose = 'PASSWORD_RESET' AND expires_at > ? ORDER BY created_at DESC LIMIT 1",
@@ -622,8 +718,11 @@ exports.resetPassword = async (req, res) => {
     );
 
     if (rows.length === 0) {
+      attemptState.count += 1;
       return res.status(400).json({ error: "Invalid or expired OTP" });
     }
+
+    otpVerifyAttempts.delete(attemptKey);
 
     const hasPasswordHashColumn = await hasUsersColumn("password_hash");
     const hasPasswordColumn = await hasUsersColumn("password");
@@ -725,6 +824,14 @@ exports.googleLogin = async (req, res) => {
   } catch (error) {
     console.error("Google auth error:", error.message);
     return res.status(401).json({ error: "Invalid Google token" });
+  }
+};
+
+exports.__test__ = {
+  buildOtpResponse,
+  clearOtpSecurityState: () => {
+    otpVerifyAttempts.clear();
+    otpRequestCooldowns.clear();
   }
 };
 
