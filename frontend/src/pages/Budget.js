@@ -37,6 +37,11 @@ const parseBudgetDate = (value) => {
   return normalizedValue ? new Date(`${normalizedValue}T00:00:00`) : null;
 };
 
+const getBudgetDateTime = (value) => {
+  const parsedDate = parseBudgetDate(value);
+  return parsedDate ? parsedDate.getTime() : null;
+};
+
 const isBudgetExpired = (budget) => {
   const endDate = parseBudgetDate(budget?.end_date);
   if (!endDate) {
@@ -425,7 +430,14 @@ function Budget() {
   const handleEditStartDateChange = (nextStartDate) => {
     setEditStartDate(nextStartDate);
 
-    if (editEndDate && nextStartDate && nextStartDate > editEndDate) {
+    const nextStartTime = getBudgetDateTime(nextStartDate);
+    const currentEndTime = getBudgetDateTime(editEndDate);
+
+    if (
+      nextStartTime !== null &&
+      currentEndTime !== null &&
+      nextStartTime > currentEndTime
+    ) {
       setEditEndDate(nextStartDate);
     }
   };
@@ -433,7 +445,14 @@ function Budget() {
   const handleEditEndDateChange = (nextEndDate) => {
     setEditEndDate(nextEndDate);
 
-    if (editStartDate && nextEndDate && nextEndDate < editStartDate) {
+    const currentStartTime = getBudgetDateTime(editStartDate);
+    const nextEndTime = getBudgetDateTime(nextEndDate);
+
+    if (
+      currentStartTime !== null &&
+      nextEndTime !== null &&
+      nextEndTime < currentStartTime
+    ) {
       setEditStartDate(nextEndDate);
     }
   };
@@ -455,7 +474,14 @@ function Budget() {
   };
 
   const saveBudget = async () => {
-    if (editStartDate > editEndDate) {
+    const editStartTime = getBudgetDateTime(editStartDate);
+    const editEndTime = getBudgetDateTime(editEndDate);
+
+    if (
+      editStartTime !== null &&
+      editEndTime !== null &&
+      editStartTime > editEndTime
+    ) {
       setEditErrorMessage("Start date must be on or before end date.");
       return;
     }
@@ -529,15 +555,17 @@ function Budget() {
     const selectedCategoryId = Number(selectedBudgetWithDates.category_id || 0);
 
     return transactions.filter((transaction) => {
-      const transactionDate = formatBudgetDateValue(transaction.transaction_date);
+      const transactionTime = getBudgetDateTime(transaction.transaction_date);
+      const selectedStartTime = getBudgetDateTime(selectedBudgetWithDates.start_date);
+      const selectedEndTime = getBudgetDateTime(selectedBudgetWithDates.end_date);
       const isBeforeStartDate =
-        Boolean(selectedBudgetWithDates.start_date) &&
-        Boolean(transactionDate) &&
-        transactionDate < formatBudgetDateValue(selectedBudgetWithDates.start_date);
+        selectedStartTime !== null &&
+        transactionTime !== null &&
+        transactionTime < selectedStartTime;
       const isAfterEndDate =
-        Boolean(selectedBudgetWithDates.end_date) &&
-        Boolean(transactionDate) &&
-        transactionDate > formatBudgetDateValue(selectedBudgetWithDates.end_date);
+        selectedEndTime !== null &&
+        transactionTime !== null &&
+        transactionTime > selectedEndTime;
 
       if (isBeforeStartDate || isAfterEndDate) {
         return false;

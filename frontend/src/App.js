@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { BrowserRouter, Routes, Route, useLocation, Navigate, useNavigate } from "react-router-dom";
+import { HashRouter, Routes, Route, useLocation, Navigate, useNavigate } from "react-router-dom";
 import { Bell, CircleUserRound, LogOut } from "lucide-react";
 import { clearStoredSession, getStoredUser, hasValidSession } from "./services/authStorage";
 import useIsMobile from "./hooks/useIsMobile";
@@ -842,6 +842,7 @@ function AppLayout() {
             <Route path="/analytics" element={<PrivateRoute><Analytics /></PrivateRoute>} />
             <Route path="/alerts" element={<PrivateRoute><Alerts /></PrivateRoute>} />
             <Route path="/profile" element={<PrivateRoute><Profile /></PrivateRoute>} />
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </div>
       </div>
@@ -851,9 +852,9 @@ function AppLayout() {
 
 function App() {
   return (
-    <BrowserRouter>
+    <HashRouter>
       <AppLayout />
-    </BrowserRouter>
+    </HashRouter>
   );
 }
 
