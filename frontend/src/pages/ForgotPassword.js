@@ -11,8 +11,6 @@ function ForgotPassword() {
   const [step, setStep] = useState(1);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
-  const [otpPreview, setOtpPreview] = useState("");
-  const [otpPreviewMessage, setOtpPreviewMessage] = useState("");
   const [deliveryConfirmed, setDeliveryConfirmed] = useState(true);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -22,8 +20,6 @@ function ForgotPassword() {
     e.preventDefault();
     setError("");
     setMessage("");
-    setOtpPreview("");
-    setOtpPreviewMessage("");
     setDeliveryConfirmed(true);
     setLoading(true);
 
@@ -37,8 +33,6 @@ function ForgotPassword() {
 
       if (response.ok) {
         setMessage(data.message);
-        setOtpPreview(data.otpPreview || "");
-        setOtpPreviewMessage(data.otpPreviewMessage || "");
         setDeliveryConfirmed(Boolean(data.deliveryConfirmed));
         setStep(2);
       } else {
@@ -115,12 +109,6 @@ function ForgotPassword() {
             }}
           >
             {message}
-          </div>
-        )}
-        {otpPreview && (
-          <div style={{ ...styles.previewBanner, ...(isMobile ? mobileStyles.banner : {}) }}>
-            <div style={styles.previewLabel}>{otpPreviewMessage || "Use this OTP if the email has not arrived yet."}</div>
-            <div style={styles.previewCode}>{otpPreview}</div>
           </div>
         )}
 

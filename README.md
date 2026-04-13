@@ -46,7 +46,8 @@ GOOGLE_CLIENT_ID=your_google_client_id_here
 ```
 
 Notes:
-- `EMAIL_USER` and `EMAIL_PASS` are optional for local development. If they are not configured, the backend falls back to email preview/local OTP flow.
+- `EMAIL_USER` and `EMAIL_PASS` are required for signup and password reset OTP delivery.
+- If real email credentials are missing, the backend now rejects OTP requests instead of exposing the OTP in the UI.
 - `GOOGLE_CLIENT_ID` is only required if you want Google sign-in to work.
 
 ### 3. Create and import the database

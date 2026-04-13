@@ -16,6 +16,7 @@ const getResendFromAddress = () =>
 const getSendGridApiKey = () => normalizeEnvValue(process.env.SENDGRID_API_KEY);
 const getSendGridFromAddress = () =>
   normalizeEnvValue(process.env.SENDGRID_FROM_EMAIL) || normalizeEnvValue(process.env.EMAIL_USER);
+const isOtpPreviewAllowed = () => process.env.ALLOW_OTP_PREVIEW === "true";
 
 const createEmailSendResult = ({
   success = false,
@@ -56,9 +57,7 @@ const isPlaceholderEmailConfig = (emailUser, emailPass) => {
 };
 
 const isEmailPreviewMode = () => {
-  const emailUser = normalizeEnvValue(process.env.EMAIL_USER);
-  const emailPass = normalizeEnvValue(process.env.EMAIL_PASS);
-  return isPlaceholderEmailConfig(emailUser, emailPass);
+  return !hasConfiguredEmailProvider() && isOtpPreviewAllowed();
 };
 
 const hasConfiguredSmtpCredentials = () => {
@@ -66,6 +65,11 @@ const hasConfiguredSmtpCredentials = () => {
   const emailPass = normalizeEnvValue(process.env.EMAIL_PASS);
   return !isPlaceholderEmailConfig(emailUser, emailPass);
 };
+
+const hasConfiguredEmailProvider = () =>
+  hasConfiguredSmtpCredentials() ||
+  Boolean(getResendApiKey()) ||
+  Boolean(getSendGridApiKey() && getSendGridFromAddress());
 
 const getTransporter = async () => {
   if (transporter) {
@@ -99,7 +103,12 @@ const getTransporter = async () => {
       console.warn("Gmail SMTP failed:", error.message);
     }
   } else {
-    console.log("Email credentials are not configured. Email preview mode will be used.");
+    console.log("Email SMTP credentials are not configured.");
+  }
+
+  if (!isOtpPreviewAllowed()) {
+    console.log("OTP preview mode is disabled. No email preview transport will be created.");
+    return null;
   }
 
   try {
@@ -371,3 +380,4 @@ exports.sendBudgetAlert = async (email, data) => {
 };
 
 exports.isEmailPreviewMode = isEmailPreviewMode;
+exports.isEmailProviderConfigured = hasConfiguredEmailProvider;

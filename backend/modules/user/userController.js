@@ -10,7 +10,6 @@ require("dotenv").config({ quiet: true });
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 const OTP_EXPIRY_MINUTES = 5;
-const isOtpPreviewEnabled = process.env.ALLOW_OTP_PREVIEW === "true";
 const OTP_VERIFY_MAX_ATTEMPTS = 5;
 const OTP_VERIFY_LOCK_WINDOW_MS = 10 * 60 * 1000;
 const OTP_REQUEST_COOLDOWN_MS = 60 * 1000;
@@ -208,34 +207,30 @@ const sendOtpWithPurposeTimeout = async (email, otp, purpose) => {
   }
 };
 
-const buildOtpResponse = (message, otp, emailSendResult) => {
-  const {
-    deliveryConfirmed,
-    previewMode
-  } = normalizeEmailSendResult(emailSendResult);
-  const response = {
-    message: deliveryConfirmed
-      ? message
-      : "OTP was generated, but email delivery could not be confirmed. Check Spam or Promotions, or try again in a moment.",
+const buildOtpResponse = (message, emailSendResult) => {
+  const { deliveryConfirmed, previewMode } = normalizeEmailSendResult(emailSendResult);
+  return {
+    message,
     deliveryConfirmed,
     previewMode
   };
+};
 
-  const shouldExposeOtp =
-    isOtpPreviewEnabled ||
-    previewMode ||
-    (!deliveryConfirmed && process.env.NODE_ENV !== "production");
+const getOtpDeliveryFailureMessage = () =>
+  emailService.isEmailProviderConfigured()
+    ? "We couldn't send the OTP email right now. Please try again in a moment."
+    : "OTP email delivery is not configured yet. Add a real email sender password or email API key, then try again.";
 
-  if (shouldExposeOtp) {
-    response.otpPreview = otp;
-    response.otpPreviewMessage = previewMode
-      ? "Email preview mode is active, so your OTP is shown here instead of being delivered to your inbox."
-      : deliveryConfirmed
-        ? "Development preview: your OTP is shown here as well."
-        : "Email delivery is not fully configured yet, so your OTP is shown here to keep the site working.";
-  }
+const cleanupSignupOtpState = async (email, name) => {
+  await runQuery("DELETE FROM otps WHERE email = ? AND purpose = 'SIGNUP'", [email]);
+  await runQuery(
+    "DELETE FROM users WHERE (email = ? OR name = ?) AND is_verified = 0",
+    [email, name]
+  );
+};
 
-  return response;
+const cleanupPasswordResetOtpState = async (email) => {
+  await runQuery("DELETE FROM otps WHERE email = ? AND purpose = 'PASSWORD_RESET'", [email]);
 };
 
 const insertUser = async ({ name, email, passwordHash, isVerified }) => {
@@ -381,30 +376,26 @@ exports.signup = async (req, res) => {
       "INSERT INTO otps (email, otp_code, purpose, expires_at) VALUES (?, ?, 'SIGNUP', ?)",
       [email, otp, createExpiryDate()]
     );
-    setOtpRequestCooldown(requestCooldownKey);
 
     try {
       const delivery = await sendOtpWithPurposeTimeout(email, otp, "SIGNUP");
-      if (!delivery.success) {
+      if (!delivery.deliveryConfirmed) {
         console.error("OTP email send was not confirmed for:", email);
+        await cleanupSignupOtpState(email, name);
+        return res.status(503).json({ error: getOtpDeliveryFailureMessage() });
       }
 
+      setOtpRequestCooldown(requestCooldownKey);
       return res.status(201).json(
         buildOtpResponse(
           "User registered. Please check email for OTP, including Spam or Promotions.",
-          otp,
           delivery
         )
       );
     } catch (emailError) {
       console.error("OTP email exception:", emailError.message);
-      return res.status(201).json(
-        buildOtpResponse(
-          "User registered. Please check email for OTP, including Spam or Promotions.",
-          otp,
-          false
-        )
-      );
+      await cleanupSignupOtpState(email, name);
+      return res.status(503).json({ error: getOtpDeliveryFailureMessage() });
     }
   } catch (error) {
     console.error("signup error:", error.message);
@@ -663,17 +654,18 @@ exports.forgotPassword = async (req, res) => {
       "INSERT INTO otps (email, otp_code, purpose, expires_at) VALUES (?, ?, 'PASSWORD_RESET', ?)",
       [email, otp, createExpiryDate()]
     );
-    setOtpRequestCooldown(requestCooldownKey);
 
     const delivery = await sendOtpWithPurposeTimeout(email, otp, "PASSWORD_RESET");
-    if (!delivery.success) {
+    if (!delivery.deliveryConfirmed) {
       console.error("Password reset OTP email send was not confirmed for:", email);
+      await cleanupPasswordResetOtpState(email);
+      return res.status(503).json({ error: getOtpDeliveryFailureMessage() });
     }
 
+    setOtpRequestCooldown(requestCooldownKey);
     return res.json(
       buildOtpResponse(
         "OTP sent to email for password reset. Please check Spam or Promotions too.",
-        otp,
         delivery
       )
     );

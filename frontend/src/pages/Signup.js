@@ -35,8 +35,6 @@ function Signup() {
   const [step, setStep] = useState(1);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
-  const [otpPreview, setOtpPreview] = useState("");
-  const [otpPreviewMessage, setOtpPreviewMessage] = useState("");
   const [deliveryConfirmed, setDeliveryConfirmed] = useState(true);
   const [loading, setLoading] = useState(false);
   const [nameStatus, setUsernameStatus] = useState(null);
@@ -125,7 +123,7 @@ function Signup() {
 
   const handleSignup = async (e) => {
     e.preventDefault();
-    setError(""); setMessage(""); setOtpPreview(""); setOtpPreviewMessage(""); setDeliveryConfirmed(true); setLoading(true);
+    setError(""); setMessage(""); setDeliveryConfirmed(true); setLoading(true);
 
     if (formData.password !== confirmPassword) {
       setError("Passwords do not match.");
@@ -149,8 +147,6 @@ function Signup() {
 
       if (response.ok) {
         setMessage(data.message);
-        setOtpPreview(data.otpPreview || "");
-        setOtpPreviewMessage(data.otpPreviewMessage || "");
         setDeliveryConfirmed(Boolean(data.deliveryConfirmed));
         setStep(2);
       } else {
@@ -365,12 +361,6 @@ function Signup() {
               {message}
             </div>
           )}
-            {otpPreview && (
-              <div style={{ ...styles.previewBanner, ...(isMobile ? mobileStyles.banner : {}) }}>
-                <div style={styles.previewLabel}>{otpPreviewMessage || "Use this OTP if the email has not arrived yet."}</div>
-                <div style={styles.previewCode}>{otpPreview}</div>
-              </div>
-            )}
 
             <input
               type="text"

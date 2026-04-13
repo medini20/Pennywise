@@ -12,7 +12,8 @@ jest.mock("bcrypt", () => ({
 }));
 
 jest.mock("../../utils/emailService", () => ({
-  sendOTP: jest.fn()
+  sendOTP: jest.fn(),
+  isEmailProviderConfigured: jest.fn(() => false)
 }));
 
 jest.mock("jsonwebtoken", () => ({
@@ -103,9 +104,10 @@ describe("userController OTP protections", () => {
     expect(blockedResponse.body.error).toMatch(/Too many invalid OTP attempts/i);
   });
 
-  test("returns OTP preview details when email delivery is only available in preview mode", async () => {
+  test("rejects password reset OTP requests when email delivery is not configured", async () => {
     db.__query
       .mockResolvedValueOnce([[{ user_id: 7, email: "user@example.com" }]])
+      .mockResolvedValueOnce([{}])
       .mockResolvedValueOnce([{}])
       .mockResolvedValueOnce([{}]);
     emailService.sendOTP.mockResolvedValue({
@@ -123,12 +125,12 @@ describe("userController OTP protections", () => {
 
     await userController.forgotPassword(request, response);
 
-    expect(response.statusCode).toBe(200);
-    expect(response.body.deliveryConfirmed).toBe(false);
-    expect(response.body.previewMode).toBe(true);
-    expect(response.body.otpPreview).toMatch(/^\d{6}$/);
-    expect(response.body.otpPreviewMessage).toMatch(/preview mode/i);
+    expect(response.statusCode).toBe(503);
+    expect(response.body.error).toMatch(/not configured|couldn't send/i);
     expect(db.__query.mock.calls[1][0]).toContain(
+      "DELETE FROM otps WHERE email = ? AND purpose = 'PASSWORD_RESET'"
+    );
+    expect(db.__query.mock.calls[3][0]).toContain(
       "DELETE FROM otps WHERE email = ? AND purpose = 'PASSWORD_RESET'"
     );
   });

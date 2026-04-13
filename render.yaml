@@ -26,7 +26,7 @@ services:
       - key: EMAIL_PASS
         sync: false
       - key: ALLOW_OTP_PREVIEW
-        value: "true"
+        value: "false"
       - key: GOOGLE_CLIENT_ID
         sync: false
 
