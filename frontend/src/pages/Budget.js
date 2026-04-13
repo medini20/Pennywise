@@ -11,7 +11,7 @@ import {
 } from "react-icons/fa";
 import { LuPencil, LuTrash2 } from "react-icons/lu";
 import AestheticDatePicker from "../components/AestheticDatePicker";
-import { getStoredUser } from "../services/authStorage";
+import { getStoredToken, getStoredUser } from "../services/authStorage";
 import {
   getCurrentMonthDateRange,
   parseBudgetDateValue,
@@ -249,16 +249,23 @@ function Budget() {
   const [editStartDate, setEditStartDate] = useState(getCurrentMonthDateRange().startDate);
   const [editEndDate, setEditEndDate] = useState(getCurrentMonthDateRange().endDate);
   const [editErrorMessage, setEditErrorMessage] = useState("");
+  const [deleteErrorMessage, setDeleteErrorMessage] = useState("");
 
   const loadBudgets = useCallback(async () => {
-    if (!userId) {
+    const token = getStoredToken();
+
+    if (!userId || !token) {
       setBudgets([]);
       setEditErrorMessage("Please log in again to load budgets.");
       return [];
     }
 
     try {
-      const res = await fetch(`${API_BASE_URL}/budget/list?user_id=${userId}`);
+      const res = await fetch(`${API_BASE_URL}/budget/list`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
       const data = await res.json().catch(() => ({}));
 
       if (!res.ok) {
@@ -460,6 +467,7 @@ function Budget() {
 
   const openDelete = (budget) => {
     setSelectedBudget(budget);
+    setDeleteErrorMessage("");
     setDeleteOpen(true);
   };
 
@@ -489,12 +497,19 @@ function Budget() {
 
     try {
       setEditErrorMessage("");
+      const token = getStoredToken();
+
+      if (!token) {
+        throw new Error("Please log in again to manage budgets.");
+      }
 
       const response = await fetch(`${API_BASE_URL}/budget/edit`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
         body: JSON.stringify({
-          user_id: userId,
           budget_id: selectedBudget.budget_id,
           name: editName,
           amount: Number(amount),
@@ -526,24 +541,39 @@ function Budget() {
     }
   };
 
-  const deleteBudget = () => {
+  const deleteBudget = async () => {
     if (!selectedBudget?.budget_id || !userId) {
       return;
     }
 
-    fetch(`${API_BASE_URL}/budget/${selectedBudget.budget_id}`, {
-      method: "DELETE",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ user_id: userId })
-    }).then(() => {
+    try {
+      const token = getStoredToken();
+
+      if (!token) {
+        throw new Error("Please log in again to manage budgets.");
+      }
+
+      const response = await fetch(`${API_BASE_URL}/budget/${selectedBudget.budget_id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(data.error || "Unable to delete budget.");
+      }
+
+      setDeleteErrorMessage("");
       setDeleteOpen(false);
       if (isDetailOpen) {
         closeBudgetDetails();
       }
       loadBudgets();
-    });
+    } catch (error) {
+      setDeleteErrorMessage(error.message || "Unable to delete budget.");
+    }
   };
 
   const categoryHistory = useMemo(() => {
@@ -683,10 +713,15 @@ function Budget() {
               <FaTimes className="close-icon" onClick={() => setDeleteOpen(false)} />
             </div>
 
-            <div className="warning-box">
-              <p className="delete-main">
-                Are you sure you want to delete <b>{selectedBudget?.name}</b>?
-              </p>
+             <div className="warning-box">
+               {deleteErrorMessage && (
+                 <div className="modal-error-banner">
+                   {deleteErrorMessage}
+                 </div>
+               )}
+               <p className="delete-main">
+                 Are you sure you want to delete <b>{selectedBudget?.name}</b>?
+               </p>
               <p className="delete-sub">
                 This action cannot be undone. All transactions in this category will be permanently deleted.
               </p>

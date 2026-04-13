@@ -159,9 +159,7 @@ const syncBudgetLifecycle = async (userId) => {
   };
 };
 const getRequestedUserId = (req) => {
-  const body = req.body || {};
-  const query = req.query || {};
-  const rawUserId = req.user?.user_id || req.user?.id || body.user_id || query.user_id;
+  const rawUserId = req.user?.user_id || req.user?.id;
   const parsedUserId = Number(rawUserId);
   return Number.isInteger(parsedUserId) && parsedUserId > 0 ? parsedUserId : null;
 };
@@ -315,7 +313,7 @@ exports.getBudgets = async (req, res) => {
   }
 };
 exports.addBudget = async (req, res) => {
-  const { name, amount, icon, user_id, month, color, start_date, end_date } = req.body;
+  const { name, amount, icon, month, color, start_date, end_date } = req.body;
   const normalizedName = typeof name === "string" ? name.trim() : "";
   if (!normalizedName || !amount) {
     return res.status(400).json({ error: "Name and amount are required" });
@@ -323,7 +321,7 @@ exports.addBudget = async (req, res) => {
   if (start_date && end_date && start_date > end_date) {
     return res.status(400).json({ error: "End date must be after start date" });
   }
-  const resolvedUserId = Number(getUserId(req) || user_id);
+  const resolvedUserId = getUserId(req);
   if (!Number.isInteger(resolvedUserId) || resolvedUserId <= 0) {
     return res.status(401).json({ error: "Valid user_id is required" });
   }

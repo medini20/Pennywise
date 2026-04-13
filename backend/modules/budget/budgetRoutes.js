@@ -2,12 +2,15 @@ const express = require("express");
 
 const router = express.Router();
 
+const { requireAuth } = require("../../middleware/authMiddleware");
 const {
   getBudgets,
   addBudget,
   editBudget,
   deleteBudget
 } = require("./budgetController");
+
+router.use(requireAuth);
 
 router.get("/list", getBudgets);
 

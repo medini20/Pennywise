@@ -10,7 +10,7 @@ import {
   X
 } from "lucide-react";
 import AestheticDatePicker from "../components/AestheticDatePicker";
-import { getStoredUser } from "../services/authStorage";
+import { getStoredToken, getStoredUser } from "../services/authStorage";
 import {
   formatDateRange,
   getCurrentMonthDateRange,
@@ -200,9 +200,16 @@ export default function AlertsView() {
     }
 
     try {
+      const token = getStoredToken();
       const [alertsResponse, budgetsResponse] = await Promise.all([
         fetch(`${API_BASE_URL}/alerts/data?user_id=${userId}`),
-        fetch(`${API_BASE_URL}/budget/list?user_id=${userId}`).catch(() => null)
+        fetch(`${API_BASE_URL}/budget/list`, {
+          headers: token
+            ? {
+                Authorization: `Bearer ${token}`
+              }
+            : {}
+        }).catch(() => null)
       ]);
       const data = await alertsResponse.json();
       const budgetsData = budgetsResponse

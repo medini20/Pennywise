@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { FaTimes } from "react-icons/fa";
 import AestheticDatePicker from "../components/AestheticDatePicker";
-import { getStoredUser } from "../services/authStorage";
+import { getStoredToken, getStoredUser } from "../services/authStorage";
 import { getCurrentMonthDateRange } from "../utils/budgetDates";
 import "./Category.css";
 import { API_BASE_URL } from "../config/api";
@@ -124,6 +124,12 @@ export default function Category({ closeCategory, addNewCategory }) {
       return;
     }
 
+    const token = getStoredToken();
+    if (!token) {
+      setErrorMessage("Please log in again before creating a budget category.");
+      return;
+    }
+
     if (startDate > endDate) {
       setErrorMessage("Start date must be on or before end date.");
       return;
@@ -136,7 +142,6 @@ export default function Category({ closeCategory, addNewCategory }) {
       name,
       amount: Number(amount),
       icon: selectedIcon,
-      user_id: userId,
       month: getMonthNumberFromDate(startDate),
       start_date: startDate,
       end_date: endDate
@@ -144,7 +149,10 @@ export default function Category({ closeCategory, addNewCategory }) {
 
     fetch(`${API_BASE_URL}/budget/add`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`
+      },
       body: JSON.stringify(budgetData)
     })
       .then(async (res) => {
