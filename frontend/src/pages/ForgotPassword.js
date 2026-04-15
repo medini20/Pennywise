@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import useIsMobile from "../hooks/useIsMobile";
 import { API_BASE_URL } from "../config/api";
+import PasswordField from "../components/PasswordField";
+import "./ForgotPassword.css";
 
 function ForgotPassword() {
   const [email, setEmail] = useState("");
@@ -118,6 +120,7 @@ function ForgotPassword() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              className="forgot-password-input-theme"
               style={{ ...styles.input, ...(isMobile ? mobileStyles.input : {}) }}
               placeholder="Email"
               required
@@ -139,6 +142,7 @@ function ForgotPassword() {
             <input
               type="email"
               value={email}
+              className="forgot-password-input-theme"
               style={{ ...styles.input, ...(isMobile ? mobileStyles.input : {}), opacity: 0.6 }}
               disabled
             />
@@ -148,6 +152,7 @@ function ForgotPassword() {
                 type="text"
                 value={otpCode}
                 onChange={(e) => setOtpCode(e.target.value)}
+                className="forgot-password-input-theme"
                 style={{ ...styles.input, ...(isMobile ? mobileStyles.input : {}), flex: 1 }}
                 placeholder="Enter OTP"
                 required
@@ -165,10 +170,12 @@ function ForgotPassword() {
             </div>
 
             <div>
-              <input
-                type="password"
+              <PasswordField
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
+                className="forgot-password-input-theme"
+                autoComplete="new-password"
+                iconColor="#ffffff"
                 style={{ ...styles.input, ...(isMobile ? mobileStyles.input : {}) }}
                 placeholder="New Password"
                 required
@@ -189,10 +196,12 @@ function ForgotPassword() {
                   </span>
                 )}
               </div>
-              <input
-                type="password"
+              <PasswordField
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
+                className="forgot-password-input-theme"
+                autoComplete="new-password"
+                iconColor="#ffffff"
                 style={{
                   ...styles.input,
                   ...(isMobile ? mobileStyles.input : {}),
@@ -301,7 +310,7 @@ const styles = {
     width: "100%",
     padding: "14px 18px",
     borderRadius: "6px",
-    background: "transparent",
+    background: "#0f1433",
     border: "1px solid rgba(255, 255, 255, 0.25)",
     color: "#ffffff",
     fontSize: "15px",

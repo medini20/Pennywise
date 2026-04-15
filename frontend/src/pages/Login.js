@@ -3,6 +3,8 @@ import { useNavigate, Link } from "react-router-dom";
 import { hasValidSession, saveStoredSession } from "../services/authStorage";
 import useIsMobile from "../hooks/useIsMobile";
 import { API_BASE_URL } from "../config/api";
+import PasswordField from "../components/PasswordField";
+import "./Login.css";
 const API_DOWN_MESSAGE = `Cannot reach backend server (${API_BASE_URL}). Start backend with 'cd backend && npm start' or run 'start-dev.cmd'.`;
 const sanitizeServerMessage = (value, fallback) => {
   if (typeof value !== "string" || !value.trim()) {
@@ -80,15 +82,19 @@ function Login() {
             placeholder="Username or Email"
             value={name}
             onChange={(e) => setUsername(e.target.value)}
+            className="login-input-theme"
+            autoComplete="username"
             style={{ ...styles.input, ...(isMobile ? mobileStyles.input : {}) }}
             required
           />
 
-          <input
-            type="password"
+          <PasswordField
             placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            className="login-input-theme"
+            autoComplete="current-password"
+            iconColor="#111111"
             style={{ ...styles.input, ...(isMobile ? mobileStyles.input : {}) }}
             required
           />
@@ -177,9 +183,9 @@ const styles = {
   input: {
     padding: "14px 18px",
     borderRadius: "6px",
-    background: "transparent",
+    background: "#dce6f7",
     border: "1px solid rgba(255, 255, 255, 0.25)",
-    color: "#ffffff",
+    color: "#111111",
     fontSize: "15px",
     outline: "none",
     transition: "border-color 0.3s",
