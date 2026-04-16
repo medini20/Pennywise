@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import useIsMobile from "../hooks/useIsMobile";
 import { API_BASE_URL } from "../config/api";
+import { isStrongPassword, PASSWORD_RULE_MESSAGE } from "../utils/passwordRules";
 
 function ForgotPassword() {
   const [email, setEmail] = useState("");
@@ -55,6 +56,12 @@ function ForgotPassword() {
 
     if (newPassword !== confirmPassword) {
       setError("Passwords do not match.");
+      setLoading(false);
+      return;
+    }
+
+    if (!isStrongPassword(newPassword)) {
+      setError(PASSWORD_RULE_MESSAGE);
       setLoading(false);
       return;
     }
@@ -173,6 +180,9 @@ function ForgotPassword() {
                 placeholder="New Password"
                 required
               />
+              <p style={styles.helperText}>
+                Use 8+ characters with uppercase, lowercase, numbers, and symbols.
+              </p>
             </div>
 
             <div>
@@ -312,7 +322,7 @@ const styles = {
   helperText: {
     fontSize: "12px",
     color: "#6b7280",
-    marginTop: "-6px",
+    marginTop: "8px",
     lineHeight: "1.5"
   },
   button: {

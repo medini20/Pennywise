@@ -134,4 +134,38 @@ describe("userController OTP protections", () => {
       "DELETE FROM otps WHERE email = ? AND purpose = 'PASSWORD_RESET'"
     );
   });
+
+  test("rejects weak passwords during signup", async () => {
+    const request = {
+      body: {
+        name: "sampleuser",
+        email: "user@example.com",
+        password: "weakpass"
+      }
+    };
+    const response = createResponse();
+
+    await userController.signup(request, response);
+
+    expect(response.statusCode).toBe(400);
+    expect(response.body.error).toMatch(/at least 8 characters/i);
+    expect(response.body.error).toMatch(/uppercase/i);
+  });
+
+  test("rejects weak passwords during change password", async () => {
+    const request = {
+      user: { id: 1 },
+      body: {
+        oldPassword: "OldPass@123",
+        newPassword: "weakpass"
+      }
+    };
+    const response = createResponse();
+
+    await userController.changePassword(request, response);
+
+    expect(response.statusCode).toBe(400);
+    expect(response.body.error).toMatch(/at least 8 characters/i);
+    expect(response.body.error).toMatch(/special character/i);
+  });
 });

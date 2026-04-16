@@ -3,6 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { saveStoredSession } from "../services/authStorage";
 import useIsMobile from "../hooks/useIsMobile";
 import { API_BASE_URL } from "../config/api";
+import { isStrongPassword, PASSWORD_RULE_MESSAGE } from "../utils/passwordRules";
 
 const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID;
 const SHOW_GOOGLE_SIGNIN = false;
@@ -11,8 +12,8 @@ const SHOW_GOOGLE_SIGNIN = false;
 const getPasswordStrength = (password) => {
   if (!password) return { score: 0, label: "", color: "transparent" };
   let score = 0;
-  if (password.length >= 6) score++;
-  if (password.length >= 10) score++;
+  if (password.length >= 8) score++;
+  if (/[a-z]/.test(password)) score++;
   if (/[A-Z]/.test(password)) score++;
   if (/[0-9]/.test(password)) score++;
   if (/[^A-Za-z0-9]/.test(password)) score++;
@@ -127,6 +128,12 @@ function Signup() {
 
     if (formData.password !== confirmPassword) {
       setError("Passwords do not match.");
+      setLoading(false);
+      return;
+    }
+
+    if (!isStrongPassword(formData.password)) {
+      setError(PASSWORD_RULE_MESSAGE);
       setLoading(false);
       return;
     }
@@ -282,7 +289,7 @@ function Signup() {
                 </div>
               )}
               <p style={{ fontSize: "12px", color: "#6b7280", marginTop: "6px" }}>
-                Use 8+ characters with uppercase, numbers & symbols
+                Use 8+ characters with uppercase, lowercase, numbers, and symbols
               </p>
             </div>
 

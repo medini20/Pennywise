@@ -180,4 +180,64 @@ describe("Profile page", () => {
     ).toBeInTheDocument();
     expect(global.fetch).toHaveBeenCalledTimes(1);
   });
+
+  test("rejects weak new password before submitting", async () => {
+    render(<Profile />);
+    await screen.findByRole("heading", { name: "Server User" });
+
+    await userEvent.click(screen.getByRole("button", { name: "Reset" }));
+    await userEvent.type(screen.getByLabelText("Old Password"), "OldPass@123");
+    await userEvent.type(screen.getByLabelText("New Password"), "weakpass");
+    await userEvent.type(screen.getByLabelText("Confirm New Password"), "weakpass");
+    await userEvent.click(screen.getByRole("button", { name: /save new password/i }));
+
+    expect(
+      await screen.findByText(
+        "Password must be at least 8 characters and include uppercase, lowercase, number, and special character."
+      )
+    ).toBeInTheDocument();
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  test("deletes account after confirmation and redirects to login", async () => {
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          username: "Server User",
+          email: "server@example.com"
+        })
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          message: "Account deleted successfully."
+        })
+      );
+
+    render(<Profile />);
+    await screen.findByRole("heading", { name: "Server User" });
+
+    await userEvent.click(screen.getByRole("button", { name: /delete account/i }));
+    await userEvent.type(screen.getByLabelText("Current Password"), "current-password");
+    await userEvent.click(screen.getByRole("button", { name: /delete my account/i }));
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenNthCalledWith(
+        2,
+        "http://localhost:5001/api/profile",
+        expect.objectContaining({
+          method: "DELETE",
+          headers: expect.objectContaining({
+            Authorization: "Bearer valid-token"
+          }),
+          body: JSON.stringify({
+            password: "current-password"
+          })
+        })
+      );
+    });
+
+    expect(clearStoredSession).toHaveBeenCalled();
+    expect(mockNavigate).toHaveBeenCalledWith("/login");
+  });
 });

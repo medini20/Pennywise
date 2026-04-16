@@ -1,4 +1,5 @@
 const db = require("../../config/db");
+const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const JWT_SECRET = require("../../utils/jwtSecret");
 
@@ -13,6 +14,8 @@ const isValidEmail = (value) =>
   /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim()) &&
   value.trim().length <= 254;
 const UNKNOWN_COLUMN_REGEX = /Unknown column/i;
+const isBcryptHash = (value) =>
+  typeof value === "string" && /^\$2[aby]\$\d{2}\$/.test(value);
 
 const extractRequestUserId = (user = {}) => {
   const candidates = [user.id, user.user_id];
@@ -130,6 +133,22 @@ const findProfileConflict = async ({ userId, username, email }) => {
 
 const createProfileToken = ({ userId, username }) =>
   jwt.sign({ id: userId, username }, JWT_SECRET, { expiresIn: "1d" });
+
+const withTransaction = async (callback) => {
+  const connection = await db.promise().getConnection();
+
+  try {
+    await connection.beginTransaction();
+    const result = await callback(connection);
+    await connection.commit();
+    return result;
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+};
 
 const resolveUserIdFromToken = async (user = {}) => {
   const directUserId = extractRequestUserId(user);
@@ -380,5 +399,154 @@ exports.updateProfile = async (req, res) => {
     }
 
     return res.status(500).json({ message: "Unable to update profile right now." });
+  }
+};
+
+exports.deleteAccount = async (req, res) => {
+  const currentPassword = req.body?.password;
+
+  if (typeof currentPassword !== "string" || !currentPassword) {
+    return res.status(400).json({ message: "Current password is required" });
+  }
+
+  try {
+    const userId = await resolveUserIdFromToken(req.user);
+    if (!userId) {
+      return res.status(401).json({ message: "Invalid user session" });
+    }
+
+    const deletedUser = await withTransaction(async (connection) => {
+      let users = [];
+      try {
+        [users] = await connection.query(
+          `
+            SELECT user_id, email, password_hash
+            FROM users
+            WHERE user_id = ?
+            LIMIT 1
+          `,
+          [userId]
+        );
+      } catch (error) {
+        if (!UNKNOWN_COLUMN_REGEX.test(error.message)) {
+          throw error;
+        }
+
+        try {
+          [users] = await connection.query(
+            `
+              SELECT user_id, email, password
+              FROM users
+              WHERE user_id = ?
+              LIMIT 1
+            `,
+            [userId]
+          );
+        } catch (fallbackError) {
+          if (!UNKNOWN_COLUMN_REGEX.test(fallbackError.message)) {
+            throw fallbackError;
+          }
+
+          try {
+            [users] = await connection.query(
+              `
+                SELECT id AS user_id, email, password_hash
+                FROM users
+                WHERE id = ?
+                LIMIT 1
+              `,
+              [userId]
+            );
+          } catch (legacyIdError) {
+            if (!UNKNOWN_COLUMN_REGEX.test(legacyIdError.message)) {
+              throw legacyIdError;
+            }
+
+            [users] = await connection.query(
+              `
+                SELECT id AS user_id, email, password
+                FROM users
+                WHERE id = ?
+                LIMIT 1
+              `,
+              [userId]
+            );
+          }
+        }
+      }
+
+      if (users.length === 0) {
+        return null;
+      }
+
+      const userEmail = normalizeText(users[0].email).toLowerCase();
+      const storedPassword = users[0].password_hash || users[0].password || "";
+      const isCurrentPasswordValid = isBcryptHash(storedPassword)
+        ? await bcrypt.compare(currentPassword, storedPassword)
+        : currentPassword === storedPassword;
+
+      if (!isCurrentPasswordValid) {
+        return false;
+      }
+
+      const [recurringPayments] = await connection.query(
+        `
+          SELECT recurring_payment_id
+          FROM recurring_payments
+          WHERE user_id = ?
+        `,
+        [userId]
+      );
+
+      const recurringPaymentIds = recurringPayments
+        .map((row) => Number(row.recurring_payment_id))
+        .filter((value) => Number.isInteger(value) && value > 0);
+
+      if (recurringPaymentIds.length > 0) {
+        const recurringPlaceholders = recurringPaymentIds.map(() => "?").join(", ");
+        await connection.query(
+          `
+            DELETE FROM recurring_payment_exceptions
+            WHERE recurring_payment_id IN (${recurringPlaceholders})
+          `,
+          recurringPaymentIds
+        );
+      }
+
+      await connection.query("DELETE FROM alerts WHERE user_id = ?", [userId]);
+      await connection.query("DELETE FROM recurring_payments WHERE user_id = ?", [userId]);
+      await connection.query("DELETE FROM transactions WHERE user_id = ?", [userId]);
+      await connection.query("DELETE FROM categories WHERE user_id = ?", [userId]);
+      await connection.query("DELETE FROM budgets WHERE user_id = ?", [userId]);
+
+      if (userEmail) {
+        await connection.query("DELETE FROM otps WHERE email = ?", [userEmail]);
+      }
+
+      let deleteResult;
+      try {
+        [deleteResult] = await connection.query("DELETE FROM users WHERE user_id = ?", [userId]);
+      } catch (error) {
+        if (!UNKNOWN_COLUMN_REGEX.test(error.message)) {
+          throw error;
+        }
+
+        [deleteResult] = await connection.query("DELETE FROM users WHERE id = ?", [userId]);
+      }
+
+      return deleteResult.affectedRows > 0 ? users[0] : null;
+    });
+
+    if (deletedUser === false) {
+      return res.status(400).json({ message: "Current password is incorrect" });
+    }
+
+    if (!deletedUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    return res.json({ message: "Account deleted successfully." });
+  } catch (error) {
+    return res.status(500).json({ message: "Unable to delete account right now." });
   }
 };

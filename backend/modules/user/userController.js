@@ -60,6 +60,11 @@ const isValidEmail = (value) =>
   typeof value === "string" &&
   /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim()) &&
   value.trim().length <= 254;
+const isStrongPassword = (value) =>
+  typeof value === "string" &&
+  /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/.test(value);
+const STRONG_PASSWORD_MESSAGE =
+  "Password must be at least 8 characters and include uppercase, lowercase, number, and special character";
 
 const createExpiryDate = () =>
   new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
@@ -325,8 +330,8 @@ exports.signup = async (req, res) => {
     return res.status(400).json({ error: "Please provide a valid email address" });
   }
 
-  if (typeof password !== "string" || password.length < 8) {
-    return res.status(400).json({ error: "Password must be at least 8 characters long" });
+  if (!isStrongPassword(password)) {
+    return res.status(400).json({ error: STRONG_PASSWORD_MESSAGE });
   }
 
   try {
@@ -540,8 +545,8 @@ exports.changePassword = async (req, res) => {
     return res.status(400).json({ error: "Old password and new password are required" });
   }
 
-  if (typeof newPassword !== "string" || newPassword.length < 8) {
-    return res.status(400).json({ error: "New password must be at least 8 characters long" });
+  if (!isStrongPassword(newPassword)) {
+    return res.status(400).json({ error: STRONG_PASSWORD_MESSAGE });
   }
 
   if (oldPassword === newPassword) {
@@ -690,8 +695,8 @@ exports.resetPassword = async (req, res) => {
     return res.status(400).json({ error: "Please provide a valid email address" });
   }
 
-  if (typeof newPassword !== "string" || newPassword.length < 8) {
-    return res.status(400).json({ error: "New password must be at least 8 characters long" });
+  if (!isStrongPassword(newPassword)) {
+    return res.status(400).json({ error: STRONG_PASSWORD_MESSAGE });
   }
 
   const attemptKey = getOtpAttemptKey(email, "password-reset-verify", req);

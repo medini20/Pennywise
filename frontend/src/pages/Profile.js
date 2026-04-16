@@ -2,7 +2,7 @@
 import "./Profile.css";
 import Webcam from "react-webcam";
 import { useNavigate } from "react-router-dom";
-import { FaCheck, FaLock, FaPen, FaTimes } from "react-icons/fa";
+import { FaCheck, FaEye, FaEyeSlash, FaLock, FaPen, FaTimes, FaTrashAlt } from "react-icons/fa";
 import {
   clearStoredSession,
   getStoredUser,
@@ -11,6 +11,7 @@ import {
   updateStoredUser as syncStoredUser
 } from "../services/authStorage";
 import { API_BASE_URL } from "../config/api";
+import { isStrongPassword, PASSWORD_RULE_MESSAGE } from "../utils/passwordRules";
 const API_DOWN_MESSAGE = `Cannot reach backend server (${API_BASE_URL}). Start backend and try again.`;
 const DEFAULT_PROFILE_IMAGE = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png";
 const PROFILE_IMAGE_KEY_PREFIX = "profile_image";
@@ -95,6 +96,12 @@ function Profile() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordMessage, setPasswordMessage] = useState("");
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+  const [showOldPassword, setShowOldPassword] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deleteMessage, setDeleteMessage] = useState("");
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [showDeletePassword, setShowDeletePassword] = useState(false);
 
   const updateSavedUser = (nextUsername, nextEmail) => {
     syncStoredUser({
@@ -221,12 +228,34 @@ function Profile() {
     setNewPassword("");
     setConfirmPassword("");
     setPasswordMessage("");
+    setShowOldPassword(false);
   };
 
   const openPasswordReset = () => {
     resetPasswordForm();
     setShowPasswordReset(true);
     setStatusMessage("");
+  };
+
+  const resetDeleteAccountState = () => {
+    setDeletePassword("");
+    setDeleteMessage("");
+    setShowDeletePassword(false);
+  };
+
+  const openDeleteModal = () => {
+    resetDeleteAccountState();
+    setShowDeleteModal(true);
+    setStatusMessage("");
+  };
+
+  const closeDeleteModal = (forceClose = false) => {
+    if (isDeletingAccount && !forceClose) {
+      return;
+    }
+
+    setShowDeleteModal(false);
+    resetDeleteAccountState();
   };
 
   const closePasswordReset = (forceClose = false) => {
@@ -344,8 +373,8 @@ function Profile() {
       return;
     }
 
-    if (newPassword.length < 8) {
-      setPasswordMessage("New password must be at least 8 characters long.");
+    if (!isStrongPassword(newPassword)) {
+      setPasswordMessage(PASSWORD_RULE_MESSAGE);
       return;
     }
 
@@ -410,6 +439,76 @@ function Profile() {
       );
     } finally {
       setIsUpdatingPassword(false);
+    }
+  };
+
+  const deleteAccount = async (event) => {
+    event.preventDefault();
+    setDeleteMessage("");
+
+    const token = getStoredToken();
+    if (!token) {
+      clearStoredSession();
+      navigate("/login");
+      return;
+    }
+
+    if (!deletePassword) {
+      setDeleteMessage("Current password is required.");
+      return;
+    }
+
+    try {
+      setIsDeletingAccount(true);
+      const res = await fetch(`${API_BASE_URL}/api/profile`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          password: deletePassword
+        })
+      });
+
+      let data = {};
+      try {
+        data = await res.json();
+      } catch (parseError) {
+        data = {};
+      }
+
+      if (res.status === 401) {
+        clearStoredSession();
+        navigate("/login");
+        return;
+      }
+
+      if (!res.ok) {
+        setDeleteMessage(
+          sanitizeProfileMessage(
+            data.message || data.error,
+            "Unable to delete account right now."
+          )
+        );
+        return;
+      }
+
+      closeDeleteModal(true);
+      clearStoredSession();
+      profileImageStorageKeyRef.current && localStorage.removeItem(profileImageStorageKeyRef.current);
+      navigate("/login");
+    } catch (error) {
+      if (error?.name === "TypeError") {
+        setDeleteMessage(API_DOWN_MESSAGE);
+        return;
+      }
+
+      setDeleteMessage(
+        sanitizeProfileMessage(error.message, "Unable to delete account right now.")
+      );
+    } finally {
+      setIsDeletingAccount(false);
     }
   };
 
@@ -588,16 +687,26 @@ function Profile() {
               <label className="profile-password-label" htmlFor="oldPasswordInput">
                 Old Password
               </label>
-              <input
-                id="oldPasswordInput"
-                type="password"
-                className="profile-password-input"
-                value={oldPassword}
-                onChange={(event) => setOldPassword(event.target.value)}
-                placeholder="Enter your current password"
-                autoComplete="current-password"
-                required
-              />
+              <div className="profile-password-input-wrap">
+                <input
+                  id="oldPasswordInput"
+                  type={showOldPassword ? "text" : "password"}
+                  className="profile-password-input profile-password-input-with-toggle"
+                  value={oldPassword}
+                  onChange={(event) => setOldPassword(event.target.value)}
+                  placeholder="Enter your current password"
+                  autoComplete="current-password"
+                  required
+                />
+                <button
+                  type="button"
+                  className="profile-password-toggle"
+                  onClick={() => setShowOldPassword((current) => !current)}
+                  aria-label={showOldPassword ? "Hide password" : "Show password"}
+                >
+                  {showOldPassword ? <FaEyeSlash /> : <FaEye />}
+                </button>
+              </div>
 
               <label className="profile-password-label" htmlFor="newPasswordInput">
                 New Password
@@ -637,6 +746,75 @@ function Profile() {
                 disabled={isUpdatingPassword}
               >
                 {isUpdatingPassword ? "Saving..." : "Save New Password"}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showDeleteModal && (
+        <div className="profile-popup" onMouseDown={() => closeDeleteModal()}>
+          <div
+            className="profile-password-modal profile-danger-modal"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className="profile-password-header">
+              <div className="profile-password-heading">
+                <div>
+                  <h3>Delete Account</h3>
+                  <p>This action permanently removes your account and finance history.</p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                className="profile-password-close"
+                onClick={() => closeDeleteModal()}
+                aria-label="Close delete account dialog"
+              >
+                <FaTimes />
+              </button>
+            </div>
+
+            <form className="profile-password-form" onSubmit={deleteAccount}>
+              <div className="profile-danger-copy">
+                Enter your current password to continue. Your profile, budgets,
+                categories, alerts, recurring payments, and transactions will be removed.
+              </div>
+
+              <label className="profile-password-label" htmlFor="deleteAccountInput">
+                Current Password
+              </label>
+              <div className="profile-password-input-wrap">
+                <input
+                  id="deleteAccountInput"
+                  type={showDeletePassword ? "text" : "password"}
+                  className="profile-password-input profile-password-input-with-toggle"
+                  value={deletePassword}
+                  onChange={(event) => setDeletePassword(event.target.value)}
+                  placeholder="Enter your current password"
+                  autoComplete="current-password"
+                />
+                <button
+                  type="button"
+                  className="profile-password-toggle"
+                  onClick={() => setShowDeletePassword((current) => !current)}
+                  aria-label={showDeletePassword ? "Hide password" : "Show password"}
+                >
+                  {showDeletePassword ? <FaEyeSlash /> : <FaEye />}
+                </button>
+              </div>
+
+              {deleteMessage && (
+                <div className="profile-password-status profile-danger-status">{deleteMessage}</div>
+              )}
+
+              <button
+                type="submit"
+                className="change-btn profile-password-submit profile-danger-submit"
+                disabled={isDeletingAccount}
+              >
+                {isDeletingAccount ? "Deleting..." : "Delete My Account"}
               </button>
             </form>
           </div>
@@ -720,6 +898,29 @@ function Profile() {
               onClick={openPasswordReset}
             >
               Reset
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="profile-card profile-danger-card">
+        <div className="profile-card-content">
+          <div className="profile-section-title">Delete Account</div>
+          <div className="profile-field-row profile-danger-row">
+            <div className="profile-danger-details">
+              <span className="value profile-inline-value">Remove your account</span>
+              <span className="profile-danger-subtext">
+                Permanently delete your Pennywise account and saved data.
+              </span>
+            </div>
+            <button
+              type="button"
+              className="profile-action-btn profile-danger-action"
+              onClick={openDeleteModal}
+              aria-label="Delete account"
+              title="Delete account"
+            >
+              <FaTrashAlt />
             </button>
           </div>
         </div>

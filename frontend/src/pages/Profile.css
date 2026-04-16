@@ -189,13 +189,16 @@
 .profile-action-btn {
   background: linear-gradient(135deg, #203667, #1d2f5c);
   border: 1px solid rgba(82, 113, 186, 0.24);
-  border: none;
   color: #ffffff;
   padding: 10px 18px;
   border-radius: 12px;
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 
 .logout-btn {
@@ -361,6 +364,31 @@
   outline: none;
 }
 
+.profile-password-input-wrap {
+  position: relative;
+}
+
+.profile-password-input-with-toggle {
+  padding-right: 48px;
+}
+
+.profile-password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 14px;
+  transform: translateY(-50%);
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: #9aa4c6;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+}
+
 .profile-password-input:focus {
   border-color: #3b82f6;
 }
@@ -386,6 +414,67 @@
 .profile-password-submit:disabled {
   opacity: 0.65;
   cursor: not-allowed;
+}
+
+.profile-danger-card {
+  background: rgba(20, 30, 64, 0.86);
+  border-color: rgba(59, 130, 246, 0.12);
+}
+
+.profile-danger-row {
+  border-color: rgba(82, 113, 186, 0.24);
+  background: #101937;
+}
+
+.profile-danger-details {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.profile-danger-subtext {
+  color: #9aa4c6;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.profile-danger-action {
+  background: linear-gradient(135deg, #b91c1c, #dc2626);
+  border-color: rgba(252, 165, 165, 0.26);
+  box-shadow: 0 12px 24px rgba(153, 27, 27, 0.26);
+  width: 42px;
+  min-width: 42px;
+  height: 42px;
+  padding: 0;
+  border-radius: 12px;
+  font-size: 16px;
+}
+
+.profile-danger-modal {
+  width: 430px;
+  background: linear-gradient(180deg, #182349 0%, #141d3a 100%);
+}
+
+.profile-danger-copy {
+  border: 1px solid rgba(84, 113, 185, 0.24);
+  border-radius: 14px;
+  background: #101937;
+  color: #dbeafe;
+  padding: 12px 14px;
+  line-height: 1.5;
+  font-size: 14px;
+}
+
+.profile-danger-status {
+  border-color: rgba(96, 165, 250, 0.35);
+  background: rgba(59, 130, 246, 0.12);
+  color: #dbeafe;
+}
+
+.profile-danger-submit {
+  background: linear-gradient(135deg, #b91c1c, #dc2626);
 }
 
 .camera-modal {
@@ -439,5 +528,14 @@
 
   .profile-password-submit {
     font-size: 15px;
+  }
+
+  .profile-field-row,
+  .profile-danger-row {
+    align-items: flex-start;
+  }
+
+  .profile-danger-action {
+    width: 42px;
   }
 }
