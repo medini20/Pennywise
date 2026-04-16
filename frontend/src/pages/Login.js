@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { FaEye, FaEyeSlash } from "react-icons/fa";
 import { hasValidSession, saveStoredSession } from "../services/authStorage";
 import useIsMobile from "../hooks/useIsMobile";
 import { API_BASE_URL } from "../config/api";
+import PasswordField from "../components/PasswordField";
+import "./Login.css";
 const API_DOWN_MESSAGE = `Cannot reach backend server (${API_BASE_URL}). Start backend with 'cd backend && npm start' or run 'start-dev.cmd'.`;
 const sanitizeServerMessage = (value, fallback) => {
   if (typeof value !== "string" || !value.trim()) {
@@ -18,7 +19,6 @@ const sanitizeServerMessage = (value, fallback) => {
 function Login() {
   const [name, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const navigate = useNavigate();
   const isMobile = useIsMobile();
@@ -82,32 +82,22 @@ function Login() {
             placeholder="Username or Email"
             value={name}
             onChange={(e) => setUsername(e.target.value)}
+            className="login-input-theme"
+            autoComplete="username"
             style={{ ...styles.input, ...(isMobile ? mobileStyles.input : {}) }}
             required
           />
 
-          <div style={styles.passwordField}>
-            <input
-              type={showPassword ? "text" : "password"}
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              style={{
-                ...styles.input,
-                ...styles.passwordInput,
-                ...(isMobile ? mobileStyles.input : {})
-              }}
-              required
-            />
-            <button
-              type="button"
-              aria-label={showPassword ? "Hide password" : "Show password"}
-              onClick={() => setShowPassword((current) => !current)}
-              style={styles.passwordToggle}
-            >
-              {showPassword ? <FaEyeSlash /> : <FaEye />}
-            </button>
-          </div>
+          <PasswordField
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="login-input-theme"
+            autoComplete="current-password"
+            iconColor="#111111"
+            style={{ ...styles.input, ...(isMobile ? mobileStyles.input : {}) }}
+            required
+          />
 
           <button type="submit" style={{ ...styles.button, ...(isMobile ? mobileStyles.button : {}) }}>
             Login
@@ -193,37 +183,12 @@ const styles = {
   input: {
     padding: "14px 18px",
     borderRadius: "6px",
-    background: "transparent",
+    background: "#dce6f7",
     border: "1px solid rgba(255, 255, 255, 0.25)",
-    color: "#ffffff",
+    color: "#111111",
     fontSize: "15px",
     outline: "none",
     transition: "border-color 0.3s",
-  },
-  passwordField: {
-    position: "relative",
-    width: "100%"
-  },
-  passwordInput: {
-    width: "100%",
-    boxSizing: "border-box",
-    paddingRight: "52px"
-  },
-  passwordToggle: {
-    position: "absolute",
-    top: "50%",
-    right: "14px",
-    transform: "translateY(-50%)",
-    width: "28px",
-    height: "28px",
-    border: "none",
-    background: "transparent",
-    color: "rgba(255, 255, 255, 0.72)",
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    cursor: "pointer",
-    padding: 0
   },
   button: {
     marginTop: "10px",

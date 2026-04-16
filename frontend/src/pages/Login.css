@@ -1,0 +1,19 @@
+.login-input-theme {
+  background: #dce6f7 !important;
+  color: #111111 !important;
+}
+
+.login-input-theme::placeholder {
+  color: rgba(17, 17, 17, 0.6);
+}
+
+.login-input-theme:-webkit-autofill,
+.login-input-theme:-webkit-autofill:hover,
+.login-input-theme:-webkit-autofill:focus,
+.login-input-theme:-webkit-autofill:active {
+  -webkit-text-fill-color: #111111 !important;
+  -webkit-box-shadow: 0 0 0 1000px #dce6f7 inset !important;
+  box-shadow: 0 0 0 1000px #dce6f7 inset !important;
+  caret-color: #111111;
+  transition: background-color 9999s ease-in-out 0s;
+}

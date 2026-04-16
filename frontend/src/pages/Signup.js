@@ -4,6 +4,8 @@ import { saveStoredSession } from "../services/authStorage";
 import useIsMobile from "../hooks/useIsMobile";
 import { API_BASE_URL } from "../config/api";
 import { isStrongPassword, PASSWORD_RULE_MESSAGE } from "../utils/passwordRules";
+import PasswordField from "../components/PasswordField";
+import "./Signup.css";
 
 const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID;
 const SHOW_GOOGLE_SIGNIN = false;
@@ -239,6 +241,7 @@ function Signup() {
                 placeholder="Choose a name"
                 value={formData.name}
                 onChange={handleChange}
+                className="signup-input-theme"
                 style={{ ...styles.input, ...(isMobile ? mobileStyles.input : {}) }}
                 required
               />
@@ -252,6 +255,7 @@ function Signup() {
                 placeholder="Enter your email"
                 value={formData.email}
                 onChange={handleChange}
+                className="signup-input-theme"
                 style={{ ...styles.input, ...(isMobile ? mobileStyles.input : {}) }}
                 required
               />
@@ -269,12 +273,14 @@ function Signup() {
                   </span>
                 )}
               </div>
-              <input
-                type="password"
+              <PasswordField
                 name="password"
                 placeholder="Create a password"
                 value={formData.password}
                 onChange={handleChange}
+                className="signup-input-theme"
+                autoComplete="new-password"
+                iconColor="#ffffff"
                 style={{ ...styles.input, ...(isMobile ? mobileStyles.input : {}) }}
                 required
               />
@@ -307,12 +313,14 @@ function Signup() {
                   </span>
                 )}
               </div>
-              <input
-                type="password"
+              <PasswordField
                 name="confirmPassword"
                 placeholder="Re-enter your password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
+                className="signup-input-theme"
+                autoComplete="new-password"
+                iconColor="#ffffff"
                 style={{ ...styles.input, ...(isMobile ? mobileStyles.input : {}) }}
                 required
               />
@@ -481,7 +489,7 @@ const styles = {
     width: "100%",
     padding: "14px 18px",
     borderRadius: "6px",
-    background: "transparent",
+    background: "#0f1433",
     border: "1px solid rgba(255, 255, 255, 0.25)",
     color: "#ffffff",
     fontSize: "15px",

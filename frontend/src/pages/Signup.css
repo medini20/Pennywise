@@ -1,0 +1,24 @@
+.signup-input-theme {
+  background: #0f1433 !important;
+  color: #ffffff !important;
+}
+
+.signup-input-theme::placeholder {
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.signup-input-theme:-webkit-autofill,
+.signup-input-theme:-webkit-autofill:hover,
+.signup-input-theme:-webkit-autofill:focus,
+.signup-input-theme:-webkit-autofill:active {
+  -webkit-text-fill-color: #ffffff !important;
+  -webkit-box-shadow: 0 0 0 1000px #0f1433 inset !important;
+  box-shadow: 0 0 0 1000px #0f1433 inset !important;
+  caret-color: #ffffff;
+  transition: background-color 9999s ease-in-out 0s;
+}
+
+.signup-input-theme::-ms-reveal,
+.signup-input-theme::-ms-clear {
+  display: none;
+}
