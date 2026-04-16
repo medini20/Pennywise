@@ -10,6 +10,7 @@ const MONTH_OPTIONS = [
   "Jan", "Feb", "Mar", "Apr", "May", "Jun",
   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
 ];
+const MIN_TRANSACTION_YEAR = 2022;
 
 const CATEGORY_ICON_MAP = {
   food: "\uD83C\uDF7D\uFE0F",
@@ -120,11 +121,17 @@ export default function Records({ notifications = [], dismissNotification, onSpe
   const [transactions, setTransactions] = useState([]);
   const [filter, setFilter] = useState("all");
   const [selectedMonthIndex, setSelectedMonthIndex] = useState(currentDate.getMonth());
+  const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear());
   const [activeTransactionId, setActiveTransactionId] = useState(null);
   const [confirmDeleteTransactionId, setConfirmDeleteTransactionId] = useState(null);
   const [editingTransaction, setEditingTransaction] = useState(null);
   const [requestError, setRequestError] = useState("");
   const currentYear = currentDate.getFullYear();
+  const yearOptions = [];
+
+  for (let year = currentYear; year >= MIN_TRANSACTION_YEAR; year -= 1) {
+    yearOptions.push(year);
+  }
 
   useEffect(() => {
     if (!userId) {
@@ -144,7 +151,7 @@ export default function Records({ notifications = [], dismissNotification, onSpe
 
     return (
       transactionDate.getMonth() === selectedMonthIndex &&
-      transactionDate.getFullYear() === currentYear
+      transactionDate.getFullYear() === selectedYear
     );
   });
 
@@ -364,17 +371,33 @@ export default function Records({ notifications = [], dismissNotification, onSpe
         </div>
       </div>
 
-      <select
-        className="monthDropdown"
-        value={selectedMonthIndex}
-        onChange={(event) => setSelectedMonthIndex(Number(event.target.value))}
-      >
-        {MONTH_OPTIONS.map((month, index) => (
-          <option key={month} value={index}>
-            {month} {currentYear}
-          </option>
-        ))}
-      </select>
+      <div className="dateFilterTabs">
+        <select
+          aria-label="Month"
+          className="monthDropdown"
+          value={selectedMonthIndex}
+          onChange={(event) => setSelectedMonthIndex(Number(event.target.value))}
+        >
+          {MONTH_OPTIONS.map((month, index) => (
+            <option key={month} value={index}>
+              {month}
+            </option>
+          ))}
+        </select>
+
+        <select
+          aria-label="Year"
+          className="monthDropdown yearDropdown"
+          value={selectedYear}
+          onChange={(event) => setSelectedYear(Number(event.target.value))}
+        >
+          {yearOptions.map((year) => (
+            <option key={year} value={year}>
+              {year}
+            </option>
+          ))}
+        </select>
+      </div>
 
       <div className="tableHeader">
         <span>Date</span>
@@ -391,7 +414,7 @@ export default function Records({ notifications = [], dismissNotification, onSpe
 
         {transactions.length > 0 && visibleTransactions.length === 0 && (
           <div style={{ textAlign: "center", marginTop: "20px", color: "#9ca3af" }}>
-            No transactions found for {MONTH_OPTIONS[selectedMonthIndex]} {currentYear}
+            No transactions found for {MONTH_OPTIONS[selectedMonthIndex]} {selectedYear}
           </div>
         )}
 

@@ -262,7 +262,7 @@ describe("Records transaction flow", () => {
     expect(screen.queryByText("Trip booking")).not.toBeInTheDocument();
 
     await user.selectOptions(
-      screen.getByRole("combobox"),
+      screen.getByRole("combobox", { name: /month/i }),
       String(getAlternateMonthIndex())
     );
 
