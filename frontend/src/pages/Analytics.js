@@ -43,6 +43,7 @@ const fallbackCategoryPalette = [
 ];
 
 const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const MIN_ANALYTICS_YEAR = 2022;
 
 const formatAmount = (value) => `${INR}${Number(value || 0).toLocaleString("en-IN")}`;
 
@@ -170,15 +171,12 @@ function Analytics() {
     });
 
     const currentYear = new Date().getFullYear();
-    const yearsFromTransactions = Array.from(
-      new Set(
-        transactions
-          .map((transaction) => new Date(transaction.date).getFullYear())
-          .filter((year) => Number.isFinite(year))
-      )
-    );
-    const normalizedYears = Array.from(new Set([currentYear, selectedYear, ...yearsFromTransactions]))
-      .sort((firstYear, secondYear) => secondYear - firstYear);
+    const startYear = Math.min(MIN_ANALYTICS_YEAR, selectedYear);
+    const normalizedYears = [];
+
+    for (let year = currentYear; year >= startYear; year -= 1) {
+      normalizedYears.push(year);
+    }
 
     return {
       lineData: Array.from(expenseByTime, ([date, expense]) => ({ date, expense })),
